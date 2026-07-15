@@ -1,7 +1,7 @@
-import LeadPage from "./pages/lead/LeadPage";
+import LeadDetailsPage from "./pages/lead/LeadDetailsPage";
 
 function App() {
-  return <LeadPage />;
+  return <LeadDetailsPage />;
 }
 
 export default App;

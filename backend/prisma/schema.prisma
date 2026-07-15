@@ -32,11 +32,10 @@ model Employee {
   role   Role @relation(fields: [roleId], references: [id])
 
   teamLeaderId Int?
-  teamLeader   Employee?  @relation("TeamLeader", fields: [teamLeaderId], references: [id])
-  teamMembers  Employee[] @relation("TeamLeader")
+  teamLeader   Employee?  @relation("EmployeeHierarchy", fields: [teamLeaderId], references: [id])
+  teamMembers  Employee[] @relation("EmployeeHierarchy")
 
-  isActive Boolean @default(true)
-
+  isActive    Boolean   @default(true)
   joiningDate DateTime?
 
   createdAt DateTime @default(now())

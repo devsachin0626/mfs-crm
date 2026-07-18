@@ -4,14 +4,106 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ProductType {
+  RESEARCH
+  PRE_IPO
+  SIP
+  MUTUAL_FUND
+  IPO
+  INSURANCE
+  LOAN
+  PMS
+  OTHER
+}
+
+enum LeadStage {
+  NEW
+  WORKING
+  FOLLOW_UP
+  CONVERTED
+  LOST
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+  HOLIDAY
+}
+
+enum PaymentMode {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  CARD
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  REFUNDED
+}
+
+enum OrderStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+model Branch {
+  id         String  @id @default(cuid())
+  branchCode String  @unique
+  name       String
+  address    String?
+  city       String?
+  state      String?
+  mobile     String?
+  email      String?
+
+  isActive Boolean @default(true)
+
+  employees Employee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("branches")
 }
 
 model Role {
-  id          Int     @id @default(autoincrement())
+  id          String  @id @default(cuid())
   name        String  @unique
   description String?
 
-  employees Employee[]
+  employees   Employee[]
+  permissions RolePermission[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -19,37 +111,166 @@ model Role {
   @@map("roles")
 }
 
-model Employee {
-  id Int @id @default(autoincrement())
+model Permission {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  module      String
+  description String?
 
-  employeeCode String  @unique
-  name         String
-  mobile       String  @unique
-  email        String? @unique
-  password     String
-
-  roleId Int
-  role   Role @relation(fields: [roleId], references: [id])
-
-  teamLeaderId Int?
-  teamLeader   Employee?  @relation("EmployeeHierarchy", fields: [teamLeaderId], references: [id])
-  teamMembers  Employee[] @relation("EmployeeHierarchy")
-
-  isActive    Boolean   @default(true)
-  joiningDate DateTime?
+  roles RolePermission[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@map("permissions")
+}
+
+model RolePermission {
+  id String @id @default(cuid())
+
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Employee {
+  id String @id @default(cuid())
+
+  employeeCode String @unique
+
+  name   String
+  mobile String  @unique
+  email  String? @unique
+
+  password String
+
+  gender Gender?
+
+  dateOfBirth DateTime?
+
+  address String?
+
+  profileImage String?
+
+  joiningDate DateTime?
+
+  salary Decimal? @db.Decimal(12, 2)
+
+  status EmployeeStatus @default(ACTIVE)
+
+  isActive Boolean @default(true)
+
+  // Branch
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id])
+
+  // Role
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  // Reporting Manager
+  reportingManagerId String?
+  reportingManager   Employee? @relation("ReportingManager", fields: [reportingManagerId], references: [id])
+
+  teamMembers Employee[] @relation("ReportingManager")
+
+  // Audit
+  createdById String?
+  createdBy   Employee? @relation("CreatedBy", fields: [createdById], references: [id])
+
+  createdEmployees Employee[] @relation("CreatedBy")
+
+  updatedById String?
+  updatedBy   Employee? @relation("UpdatedBy", fields: [updatedById], references: [id])
+
+  updatedEmployees Employee[] @relation("UpdatedBy")
+
+  clientOrders ClientOrder[] @relation("EmployeeOrders")
+
+  // CRM Relations
+  assignedLeads Lead[] @relation("EmployeeAssignedLead")
+
+  leadHistories LeadHistory[]
+
+  followUps FollowUp[]
+
+  leadTransfersFrom LeadAssignmentHistory[] @relation("LeadTransferFrom")
+
+  leaveRequests Leave[]
+
+  approvedLeaves Leave[] @relation("LeaveApprovedBy")
+
+  leadTransfersTo LeadAssignmentHistory[] @relation("LeadTransferTo")
+
+  attendances Attendance[]
+
+  targets EmployeeTarget[]
+
+  notifications Notification[]
+
+  activityLogs ActivityLog[]
+
+  ppaymentVerifications PaymentVerification[] @relation("PaymentVerifiedBy")
+
+  importBatches ImportBatch[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@index([branchId])
   @@index([roleId])
-  @@index([teamLeaderId])
+  @@index([reportingManagerId])
   @@map("employees")
 }
 
-model LeadSource {
-  id       Int     @id @default(autoincrement())
-  name     String  @unique
+model Product {
+  id String @id @default(cuid())
+
+  productCode String @unique
+  name        String @unique
+
+  type ProductType
+
+  description String?
+
+  price Decimal @db.Decimal(12, 2)
+
+  gst Decimal @default(18) @db.Decimal(5, 2)
+
+  durationDays Int?
+
+  isTrialAvailable Boolean @default(false)
+
   isActive Boolean @default(true)
+
+  orderItems OrderItem[]
+
+  serviceActivations ServiceActivation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("products")
+}
+
+model LeadSource {
+  id String @id @default(cuid())
+
+  name String @unique
+
+  description String?
+
+  isActive Boolean @default(true)
+
+  leads Lead[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -58,11 +279,19 @@ model LeadSource {
 }
 
 model LeadStatus {
-  id        Int     @id @default(autoincrement())
-  name      String  @unique
-  color     String?
-  sortOrder Int     @default(0)
-  isActive  Boolean @default(true)
+  id String @id @default(cuid())
+
+  name String @unique
+
+  color String?
+
+  sortOrder Int @default(0)
+
+  isActive Boolean @default(true)
+
+  leads Lead[]
+
+  histories LeadHistory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -70,14 +299,493 @@ model LeadStatus {
   @@map("lead_statuses")
 }
 
-model Product {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique
-  description String?
-  isActive    Boolean @default(true)
+model ImportBatch {
+  id String @id @default(cuid())
+
+  fileName String
+
+  totalRecords Int
+
+  imported Int @default(0)
+
+  duplicates Int @default(0)
+
+  failed Int @default(0)
+
+  importedById String
+
+  importedBy Employee @relation(fields: [importedById], references: [id])
+
+  leads Lead[]
+
+  createdAt DateTime @default(now())
+
+  @@index([importedById])
+  @@map("import_batches")
+}
+
+model Lead {
+  id String @id @default(cuid())
+
+  leadCode String @unique
+
+  name String?
+
+  mobile String
+
+  email String?
+
+  city String?
+
+  state String?
+
+  address String?
+
+  sourceId String?
+
+  source LeadSource? @relation(fields: [sourceId], references: [id])
+
+  statusId String
+
+  status LeadStatus @relation(fields: [statusId], references: [id])
+
+  assignedEmployeeId String?
+
+  assignedEmployee Employee? @relation("EmployeeAssignedLead", fields: [assignedEmployeeId], references: [id])
+
+  importBatchId String?
+
+  importBatch ImportBatch? @relation(fields: [importBatchId], references: [id])
+
+  stage LeadStage @default(NEW)
+
+  isDuplicate Boolean @default(false)
+
+  isConverted Boolean @default(false)
+
+  lastCallAt DateTime?
+
+  nextFollowUp DateTime?
+
+  remarks String?
+
+  histories LeadHistory[]
+
+  followUps FollowUp[]
+
+  assignmentHistory LeadAssignmentHistory[]
+
+  client Client?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@index([mobile])
+  @@index([statusId])
+  @@index([assignedEmployeeId])
+  @@index([importBatchId])
+  @@map("leads")
+}
+
+model LeadAssignmentHistory {
+  id String @id @default(cuid())
+
+  leadId String
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  fromEmployeeId String?
+
+  fromEmployee Employee? @relation("LeadTransferFrom", fields: [fromEmployeeId], references: [id])
+
+  toEmployeeId String
+
+  toEmployee Employee @relation("LeadTransferTo", fields: [toEmployeeId], references: [id])
+
+  reason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@map("lead_assignment_history")
+}
+
+model LeadHistory {
+  id String @id @default(cuid())
+
+  leadId String
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  employeeId String?
+
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  statusId String?
+
+  status LeadStatus? @relation(fields: [statusId], references: [id])
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@map("lead_histories")
+}
+
+model FollowUp {
+  id String @id @default(cuid())
+
+  leadId String
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  employeeId String?
+
+  employee Employee? @relation(fields: [employeeId], references: [id])
+
+  followUpDate DateTime
+
+  remarks String?
+
+  isCompleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@map("follow_ups")
+}
+
+model Client {
+  id String @id @default(cuid())
+
+  clientCode String @unique
+
+  leadId String? @unique
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  name   String
+  mobile String
+  email  String?
+
+  city    String?
+  state   String?
+  address String?
+
+  panNumber     String?
+  aadhaarNumber String?
+
+  isActive Boolean @default(true)
+
+  orders   ClientOrder[]
+  services ServiceActivation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("products")
+  @@index([mobile])
+  @@map("clients")
+}
+
+model ClientOrder {
+  id String @id @default(cuid())
+
+  orderNumber String @unique
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  employeeId String
+
+  employee Employee @relation("EmployeeOrders", fields: [employeeId], references: [id])
+
+  orderStatus OrderStatus @default(PENDING)
+
+  subtotal Decimal @db.Decimal(12, 2)
+
+  discountPercent Decimal? @db.Decimal(5, 2)
+
+  discountAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  gstAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  totalAmount Decimal @db.Decimal(12, 2)
+
+  notes String?
+
+  startDate DateTime?
+
+  endDate DateTime?
+
+  items OrderItem[]
+
+  payments Payment[]
+
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  serviceActivations ServiceActivation[]
+
+  @@index([clientId])
+  @@index([employeeId])
+  @@map("client_orders")
+}
+
+model OrderItem {
+  id String @id @default(cuid())
+
+  orderId String
+  order   ClientOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity Int @default(1)
+
+  price Decimal @db.Decimal(12, 2)
+
+  gst Decimal @default(18) @db.Decimal(5, 2)
+
+  total Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Payment {
+  id String @id @default(cuid())
+
+  paymentNumber String @unique
+
+  orderId String
+  order   ClientOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  amount Decimal @db.Decimal(12, 2)
+
+  paymentMode PaymentMode
+
+  paymentStatus PaymentStatus @default(PENDING)
+
+  transactionId String?
+
+  screenshot String?
+
+  remarks String?
+
+  paymentDate DateTime @default(now())
+
+  verification PaymentVerification?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+model PaymentVerification {
+  id String @id @default(cuid())
+
+  paymentId String  @unique
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  verifiedById String
+  verifiedBy   Employee @relation("PaymentVerifiedBy", fields: [verifiedById], references: [id])
+
+  status PaymentStatus
+
+  remarks String?
+
+  verifiedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([verifiedById])
+  @@map("payment_verifications")
+}
+
+model ServiceActivation {
+  id String @id @default(cuid())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  orderId String?
+  order   ClientOrder? @relation(fields: [orderId], references: [id])
+
+  startDate DateTime
+
+  endDate DateTime?
+
+  isActive Boolean @default(true)
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([productId])
+  @@map("service_activations")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Attendance {
+  id String @id @default(cuid())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  attendanceDate DateTime
+
+  checkIn  DateTime?
+  checkOut DateTime?
+
+  lateMinutes Int @default(0)
+
+  workingMinutes Int @default(0)
+
+  status AttendanceStatus @default(PRESENT)
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, attendanceDate])
+  @@index([employeeId])
+  @@map("attendances")
+}
+
+model Leave {
+  id String @id @default(cuid())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  fromDate DateTime
+
+  toDate DateTime
+
+  reason String
+
+  status LeaveStatus @default(PENDING)
+
+  approvedById String?
+  approvedBy   Employee? @relation("LeaveApprovedBy", fields: [approvedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@map("leaves")
+}
+
+model Holiday {
+  id String @id @default(cuid())
+
+  title String
+
+  holidayDate DateTime
+
+  description String?
+
+  createdAt DateTime @default(now())
+
+  @@map("holidays")
+}
+
+model EmployeeTarget {
+  id String @id @default(cuid())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  month Int
+  year  Int
+
+  brokerageTarget Decimal @default(0) @db.Decimal(12, 2)
+
+  dematTarget Int @default(0)
+
+  revenueTarget Decimal @default(0) @db.Decimal(12, 2)
+
+  achievedAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, month, year])
+  @@map("employee_targets")
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  title String
+
+  message String
+
+  type NotificationType @default(INFO)
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([employeeId])
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id String @id @default(cuid())
+
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  module String
+
+  action String
+
+  recordId String?
+
+  ipAddress String?
+
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([employeeId])
+  @@map("activity_logs")
+}
+
+model Setting {
+  id String @id @default(cuid())
+
+  key String @unique
+
+  value String
+
+  description String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
 }

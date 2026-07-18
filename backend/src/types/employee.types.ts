@@ -1,3 +1,6 @@
+import { EmployeeStatus, Gender } from "@prisma/client";
+
+
 export interface CreateEmployeeRequest {
   name: string;
   mobile: string;
@@ -45,7 +48,7 @@ export interface UpdateEmployeeRequest {
 
   isActive?: boolean;
 
-  status?: "ACTIVE" | "INACTIVE" | "RESIGNED" | "TERMINATED";
+  status?: "ACTIVE" | "INACTIVE" | "SUSPENDED" ;
 }
 
 export interface EmployeeResponse {
@@ -59,4 +62,43 @@ export interface EmployeeListResponse {
   message: string;
   total: number;
   employees: any[];
+}
+
+export interface UpdateEmployeeRequest {
+  name?: string;
+  mobile?: string;
+  email?: string;
+
+  gender?: Gender;
+
+  dateOfBirth?: Date;
+
+  address?: string;
+
+  joiningDate?: Date;
+
+  salary?: number;
+
+  branchId?: string;
+
+  roleId?: string;
+
+  reportingManagerId?: string;
+
+  status?: EmployeeStatus;
+
+  isActive?: boolean;
+}
+
+export interface EmployeeQuery {
+  page?: number;
+  limit?: number;
+
+  search?: string;
+
+  status?: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+
+  role?: string;
+
+  branch?: string;
 }

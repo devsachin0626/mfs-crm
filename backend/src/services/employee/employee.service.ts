@@ -1,11 +1,13 @@
 import prisma from "../../config/prisma";
-import { hashPassword } from "../../utils/password";
+import { comparePassword , hashPassword } from "../../utils/password";
 
 import {
   CreateEmployeeRequest,
-  UpdateEmployeeRequest, EmployeeQuery,
+  UpdateEmployeeRequest,
+  EmployeeQuery,
+  ChangeEmployeePasswordRequest,
+  ResetEmployeePasswordRequest,
 } from "../../types/employee.types";
-
 
 
 export const createEmployee = async (
@@ -555,10 +557,85 @@ export const uploadProfileImage = async (
       profileImage: fileName,
     },
   });
+return {
+  success: true,
+  message: "Profile Image Uploaded Successfully",
+  employee: {
+    id: updatedEmployee.id,
+    name: updatedEmployee.name,
+    profileImage: updatedEmployee.profileImage,
+  },
+};
+};
+
+export const changeEmployeePassword = async (
+  employeeId: string,
+  data: ChangeEmployeePasswordRequest
+) => {
+  const employee = await prisma.employee.findUnique({
+    where: {
+      id: employeeId,
+    },
+  });
+
+  if (!employee) {
+    throw new Error("Employee Not Found");
+  }
+
+  const isPasswordValid = await comparePassword(
+    data.oldPassword,
+    employee.password
+  );
+
+  if (!isPasswordValid) {
+    throw new Error("Old Password is Incorrect");
+  }
+
+  const hashedPassword = await hashPassword(data.newPassword);
+
+  await prisma.employee.update({
+    where: {
+      id: employeeId,
+    },
+    data: {
+      password: hashedPassword,
+    },
+  });
 
   return {
     success: true,
-    message: "Profile Image Uploaded Successfully",
-    profileImage: updatedEmployee.profileImage,
+    message: "Password Changed Successfully",
   };
 };
+
+export const resetEmployeePassword = async (
+  employeeId: string,
+  newPassword: string
+) => {
+  const employee = await prisma.employee.findUnique({
+    where: {
+      id: employeeId,
+    },
+  });
+
+  if (!employee) {
+    throw new Error("Employee Not Found");
+  }
+
+  const hashedPassword = await hashPassword(newPassword);
+
+  await prisma.employee.update({
+    where: {
+      id: employeeId,
+    },
+    data: {
+      password: hashedPassword,
+    },
+  });
+
+  return {
+    success: true,
+    message: "Employee Password Reset Successfully",
+  };
+};
+

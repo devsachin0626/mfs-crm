@@ -7,6 +7,8 @@ import path from "path";
 import leadRoutes from "./routes/lead.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import clientRoutes from "./routes/client.routes";
+import productRoutes from "./routes/product.routes";
+
 
 
 const app = express();
@@ -18,11 +20,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 app.use("/api/leads", leadRoutes);
 
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/clients", clientRoutes);
+app.use("/api/products", productRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

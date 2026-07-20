@@ -6,6 +6,8 @@ import employeeRoutes from "./routes/employee.routes";
 import path from "path";
 import leadRoutes from "./routes/lead.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
+import clientRoutes from "./routes/client.routes";
+
 
 const app = express();
 
@@ -20,6 +22,7 @@ app.use("/api/leads", leadRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/clients", clientRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

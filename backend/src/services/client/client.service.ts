@@ -210,3 +210,64 @@ export const updateClient = async (
     client,
   };
 };
+
+export const convertLeadToClient = async (leadId: string) => {
+  // Lead Check
+  const lead = await prisma.lead.findUnique({
+    where: {
+      id: leadId,
+    },
+  });
+
+  if (!lead) {
+    throw new Error("Lead Not Found");
+  }
+
+  // Already Converted
+  if (lead.isConverted) {
+    throw new Error("Lead Already Converted");
+  }
+
+  // Client Code
+  const totalClients = await prisma.client.count();
+
+  const clientCode = `CLI${String(totalClients + 1).padStart(5, "0")}`;
+
+  // Create Client
+  const client = await prisma.client.create({
+    data: {
+      clientCode,
+
+      leadId: lead.id,
+
+      name: lead.name || "Unknown",
+
+      mobile: lead.mobile,
+
+      email: lead.email,
+
+      city: lead.city,
+
+      state: lead.state,
+
+      address: lead.address,
+    },
+  });
+
+  // Update Lead
+  await prisma.lead.update({
+    where: {
+      id: lead.id,
+    },
+    data: {
+      isConverted: true,
+      stage: "CONVERTED",
+    },
+  });
+
+  return {
+    success: true,
+    message: "Lead Converted Successfully",
+    client,
+  };
+};

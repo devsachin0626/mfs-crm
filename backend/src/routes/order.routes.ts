@@ -1,44 +1,46 @@
 import { Router } from "express";
-import * as clientController from "../controllers/client/client.controller";
+import * as orderController from "../controllers/order/order.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/role.middleware";
 
 const router = Router();
 
-// Create Client
 router.post(
   "/",
   authenticate,
   authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.createClient
+  orderController.createOrder
 );
 
 router.get(
   "/",
   authenticate,
   authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.getClients
+  orderController.getOrders
 );
 
 router.get(
   "/:id",
   authenticate,
   authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.getClientById
+  orderController.getOrderById
 );
+
 
 router.put(
   "/:id",
   authenticate,
   authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.updateClient
+  orderController.updateOrder
 );
 
-router.post(
-  "/convert/:id",
+
+router.patch(
+  "/cancel/:id",
   authenticate,
   authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.convertLeadToClient
+  orderController.cancelOrder
 );
+
 
 export default router;

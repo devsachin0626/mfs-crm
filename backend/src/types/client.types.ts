@@ -38,3 +38,7 @@ export interface ClientQuery {
   search?: string;
   isActive?: string;
 }
+
+export interface ConvertLeadRequest {
+  leadId: string;
+}

@@ -1,44 +1,43 @@
 import { Router } from "express";
-import * as clientController from "../controllers/client/client.controller";
+import * as trialController from "../controllers/trial/trial.controller";
 import { authenticate } from "../middleware/auth.middleware";
 import { authorize } from "../middleware/role.middleware";
 
 const router = Router();
 
-// Create Client
 router.post(
   "/",
   authenticate,
   authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.createClient
+  trialController.startTrial
 );
 
 router.get(
   "/",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.getClients
+  authorize("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"),
+  trialController.getTrials
 );
 
 router.get(
   "/:id",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.getClientById
+  authorize("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"),
+  trialController.getTrialById
 );
 
-router.put(
-  "/:id",
+router.patch(
+  "/:id/extend",
   authenticate,
   authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.updateClient
+  trialController.extendTrial
 );
 
-router.post(
-  "/convert/:id",
+router.patch(
+  "/:id/complete",
   authenticate,
   authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.convertLeadToClient
+  trialController.completeTrial
 );
-
 export default router;
+

@@ -213,6 +213,8 @@ model Employee {
 
   targets EmployeeTarget[]
 
+  trials Trial[]
+
   notifications Notification[]
 
   activityLogs ActivityLog[]
@@ -255,6 +257,7 @@ model Product {
 
   serviceActivations ServiceActivation[]
 
+  trials    Trial[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -483,6 +486,8 @@ model Client {
   orders   ClientOrder[]
   services ServiceActivation[]
 
+  trials Trial[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -643,6 +648,13 @@ enum LeaveStatus {
   REJECTED
 }
 
+enum TrialStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
 model Attendance {
   id String @id @default(cuid())
 
@@ -788,4 +800,40 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+model Trial {
+  id String @id @default(cuid())
+
+  trialCode String @unique
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  startDate DateTime
+
+  endDate DateTime
+
+  trialDays Int
+
+  extensionCount Int @default(0)
+
+  status TrialStatus @default(ACTIVE)
+
+  remarks String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([productId])
+  @@index([employeeId])
+  @@index([status])
+  @@map("trials")
 }

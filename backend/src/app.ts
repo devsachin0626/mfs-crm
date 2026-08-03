@@ -8,6 +8,9 @@ import leadRoutes from "./routes/lead.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import clientRoutes from "./routes/client.routes";
 import productRoutes from "./routes/product.routes";
+import trialRoutes from "./routes/trial.routes";
+import orderRoutes from "./routes/order.routes";
+
 
 
 
@@ -27,6 +30,8 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/trials", trialRoutes);
+app.use("/api/orders", orderRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

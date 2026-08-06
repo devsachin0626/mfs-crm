@@ -11,6 +11,11 @@ import productRoutes from "./routes/product.routes";
 import trialRoutes from "./routes/trial.routes";
 import orderRoutes from "./routes/order.routes";
 import paymentRoutes from "./routes/payment.routes";
+import serviceRoutes from "./routes/service.routes";
+
+
+
+
 
 
 
@@ -35,6 +40,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/trials", trialRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/services", serviceRoutes);
+
 
 // Health Check
 app.get("/", (req, res) => {

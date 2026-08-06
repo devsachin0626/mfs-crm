@@ -13,3 +13,14 @@ export interface CreatePaymentRequest {
 
   remarks?: string;
 }
+
+export interface UpdatePaymentRequest {
+  paymentMode?: "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE";
+
+  transactionId?: string;
+
+  remarks?: string;
+
+  screenshot?: string;
+}
+

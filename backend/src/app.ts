@@ -10,6 +10,8 @@ import clientRoutes from "./routes/client.routes";
 import productRoutes from "./routes/product.routes";
 import trialRoutes from "./routes/trial.routes";
 import orderRoutes from "./routes/order.routes";
+import paymentRoutes from "./routes/payment.routes";
+
 
 
 
@@ -32,6 +34,7 @@ app.use("/api/clients", clientRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/trials", trialRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Health Check
 app.get("/", (req, res) => {

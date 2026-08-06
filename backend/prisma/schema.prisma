@@ -221,6 +221,8 @@ model Employee {
 
   ppaymentVerifications PaymentVerification[] @relation("PaymentVerifiedBy")
 
+  serviceActivations ServiceActivation[] @relation("EmployeeServiceActivations")
+
   importBatches ImportBatch[]
 
   createdAt DateTime @default(now())
@@ -626,6 +628,9 @@ model ServiceActivation {
   orderId String?
   order   ClientOrder? @relation(fields: [orderId], references: [id])
 
+  employeeId String
+  employee   Employee @relation("EmployeeServiceActivations", fields: [employeeId], references: [id])
+
   startDate DateTime
 
   endDate DateTime?
@@ -639,6 +644,7 @@ model ServiceActivation {
 
   @@index([clientId])
   @@index([productId])
+  @@index([employeeId])
   @@map("service_activations")
 }
 

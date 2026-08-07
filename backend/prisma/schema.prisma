@@ -42,6 +42,7 @@ enum LeadStage {
 enum AttendanceStatus {
   PRESENT
   ABSENT
+  LATE
   HALF_DAY
   LEAVE
   HOLIDAY
@@ -665,16 +666,15 @@ model Attendance {
   id String @id @default(cuid())
 
   employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   attendanceDate DateTime
 
-  checkIn  DateTime?
+  checkIn DateTime?
+
   checkOut DateTime?
 
-  lateMinutes Int @default(0)
-
-  workingMinutes Int @default(0)
+  workingHours Decimal? @db.Decimal(5,2)
 
   status AttendanceStatus @default(PRESENT)
 
@@ -685,7 +685,9 @@ model Attendance {
 
   @@unique([employeeId, attendanceDate])
   @@index([employeeId])
-  @@map("attendances")
+  @@index([attendanceDate])
+
+  @@map("attendance")
 }
 
 model Leave {

@@ -13,6 +13,7 @@ import orderRoutes from "./routes/order.routes";
 import paymentRoutes from "./routes/payment.routes";
 import serviceRoutes from "./routes/service.routes";
 import attendanceRoutes from "./routes/attendance.routes";
+import targetRoutes from "./routes/target.routes";
 
 
 
@@ -43,6 +44,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/targets", targetRoutes);
 
 
 // Health Check

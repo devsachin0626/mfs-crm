@@ -48,6 +48,13 @@ enum AttendanceStatus {
   HOLIDAY
 }
 
+enum PayrollStatus {
+  PENDING
+  GENERATED
+  APPROVED
+  PAID
+}
+
 enum PaymentMode {
   CASH
   UPI
@@ -211,6 +218,8 @@ model Employee {
   leadTransfersTo LeadAssignmentHistory[] @relation("LeadTransferTo")
 
   attendances Attendance[]
+
+  payrolls Payroll[]
 
   targets EmployeeTarget[]
 
@@ -750,6 +759,51 @@ model EmployeeTarget {
 
   @@unique([employeeId, month, year])
   @@map("employee_targets")
+}
+
+model Payroll {
+  id String @id @default(cuid())
+
+  employeeId String
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  month Int
+  year Int
+
+  basicSalary Decimal @db.Decimal(12,2)
+
+  workingDays Int
+  presentDays Int
+  lateDays Int
+  halfDays Int
+  leaveDays Int
+  absentDays Int
+
+  grossSalary Decimal @db.Decimal(12,2)
+
+  incentive Decimal @default(0) @db.Decimal(12,2)
+
+  bonus Decimal @default(0) @db.Decimal(12,2)
+
+  deduction Decimal @default(0) @db.Decimal(12,2)
+
+  netSalary Decimal @db.Decimal(12,2)
+
+  status PayrollStatus @default(PENDING)
+
+  remarks String?
+
+  generatedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, month, year])
+
+  @@index([employeeId])
+  @@index([month, year])
+
+  @@map("payrolls")
 }
 
 model Notification {

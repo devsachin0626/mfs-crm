@@ -14,6 +14,9 @@ import paymentRoutes from "./routes/payment.routes";
 import serviceRoutes from "./routes/service.routes";
 import attendanceRoutes from "./routes/attendance.routes";
 import targetRoutes from "./routes/target.routes";
+import leaveRoutes from "./routes/leave.routes";
+import payrollRoutes from "./routes/payroll.routes";
+
 
 
 
@@ -45,6 +48,10 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/targets", targetRoutes);
+app.use("/api/leaves", leaveRoutes);
+app.use("/api/payroll", payrollRoutes);
+
+
 
 
 // Health Check

@@ -16,6 +16,8 @@ import attendanceRoutes from "./routes/attendance.routes";
 import targetRoutes from "./routes/target.routes";
 import leaveRoutes from "./routes/leave.routes";
 import payrollRoutes from "./routes/payroll.routes";
+import holidayRoutes from "./routes/holiday.routes";
+
 
 
 
@@ -50,6 +52,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/targets", targetRoutes);
 app.use("/api/leaves", leaveRoutes);
 app.use("/api/payroll", payrollRoutes);
+app.use("/api/holidays", holidayRoutes);
 
 
 

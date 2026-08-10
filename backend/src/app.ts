@@ -17,6 +17,16 @@ import targetRoutes from "./routes/target.routes";
 import leaveRoutes from "./routes/leave.routes";
 import payrollRoutes from "./routes/payroll.routes";
 import holidayRoutes from "./routes/holiday.routes";
+import notificationRoutes from "./routes/notification.routes";
+import leadSourceRoutes from "./routes/lead-source.routes";
+import leadStatusRoutes from "./routes/lead-status.routes";
+import importBatchRoutes from "./routes/import-batch.routes";
+import leadAssignmentHistoryRoutes from "./routes/lead-assignment-history.routes";
+
+
+
+
+
 
 
 
@@ -53,6 +63,14 @@ app.use("/api/targets", targetRoutes);
 app.use("/api/leaves", leaveRoutes);
 app.use("/api/payroll", payrollRoutes);
 app.use("/api/holidays", holidayRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/lead-sources", leadSourceRoutes);
+app.use("/api/lead-statuses", leadStatusRoutes);
+app.use("/api/import-batches", importBatchRoutes);
+app.use(
+  "/api/lead-assignment-history",
+  leadAssignmentHistoryRoutes
+);
 
 
 

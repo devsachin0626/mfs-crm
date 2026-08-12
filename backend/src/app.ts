@@ -24,6 +24,7 @@ import importBatchRoutes from "./routes/import-batch.routes";
 import leadAssignmentHistoryRoutes from "./routes/lead-assignment-history.routes";
 import leadHistoryRoutes from "./routes/lead-history.routes";
 import followUpRoutes from "./routes/follow-up.routes";
+import { errorMiddleware } from "./middleware/error.middleware";
 
 
 
@@ -90,5 +91,14 @@ app.get("/", (req, res) => {
     message: "MFS CRM Backend Running Successfully 🚀",
   });
 });
+
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+app.use(errorMiddleware);
 
 export default app;

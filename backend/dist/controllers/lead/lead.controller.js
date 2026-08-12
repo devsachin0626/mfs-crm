@@ -1,0 +1,166 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.completeFollowUp = exports.getFollowUps = exports.createFollowUp = exports.changeLeadStatus = exports.assignLead = exports.updateLead = exports.getLeadById = exports.getLeads = exports.createLead = void 0;
+const leadService = __importStar(require("../../services/lead/lead.service"));
+// Create Lead
+const createLead = async (req, res) => {
+    try {
+        const result = await leadService.createLead(req.body, req.employee.id);
+        res.status(201).json(result);
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message || "Lead Creation Failed",
+        });
+    }
+};
+exports.createLead = createLead;
+// Get All Leads
+const getLeads = async (req, res) => {
+    try {
+        const result = await leadService.getLeads(req.query);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to Fetch Leads",
+        });
+    }
+};
+exports.getLeads = getLeads;
+// Get Lead By ID
+const getLeadById = async (req, res) => {
+    try {
+        const result = await leadService.getLeadById(req.params.id);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(404).json({
+            success: false,
+            message: error.message || "Lead Not Found",
+        });
+    }
+};
+exports.getLeadById = getLeadById;
+// Update Lead
+const updateLead = async (req, res) => {
+    try {
+        const id = req.params.id;
+        const result = await leadService.updateLead(id, req.body);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message || "Lead Update Failed",
+        });
+    }
+};
+exports.updateLead = updateLead;
+// Assign Lead
+const assignLead = async (req, res) => {
+    try {
+        const leadId = req.params.id;
+        const result = await leadService.assignLead(leadId, req.body);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message || "Lead Assignment Failed",
+        });
+    }
+};
+exports.assignLead = assignLead;
+// Change Lead Status
+const changeLeadStatus = async (req, res) => {
+    try {
+        const leadId = req.params.id;
+        const result = await leadService.changeLeadStatus(leadId, req.employee.id, req.body);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message || "Lead Status Update Failed",
+        });
+    }
+};
+exports.changeLeadStatus = changeLeadStatus;
+// Create Follow-up
+const createFollowUp = async (req, res) => {
+    try {
+        const leadId = req.params.id;
+        const result = await leadService.createFollowUp(leadId, req.employee.id, req.body);
+        res.status(201).json(result);
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message || "Follow-up Creation Failed",
+        });
+    }
+};
+exports.createFollowUp = createFollowUp;
+// Get All Follow-ups
+const getFollowUps = async (req, res) => {
+    try {
+        const result = await leadService.getFollowUps(req.query);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to Fetch Follow-ups",
+        });
+    }
+};
+exports.getFollowUps = getFollowUps;
+const completeFollowUp = async (req, res) => {
+    try {
+        const result = await leadService.completeFollowUp(req.params.id);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+exports.completeFollowUp = completeFollowUp;

@@ -22,6 +22,10 @@ import leadSourceRoutes from "./routes/lead-source.routes";
 import leadStatusRoutes from "./routes/lead-status.routes";
 import importBatchRoutes from "./routes/import-batch.routes";
 import leadAssignmentHistoryRoutes from "./routes/lead-assignment-history.routes";
+import leadHistoryRoutes from "./routes/lead-history.routes";
+import followUpRoutes from "./routes/follow-up.routes";
+
+
 
 
 
@@ -71,6 +75,10 @@ app.use(
   "/api/lead-assignment-history",
   leadAssignmentHistoryRoutes
 );
+app.use("/api/lead-history", leadHistoryRoutes);
+app.use("/api/follow-ups", followUpRoutes);
+
+
 
 
 

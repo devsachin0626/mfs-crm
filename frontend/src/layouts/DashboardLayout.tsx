@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { useAppSelector } from "../hooks/redux";
+import LogoutButton from "../components/auth/LogoutButton";
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -7,6 +9,9 @@ type DashboardLayoutProps = {
 export default function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
+  const employee = useAppSelector(
+  (state) => state.auth.employee
+);
   return (
     <div className="flex min-h-screen bg-slate-100">
       {/* Sidebar */}
@@ -51,13 +56,25 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <div className="flex-1">
-        <header className="flex h-16 items-center justify-between border-b bg-white px-6">
-          <h2 className="text-xl font-semibold">Dashboard</h2>
+      <header className="flex h-16 items-center justify-between border-b bg-white px-6">
+  <h2 className="text-xl font-semibold">
+    Dashboard
+  </h2>
 
-          <div className="font-medium">
-            Welcome, Employee
-          </div>
-        </header>
+  <div className="flex items-center gap-4">
+    <div className="text-right">
+      <p className="font-medium">
+        Welcome, {employee?.name || "Employee"}
+      </p>
+
+      <p className="text-sm text-gray-500">
+        {employee?.employeeCode}
+      </p>
+    </div>
+
+    <LogoutButton />
+  </div>
+</header>
 
         <main className="p-6">{children}</main>
       </div>

@@ -4,7 +4,7 @@ import LoginPage from "../pages/auth/LoginPage";
 import LeadDetailsPage from "../pages/lead/LeadDetailsPage";
 
 import ProtectedRoute from "./ProtectedRoute";
-import LogoutButton from "../components/auth/LogoutButton";
+import DashboardPage from "../pages/dashboard/DashboardPage";
 
 export default function AppRoutes() {
   return (
@@ -15,25 +15,9 @@ export default function AppRoutes() {
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
-        <Route
+   <Route
   path="/dashboard"
-  element={
-    <div className="min-h-screen bg-slate-100">
-      <div className="flex items-center justify-between border-b bg-white px-6 py-4">
-        <h1 className="text-2xl font-bold text-blue-700">
-          MFS CRM Dashboard
-        </h1>
-
-        <LogoutButton />
-      </div>
-
-      <div className="p-6">
-        <h2 className="text-xl font-semibold">
-          Welcome to Dashboard
-        </h2>
-      </div>
-    </div>
-  }
+  element={<DashboardPage />}
 />
 
           <Route

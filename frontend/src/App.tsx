@@ -1,7 +1,11 @@
-import LeadDetailsPage from "./pages/lead/LeadDetailsPage";
+import AppRoutes from "./routes/AppRoutes";
 
-function App() {
-  return <LeadDetailsPage />;
+import AuthInitializer from "./components/auth/AuthInitializer";
+
+export default function App() {
+  return (
+    <AuthInitializer>
+      <AppRoutes />
+    </AuthInitializer>
+  );
 }
-
-export default App;

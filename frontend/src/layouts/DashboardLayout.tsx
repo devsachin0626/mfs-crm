@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useAppSelector } from "../hooks/redux";
 import LogoutButton from "../components/auth/LogoutButton";
+import { useNavigate } from "react-router-dom";
 
 type DashboardLayoutProps = {
   children: ReactNode;
@@ -9,6 +10,8 @@ type DashboardLayoutProps = {
 export default function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
+
+  const navigate = useNavigate();
   const employee = useAppSelector(
   (state) => state.auth.employee
 );
@@ -28,9 +31,12 @@ export default function DashboardLayout({
             Dashboard
           </button>
 
-          <button className="w-full rounded-lg p-3 text-left hover:bg-blue-800">
-            Leads
-          </button>
+         <button
+  onClick={() => navigate("/leads")}
+  className="w-full rounded-lg p-3 text-left hover:bg-blue-800"
+>
+  Leads
+</button>
 
           <button className="w-full rounded-lg p-3 text-left hover:bg-blue-800">
             Clients

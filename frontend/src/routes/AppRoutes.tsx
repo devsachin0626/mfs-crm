@@ -5,6 +5,7 @@ import LeadDetailsPage from "../pages/lead/LeadDetailsPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 import DashboardPage from "../pages/dashboard/DashboardPage";
+import LeadListPage from "../pages/lead/LeadListPage";
 
 export default function AppRoutes() {
   return (
@@ -18,6 +19,10 @@ export default function AppRoutes() {
    <Route
   path="/dashboard"
   element={<DashboardPage />}
+/>
+<Route
+  path="/leads"
+  element={<LeadListPage />}
 />
 
           <Route

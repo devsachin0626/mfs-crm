@@ -4,6 +4,9 @@ import authReducer from "./slices/authSlice";
 import dashboardReducer from "./slices/dashboardSlice";
 import leadReducer from "./slices/leadSlice";
 import leadDetailsReducer from "./slices/leadDetailsSlice";
+import employeeReducer from "./slices/employeeSlice";
+import employeeDetailsReducer from "./slices/employeeDetailsSlice";
+import attendanceReducer from "./slices/attendanceSlice";
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +14,9 @@ export const store = configureStore({
     dashboard: dashboardReducer,
     lead: leadReducer,
     leadDetails: leadDetailsReducer,
+    employee: employeeReducer,
+    employeeDetails: employeeDetailsReducer,
+    attendance: attendanceReducer,
   },
 });
 

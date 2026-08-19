@@ -1,88 +1,19 @@
-import type { ReactNode } from "react";
-import { useAppSelector } from "../hooks/redux";
-import LogoutButton from "../components/auth/LogoutButton";
-import { useNavigate } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 
-type DashboardLayoutProps = {
-  children: ReactNode;
-};
+import Sidebar from "../components/layout/Sidebar";
+import Header from "../components/layout/Header";
 
-export default function DashboardLayout({
-  children,
-}: DashboardLayoutProps) {
-
-  const navigate = useNavigate();
-  const employee = useAppSelector(
-  (state) => state.auth.employee
-);
+export default function DashboardLayout() {
   return (
     <div className="flex min-h-screen bg-slate-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-blue-900 text-white">
-        <div className="border-b border-blue-700 p-5">
-          <h1 className="text-2xl font-bold">MFS CRM</h1>
-          <p className="text-sm text-blue-200">
-            Mahakal Financial Services
-          </p>
-        </div>
+      <Sidebar />
 
-        <nav className="p-4 space-y-2">
-          <button className="w-full rounded-lg p-3 text-left hover:bg-blue-800">
-            Dashboard
-          </button>
+      <div className="flex flex-1 flex-col">
+        <Header />
 
-         <button
-  onClick={() => navigate("/leads")}
-  className="w-full rounded-lg p-3 text-left hover:bg-blue-800"
->
-  Leads
-</button>
-
-          <button className="w-full rounded-lg p-3 text-left hover:bg-blue-800">
-            Clients
-          </button>
-
-          <button className="w-full rounded-lg p-3 text-left hover:bg-blue-800">
-            Products
-          </button>
-
-          <button className="w-full rounded-lg p-3 text-left hover:bg-blue-800">
-            Payments
-          </button>
-
-          <button className="w-full rounded-lg p-3 text-left hover:bg-blue-800">
-            Reports
-          </button>
-
-          <button className="w-full rounded-lg p-3 text-left hover:bg-blue-800">
-            Settings
-          </button>
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1">
-      <header className="flex h-16 items-center justify-between border-b bg-white px-6">
-  <h2 className="text-xl font-semibold">
-    Dashboard
-  </h2>
-
-  <div className="flex items-center gap-4">
-    <div className="text-right">
-      <p className="font-medium">
-        Welcome, {employee?.name || "Employee"}
-      </p>
-
-      <p className="text-sm text-gray-500">
-        {employee?.employeeCode}
-      </p>
-    </div>
-
-    <LogoutButton />
-  </div>
-</header>
-
-        <main className="p-6">{children}</main>
+        <main className="flex-1 p-6">
+          <Outlet />
+        </main>
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
 import { useEffect , useState } from "react";
 
-import DashboardLayout from "../../layouts/DashboardLayout";
 
 import { useAppDispatch, useAppSelector } from "../../hooks/redux";
 
@@ -39,7 +38,6 @@ const {
 }, [dispatch, page, search]);
 
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -180,6 +178,5 @@ const {
           </div>
         )}
       </div>
-    </DashboardLayout>
   );
 }

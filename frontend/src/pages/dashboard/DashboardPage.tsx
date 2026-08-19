@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 
-import DashboardLayout from "../../layouts/DashboardLayout";
 import { useAppDispatch, useAppSelector } from "../../hooks/redux";
 import { fetchDashboard } from "../../store/slices/dashboardSlice";
 
@@ -18,7 +17,7 @@ export default function DashboardPage() {
   const stats = data?.stats;
 
   return (
-    <DashboardLayout>
+    
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -162,6 +161,5 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
   );
 }

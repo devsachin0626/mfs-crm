@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 
-import DashboardLayout from "../../layouts/DashboardLayout";
 
 import { useAppDispatch, useAppSelector } from "../../hooks/redux";
 
@@ -133,32 +132,29 @@ useEffect(() => {
 
   if (loading) {
     return (
-      <DashboardLayout>
         <div>Loading Lead...</div>
-      </DashboardLayout>
+      
     );
   }
 
   if (error) {
     return (
-      <DashboardLayout>
         <div className="text-red-600">
           {error}
         </div>
-      </DashboardLayout>
     );
   }
 
   if (!lead) {
     return (
-      <DashboardLayout>
+      
         <div>No Lead Found</div>
-      </DashboardLayout>
+      
     );
   }
 
   return (
-    <DashboardLayout>
+  
       <div className="space-y-6">
 
         {/* Lead Info */}
@@ -408,6 +404,5 @@ useEffect(() => {
           </div>
         </div>
       </div>
-    </DashboardLayout>
   );
 }

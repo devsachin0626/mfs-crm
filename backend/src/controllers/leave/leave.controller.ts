@@ -44,11 +44,17 @@ export const getLeaves = async (
         ? req.query.status
         : undefined;
 
+        const employeeId =
+  typeof req.query.employeeId === "string"
+    ? req.query.employeeId
+    : undefined;
+
     const result = await leaveService.getLeaves(
       page,
       limit,
       search,
-      status
+      status,
+      employeeId
     );
 
     res.status(200).json(result);

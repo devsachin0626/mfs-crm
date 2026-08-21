@@ -7,18 +7,37 @@ import {
   updatePayrollController,
 } from "../controllers/payroll/payroll.controller";
 
+import { authenticate } from "../middleware/auth.middleware";
+import { authorize } from "../middleware/role.middleware";
+
 const router = Router();
 
-// Create Payroll
-router.post("/", createPayrollController);
+router.post(
+  "/",
+  authenticate,
+  authorize("ADMIN", "HR"),
+  createPayrollController
+);
 
-// Get All Payrolls
-router.get("/", getPayrollsController);
+router.get(
+  "/",
+  authenticate,
+  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  getPayrollsController
+);
 
-// Get Payroll By ID
-router.get("/:id", getPayrollByIdController);
+router.get(
+  "/:id",
+  authenticate,
+  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  getPayrollByIdController
+);
 
-// Update Payroll
-router.put("/:id", updatePayrollController);
+router.put(
+  "/:id",
+  authenticate,
+  authorize("ADMIN", "HR"),
+  updatePayrollController
+);
 
 export default router;

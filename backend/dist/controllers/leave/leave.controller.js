@@ -64,7 +64,10 @@ const getLeaves = async (req, res) => {
         const status = typeof req.query.status === "string"
             ? req.query.status
             : undefined;
-        const result = await leaveService.getLeaves(page, limit, search, status);
+        const employeeId = typeof req.query.employeeId === "string"
+            ? req.query.employeeId
+            : undefined;
+        const result = await leaveService.getLeaves(page, limit, search, status, employeeId);
         res.status(200).json(result);
     }
     catch (error) {

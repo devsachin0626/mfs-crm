@@ -57,7 +57,7 @@ const createTarget = async (data) => {
     };
 };
 exports.createTarget = createTarget;
-const getTargets = async (page, limit, search, month, year) => {
+const getTargets = async (page, limit, search, month, year, employeeId) => {
     const skip = (page - 1) * limit;
     const where = {};
     // Search Employee Name
@@ -68,6 +68,9 @@ const getTargets = async (page, limit, search, month, year) => {
                 mode: "insensitive",
             },
         };
+    }
+    if (employeeId) {
+        where.employeeId = employeeId;
     }
     // Filter Month
     if (month) {

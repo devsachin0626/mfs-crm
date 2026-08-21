@@ -25,6 +25,9 @@ import leadAssignmentHistoryRoutes from "./routes/lead-assignment-history.routes
 import leadHistoryRoutes from "./routes/lead-history.routes";
 import followUpRoutes from "./routes/follow-up.routes";
 import { errorMiddleware } from "./middleware/error.middleware";
+import branchRoutes from "./routes/branch.routes";
+import roleRoutes from "./routes/role.routes";
+
 
 
 
@@ -78,7 +81,15 @@ app.use(
 );
 app.use("/api/lead-history", leadHistoryRoutes);
 app.use("/api/follow-ups", followUpRoutes);
+app.use(
+  "/api/branches",
+  branchRoutes
+);
 
+app.use(
+  "/api/roles",
+  roleRoutes
+);
 
 
 

@@ -42,3 +42,8 @@ export interface ClientQuery {
 export interface ConvertLeadRequest {
   leadId: string;
 }
+
+export interface ConvertLeadToClientRequest {
+  panNumber?: string;
+  aadhaarNumber?: string;
+}

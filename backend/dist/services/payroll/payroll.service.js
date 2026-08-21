@@ -69,7 +69,7 @@ const createPayroll = async (data) => {
     };
 };
 exports.createPayroll = createPayroll;
-const getPayrolls = async (page, limit, search, month, year, status) => {
+const getPayrolls = async (page, limit, search, month, year, status, employeeId) => {
     const skip = (page - 1) * limit;
     const where = {};
     // Search by Employee Name / Employee Code
@@ -90,6 +90,9 @@ const getPayrolls = async (page, limit, search, month, year, status) => {
                 },
             ],
         };
+    }
+    if (employeeId) {
+        where.employeeId = employeeId;
     }
     // Filter by Month & Year
     if (month && year) {

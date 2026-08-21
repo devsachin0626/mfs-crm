@@ -58,6 +58,9 @@ const getTargets = async (req, res) => {
     try {
         const page = Number(req.query.page) || 1;
         const limit = Number(req.query.limit) || 10;
+        const employeeId = typeof req.query.employeeId === "string"
+            ? req.query.employeeId
+            : undefined;
         const search = typeof req.query.search === "string"
             ? req.query.search
             : undefined;
@@ -67,7 +70,7 @@ const getTargets = async (req, res) => {
         const year = req.query.year
             ? Number(req.query.year)
             : undefined;
-        const result = await targetService.getTargets(page, limit, search, month, year);
+        const result = await targetService.getTargets(page, limit, search, month, year, employeeId);
         res.status(200).json(result);
     }
     catch (error) {

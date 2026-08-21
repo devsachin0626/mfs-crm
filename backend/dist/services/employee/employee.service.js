@@ -90,9 +90,13 @@ const createEmployee = async (data, createdById) => {
             email,
             password: hashedPassword,
             gender,
-            dateOfBirth,
+            dateOfBirth: dateOfBirth
+                ? new Date(dateOfBirth)
+                : undefined,
             address,
-            joiningDate,
+            joiningDate: joiningDate
+                ? new Date(joiningDate)
+                : undefined,
             salary,
             branchId,
             roleId,
@@ -339,9 +343,17 @@ const updateEmployee = async (id, data, updatedById) => {
             mobile: data.mobile,
             email: data.email,
             gender: data.gender,
-            dateOfBirth: data.dateOfBirth,
+            dateOfBirth: data.dateOfBirth !== undefined
+                ? data.dateOfBirth
+                    ? new Date(data.dateOfBirth)
+                    : null
+                : undefined,
             address: data.address,
-            joiningDate: data.joiningDate,
+            joiningDate: data.joiningDate !== undefined
+                ? data.joiningDate
+                    ? new Date(data.joiningDate)
+                    : null
+                : undefined,
             salary: data.salary,
             branchId: data.branchId,
             roleId: data.roleId,

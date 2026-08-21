@@ -65,7 +65,7 @@ const applyLeave = async (data) => {
     };
 };
 exports.applyLeave = applyLeave;
-const getLeaves = async (page, limit, search, status) => {
+const getLeaves = async (page, limit, search, status, employeeId) => {
     const skip = (page - 1) * limit;
     const where = {};
     // Search Employee Name
@@ -80,6 +80,9 @@ const getLeaves = async (page, limit, search, status) => {
     // Filter by Status
     if (status) {
         where.status = status;
+    }
+    if (employeeId) {
+        where.employeeId = employeeId;
     }
     const total = await prisma_1.default.leave.count({
         where,

@@ -33,6 +33,11 @@ export const getTargets = async (
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
 
+    const employeeId =
+  typeof req.query.employeeId === "string"
+    ? req.query.employeeId
+    : undefined;
+
     const search =
       typeof req.query.search === "string"
         ? req.query.search
@@ -51,7 +56,8 @@ export const getTargets = async (
       limit,
       search,
       month,
-      year
+      year,
+      employeeId,
     );
 
     res.status(200).json(result);

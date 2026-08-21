@@ -1,6 +1,11 @@
 import { Request, Response } from "express";
 import * as serviceService from "../../services/service/service.service";
 
+import {
+  getLeadAccessWhere,
+  checkLeadAccess,
+} from "../../utils/leadAccess";
+
 /* ============================
    GET ALL SERVICES
 ============================ */

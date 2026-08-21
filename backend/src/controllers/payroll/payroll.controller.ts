@@ -45,6 +45,11 @@ export const getPayrollsController = async (
       ? String(req.query.search)
       : undefined;
 
+      const employeeId =
+  typeof req.query.employeeId === "string"
+    ? req.query.employeeId
+    : undefined;
+
     const month = req.query.month
       ? Number(req.query.month)
       : undefined;
@@ -63,7 +68,8 @@ export const getPayrollsController = async (
       search,
       month,
       year,
-      status
+      status,
+      employeeId
     );
 
     return res.status(200).json(result);

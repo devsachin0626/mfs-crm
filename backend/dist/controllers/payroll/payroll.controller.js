@@ -29,6 +29,9 @@ const getPayrollsController = async (req, res) => {
         const search = req.query.search
             ? String(req.query.search)
             : undefined;
+        const employeeId = typeof req.query.employeeId === "string"
+            ? req.query.employeeId
+            : undefined;
         const month = req.query.month
             ? Number(req.query.month)
             : undefined;
@@ -38,7 +41,7 @@ const getPayrollsController = async (req, res) => {
         const status = req.query.status
             ? String(req.query.status)
             : undefined;
-        const result = await (0, payroll_service_1.getPayrolls)(page, limit, search, month, year, status);
+        const result = await (0, payroll_service_1.getPayrolls)(page, limit, search, month, year, status, employeeId);
         return res.status(200).json(result);
     }
     catch (error) {

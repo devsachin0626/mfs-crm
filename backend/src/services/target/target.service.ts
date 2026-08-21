@@ -73,7 +73,9 @@ export const getTargets = async (
   limit: number,
   search?: string,
   month?: number,
-  year?: number
+  year?: number,
+  employeeId?: string
+
 ) => {
   const skip = (page - 1) * limit;
 
@@ -88,6 +90,10 @@ export const getTargets = async (
       },
     };
   }
+
+  if (employeeId) {
+  where.employeeId = employeeId;
+}
 
   // Filter Month
   if (month) {

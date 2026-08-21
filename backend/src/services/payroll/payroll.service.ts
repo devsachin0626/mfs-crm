@@ -88,7 +88,8 @@ export const getPayrolls = async (
   search?: string,
   month?: number,
   year?: number,
-  status?: PayrollStatus
+  status?: PayrollStatus,
+  employeeId?: string
 ) => {
   const skip = (page - 1) * limit;
 
@@ -113,6 +114,10 @@ export const getPayrolls = async (
       ],
     };
   }
+
+  if (employeeId) {
+  where.employeeId = employeeId;
+}
 
   // Filter by Month & Year
   if (month && year) {

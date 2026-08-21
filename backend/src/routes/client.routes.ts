@@ -27,6 +27,18 @@ router.get(
   clientController.getClientById
 );
 
+router.post(
+  "/convert/:leadId",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  clientController.convertLeadToClient
+);
+
 router.put(
   "/:id",
   authenticate,

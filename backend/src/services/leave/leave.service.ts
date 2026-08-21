@@ -81,7 +81,9 @@ export const getLeaves = async (
   page: number,
   limit: number,
   search?: string,
-  status?: string
+  status?: string,
+  employeeId?: string,
+
 ) => {
   const skip = (page - 1) * limit;
 
@@ -101,6 +103,10 @@ export const getLeaves = async (
   if (status) {
     where.status = status;
   }
+
+  if (employeeId) {
+  where.employeeId = employeeId;
+}
 
   const total = await prisma.leave.count({
     where,

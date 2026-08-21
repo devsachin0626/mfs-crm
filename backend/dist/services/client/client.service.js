@@ -5,6 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.convertLeadToClient = exports.updateClient = exports.getClientById = exports.getClients = exports.createClient = void 0;
 const prisma_1 = __importDefault(require("../../config/prisma"));
+/* ============================
+   CREATE CLIENT
+============================ */
 const createClient = async (data) => {
     // Mobile Duplicate Check
     const existingClient = await prisma_1.default.client.findFirst({
@@ -56,6 +59,7 @@ const createClient = async (data) => {
                 data: {
                     isConverted: true,
                     stage: "CONVERTED",
+                    nextFollowUp: null,
                 },
             });
         }
@@ -68,6 +72,9 @@ const createClient = async (data) => {
     };
 };
 exports.createClient = createClient;
+/* ============================
+   GET CLIENTS
+============================ */
 const getClients = async (query) => {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
@@ -94,10 +101,12 @@ const getClients = async (query) => {
             },
         ];
     }
-    if (query.isActive !== undefined) {
-        where.isActive = query.isActive === "true";
+    if (query.isActive !==
+        undefined) {
+        where.isActive =
+            query.isActive === "true";
     }
-    const [clients, total] = await Promise.all([
+    const [clients, total,] = await Promise.all([
         prisma_1.default.client.findMany({
             where,
             skip,
@@ -114,7 +123,9 @@ const getClients = async (query) => {
                 },
             },
         }),
-        prisma_1.default.client.count({ where }),
+        prisma_1.default.client.count({
+            where,
+        }),
     ]);
     return {
         success: true,
@@ -126,6 +137,9 @@ const getClients = async (query) => {
     };
 };
 exports.getClients = getClients;
+/* ============================
+   GET CLIENT BY ID
+============================ */
 const getClientById = async (id) => {
     const client = await prisma_1.default.client.findUnique({
         where: {
@@ -135,6 +149,7 @@ const getClientById = async (id) => {
             lead: true,
             orders: true,
             services: true,
+            trials: true,
         },
     });
     if (!client) {
@@ -146,9 +161,14 @@ const getClientById = async (id) => {
     };
 };
 exports.getClientById = getClientById;
+/* ============================
+   UPDATE CLIENT
+============================ */
 const updateClient = async (id, data) => {
     const existingClient = await prisma_1.default.client.findUnique({
-        where: { id },
+        where: {
+            id,
+        },
     });
     if (!existingClient) {
         throw new Error("Client Not Found");
@@ -168,8 +188,47 @@ const updateClient = async (id, data) => {
         }
     }
     const client = await prisma_1.default.client.update({
-        where: { id },
-        data,
+        where: {
+            id,
+        },
+        data: {
+            ...(data.name !==
+                undefined && {
+                name: data.name,
+            }),
+            ...(data.mobile !==
+                undefined && {
+                mobile: data.mobile,
+            }),
+            ...(data.email !==
+                undefined && {
+                email: data.email,
+            }),
+            ...(data.city !==
+                undefined && {
+                city: data.city,
+            }),
+            ...(data.state !==
+                undefined && {
+                state: data.state,
+            }),
+            ...(data.address !==
+                undefined && {
+                address: data.address,
+            }),
+            ...(data.panNumber !==
+                undefined && {
+                panNumber: data.panNumber,
+            }),
+            ...(data.aadhaarNumber !==
+                undefined && {
+                aadhaarNumber: data.aadhaarNumber,
+            }),
+            ...(data.isActive !==
+                undefined && {
+                isActive: data.isActive,
+            }),
+        },
     });
     return {
         success: true,
@@ -178,50 +237,135 @@ const updateClient = async (id, data) => {
     };
 };
 exports.updateClient = updateClient;
-const convertLeadToClient = async (leadId) => {
-    // Lead Check
+/* ============================
+   CONVERT LEAD TO CLIENT
+============================ */
+const convertLeadToClient = async (leadId, employeeId, data) => {
+    /* ============================
+       LEAD CHECK
+    ============================ */
     const lead = await prisma_1.default.lead.findUnique({
         where: {
             id: leadId,
+        },
+        include: {
+            client: true,
         },
     });
     if (!lead) {
         throw new Error("Lead Not Found");
     }
-    // Already Converted
-    if (lead.isConverted) {
+    /* ============================
+       ALREADY CONVERTED
+    ============================ */
+    if (lead.isConverted ||
+        lead.client) {
         throw new Error("Lead Already Converted");
     }
-    // Client Code
-    const totalClients = await prisma_1.default.client.count();
-    const clientCode = `CLI${String(totalClients + 1).padStart(5, "0")}`;
-    // Create Client
-    const client = await prisma_1.default.client.create({
-        data: {
-            clientCode,
-            leadId: lead.id,
-            name: lead.name || "Unknown",
-            mobile: lead.mobile,
-            email: lead.email,
-            city: lead.city,
-            state: lead.state,
-            address: lead.address,
+    /* ============================
+       NAME VALIDATION
+    ============================ */
+    const clientName = lead.name?.trim();
+    if (!clientName) {
+        throw new Error("Lead name is required before conversion");
+    }
+    /* ============================
+       DUPLICATE CLIENT CHECK
+    ============================ */
+    const existingClient = await prisma_1.default.client.findFirst({
+        where: {
+            OR: [
+                {
+                    mobile: lead.mobile,
+                },
+                ...(lead.email
+                    ? [
+                        {
+                            email: lead.email,
+                        },
+                    ]
+                    : []),
+            ],
         },
     });
-    // Update Lead
-    await prisma_1.default.lead.update({
-        where: {
-            id: lead.id,
-        },
-        data: {
-            isConverted: true,
-            stage: "CONVERTED",
-        },
+    if (existingClient) {
+        throw new Error("Client already exists with same mobile or email");
+    }
+    /* ============================
+       TRANSACTION
+    ============================ */
+    const result = await prisma_1.default.$transaction(async (tx) => {
+        /* ============================
+           CLIENT CODE
+        ============================ */
+        const lastClient = await tx.client.findFirst({
+            orderBy: {
+                createdAt: "desc",
+            },
+            select: {
+                clientCode: true,
+            },
+        });
+        let nextNumber = 1;
+        if (lastClient
+            ?.clientCode) {
+            const match = lastClient.clientCode.match(/(\d+)$/);
+            if (match) {
+                nextNumber =
+                    Number(match[1]) + 1;
+            }
+        }
+        const clientCode = `CL${String(nextNumber).padStart(6, "0")}`;
+        /* ============================
+           CREATE CLIENT
+        ============================ */
+        const client = await tx.client.create({
+            data: {
+                clientCode,
+                leadId: lead.id,
+                name: clientName,
+                mobile: lead.mobile,
+                email: lead.email,
+                city: lead.city,
+                state: lead.state,
+                address: lead.address,
+                panNumber: data.panNumber,
+                aadhaarNumber: data.aadhaarNumber,
+                isActive: true,
+            },
+        });
+        /* ============================
+           UPDATE LEAD
+        ============================ */
+        const updatedLead = await tx.lead.update({
+            where: {
+                id: lead.id,
+            },
+            data: {
+                isConverted: true,
+                stage: "CONVERTED",
+                nextFollowUp: null,
+            },
+        });
+        /* ============================
+           LEAD HISTORY
+        ============================ */
+        await tx.leadHistory.create({
+            data: {
+                leadId: lead.id,
+                employeeId,
+                remarks: `Lead converted to client ${clientCode}`,
+            },
+        });
+        return {
+            client,
+            lead: updatedLead,
+        };
     });
     return {
         success: true,
         message: "Lead Converted Successfully",
-        client,
+        ...result,
     };
 };
 exports.convertLeadToClient = convertLeadToClient;

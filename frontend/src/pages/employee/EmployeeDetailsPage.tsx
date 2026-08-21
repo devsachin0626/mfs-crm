@@ -40,6 +40,9 @@ import {
 } from "../../services/employee.service";
 
 import EmployeeAttendanceTab from "../../features/attendance/EmployeeAttendanceTab";
+import EmployeeLeaveTab from "../../features/leave/EmployeeLeaveTab";
+import EmployeeTargetTab from "../../features/target/EmployeeTargetTab";
+import EmployeePayrollTab from "../../features/payroll/EmployeePayrollTab";
 
 export default function EmployeeDetailsPage() {
   const { id } = useParams();
@@ -591,33 +594,33 @@ export default function EmployeeDetailsPage() {
 
         {/* Targets Tab */}
 
-        {activeTab ===
-          "Targets" && (
-          <EmptyTab
-            title="Targets"
-            text="Employee target details will appear here."
-          />
-        )}
+      {activeTab === "Targets" && (
+  <div className="p-6">
+    <EmployeeTargetTab
+      employeeId={employee.id}
+    />
+  </div>
+)}
 
         {/* Payroll Tab */}
 
-        {activeTab ===
-          "Payroll" && (
-          <EmptyTab
-            title="Payroll"
-            text="Employee payroll details will appear here."
-          />
-        )}
+ {activeTab === "Payroll" && (
+  <div className="p-6">
+    <EmployeePayrollTab
+      employeeId={employee.id}
+    />
+  </div>
+)}
 
         {/* Leaves Tab */}
 
-        {activeTab ===
-          "Leaves" && (
-          <EmptyTab
-            title="Leaves"
-            text="Employee leave history will appear here."
-          />
-        )}
+       {activeTab === "Leaves" && (
+  <div className="p-6">
+    <EmployeeLeaveTab
+      employeeId={employee.id}
+    />
+  </div>
+)}
 
         {/* Activity Tab */}
 

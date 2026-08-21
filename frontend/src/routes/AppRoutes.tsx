@@ -7,7 +7,6 @@ import {
 
 import LoginPage from "../pages/auth/LoginPage";
 import DashboardPage from "../pages/dashboard/DashboardPage";
-import LeadListPage from "../pages/lead/LeadListPage";
 import LeadDetailsPage from "../pages/lead/LeadDetailsPage";
 import EmployeeListPage from "../pages/employee/EmployeeListPage";
 import EmployeeDetailsPage from "../pages/employee/EmployeeDetailsPage";
@@ -16,6 +15,24 @@ import EmployeeEditPage from "../pages/employee/EmployeeEditPage";
 import AttendanceListPage from "../pages/attendance/AttendanceListPage";
 import AttendanceDetailsPage from "../pages/attendance/AttendanceDetailsPage";
 import AttendanceEditPage from "../pages/attendance/AttendanceEditPage";
+import LeaveListPage from "../pages/leave/LeaveListPage";
+import LeaveCreatePage from "../pages/leave/LeaveCreatePage";
+import LeaveDetailsPage from "../pages/leave/LeaveDetailsPage";
+import TargetListPage from "../pages/target/TargetListPage";
+import TargetCreatePage from "../pages/target/TargetCreatePage";
+import TargetDetailsPage from "../pages/target/TargetDetailsPage";
+import TargetEditPage from "../pages/target/TargetEditPage";
+import PayrollListPage from "../pages/payroll/PayrollListPage";
+import PayrollCreatePage from "../pages/payroll/PayrollCreatePage";
+import PayrollDetailsPage from "../pages/payroll/PayrollDetailsPage";
+import PayrollEditPage from "../pages/payroll/PayrollEditPage";
+import LeadListPage from "../pages/lead/LeadListPage";
+import LeadCreatePage from "../pages/lead/LeadCreatePage";
+import LeadEditPage from "../pages/lead/LeadEditPage";
+import FollowUpListPage from "../pages/followup/FollowUpListPage";
+import CallingWorkspacePage from "../pages/calling/CallingWorkspacePage";
+import LeadPipelinePage from "../pages/lead/LeadPipelinePage";
+import LeadImportPage from "../pages/lead/LeadImportPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -39,15 +56,10 @@ export default function AppRoutes() {
               element={<DashboardPage />}
             />
 
-            <Route
-              path="/leads"
-              element={<LeadListPage />}
-            />
-
-            <Route
-              path="/leads/:id"
-              element={<LeadDetailsPage />}
-            />
+          <Route
+  path="/leads"
+  element={<LeadListPage />}
+/>
 
             <Route
   path="/employees"
@@ -85,6 +97,100 @@ export default function AppRoutes() {
   path="/attendance/:id"
   element={<AttendanceDetailsPage />}
 />
+
+<Route
+  path="/leaves"
+  element={<LeaveListPage />}
+/>
+
+<Route
+  path="/leaves/create"
+  element={<LeaveCreatePage />}
+/>
+
+<Route
+  path="/leaves/:id"
+  element={<LeaveDetailsPage />}
+
+
+/>
+<Route
+  path="/targets"
+  element={<TargetListPage />}
+/>
+
+<Route
+  path="/targets/create"
+  element={<TargetCreatePage />}
+/>
+
+<Route
+  path="/targets/:id/edit"
+  element={<TargetEditPage />}
+/>
+
+<Route
+  path="/targets/:id"
+  element={<TargetDetailsPage />}
+/>
+<Route
+  path="/payroll"
+  element={<PayrollListPage />}
+/>
+
+<Route
+  path="/payroll/create"
+  element={<PayrollCreatePage />}
+/>
+
+<Route
+  path="/payroll/:id/edit"
+  element={<PayrollEditPage />}
+/>
+
+<Route
+  path="/payroll/:id"
+  element={<PayrollDetailsPage />}
+/>
+
+<Route
+  path="/leads/create"
+  element={<LeadCreatePage />}
+
+
+/>
+
+<Route
+  path="/leads/pipeline"
+  element={<LeadPipelinePage />}
+/>
+
+
+<Route
+  path="/leads/:id/edit"
+  element={<LeadEditPage />}
+/>
+
+<Route
+  path="/leads/:id"
+  element={<LeadDetailsPage />}
+/>
+
+<Route
+  path="/leads/import"
+  element={<LeadImportPage />}
+/>
+
+<Route
+  path="/follow-ups"
+  element={<FollowUpListPage />}
+/>
+
+<Route
+  path="/calling"
+  element={<CallingWorkspacePage />}
+/>
+
 
 
 

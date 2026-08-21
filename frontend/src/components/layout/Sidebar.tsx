@@ -8,7 +8,13 @@ import {
   UserCog,
   FileBarChart,
   Settings,
-  CalendarCheck
+  CalendarCheck,
+  CalendarDays,
+  Target,
+  Banknote,
+  CalendarClock,
+  Phone,
+  Columns3
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -26,6 +32,25 @@ export default function Sidebar() {
       path: "/leads",
       icon: Users,
     },
+
+    {
+  label: "Pipeline",
+  path: "/leads/pipeline",
+  icon: Columns3,
+},
+
+    {
+  label: "Calling",
+  path: "/calling",
+  icon: Phone,
+},
+
+    {
+  label: "Follow Ups",
+  path: "/follow-ups",
+  icon: CalendarClock,
+},
+
     {
       label: "Payments",
       path: "/payments",
@@ -42,6 +67,25 @@ export default function Sidebar() {
   path: "/attendance",
   icon: CalendarCheck,
 },
+
+{
+  label: "Leaves",
+  path: "/leaves",
+  icon: CalendarDays,
+},
+
+{
+  label: "Targets",
+  path: "/targets",
+  icon: Target,
+},
+
+{
+  label: "Payroll",
+  path: "/payroll",
+  icon: Banknote,
+},
+
     {
       label: "Reports",
       path: "/reports",

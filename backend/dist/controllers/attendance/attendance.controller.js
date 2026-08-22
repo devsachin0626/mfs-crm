@@ -40,13 +40,24 @@ const attendanceService = __importStar(require("../../services/attendance/attend
 ============================ */
 const checkIn = async (req, res) => {
     try {
-        const result = await attendanceService.checkIn(req.body);
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const result = await attendanceService.checkIn({
+            employeeId: req.employee.id,
+            remarks: req.body?.remarks,
+        });
         res.status(201).json(result);
     }
     catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Check In Failed",
         });
     }
 };
@@ -56,28 +67,50 @@ exports.checkIn = checkIn;
 ============================ */
 const checkOut = async (req, res) => {
     try {
-        const result = await attendanceService.checkOut(req.body);
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const result = await attendanceService.checkOut({
+            employeeId: req.employee.id,
+            remarks: req.body?.remarks,
+        });
         res.status(200).json(result);
     }
     catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Check Out Failed",
         });
     }
 };
 exports.checkOut = checkOut;
 /* ============================
-   GET ALL ATTENDANCE
+   GET ATTENDANCES
 ============================ */
 const getAttendances = async (req, res) => {
     try {
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
         const page = Number(req.query.page) || 1;
         const limit = Number(req.query.limit) || 10;
-        const search = typeof req.query.search === "string"
+        const search = typeof req.query
+            .search ===
+            "string"
             ? req.query.search
             : undefined;
-        const status = typeof req.query.status === "string"
+        const status = typeof req.query
+            .status ===
+            "string"
             ? req.query.status
             : undefined;
         const month = req.query.month
@@ -86,15 +119,21 @@ const getAttendances = async (req, res) => {
         const year = req.query.year
             ? Number(req.query.year)
             : undefined;
-        const result = await attendanceService.getAttendances(page, limit, search, status, month, year);
+        const employeeId = typeof req.query
+            .employeeId ===
+            "string"
+            ? req.query
+                .employeeId
+            : undefined;
+        const result = await attendanceService.getAttendances(page, limit, search, status, month, year, employeeId, req.employee);
         res.status(200).json(result);
     }
     catch (error) {
-        console.error(error);
+        console.error("Attendance List Error:", error);
         res.status(400).json({
             success: false,
-            message: error.message,
-            error,
+            message: error.message ||
+                "Failed to Fetch Attendance",
         });
     }
 };
@@ -104,14 +143,23 @@ exports.getAttendances = getAttendances;
 ============================ */
 const getAttendanceById = async (req, res) => {
     try {
-        const { id } = req.params;
-        const result = await attendanceService.getAttendanceById(id);
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const id = req.params
+            .id;
+        const result = await attendanceService.getAttendanceById(id, req.employee);
         res.status(200).json(result);
     }
     catch (error) {
         res.status(404).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Attendance Not Found",
         });
     }
 };
@@ -121,14 +169,23 @@ exports.getAttendanceById = getAttendanceById;
 ============================ */
 const updateAttendance = async (req, res) => {
     try {
-        const { id } = req.params;
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const id = req.params
+            .id;
         const result = await attendanceService.updateAttendance(id, req.body);
         res.status(200).json(result);
     }
     catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Attendance Update Failed",
         });
     }
 };
@@ -138,16 +195,33 @@ exports.updateAttendance = updateAttendance;
 ============================ */
 const monthlyAttendanceReport = async (req, res) => {
     try {
-        const { employeeId } = req.params;
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const employeeId = req.params
+            .employeeId;
         const month = Number(req.query.month);
         const year = Number(req.query.year);
-        const result = await attendanceService.monthlyAttendanceReport(employeeId, month, year);
+        if (!month ||
+            !year) {
+            res.status(400).json({
+                success: false,
+                message: "Month and Year are required",
+            });
+            return;
+        }
+        const result = await attendanceService.monthlyAttendanceReport(employeeId, month, year, req.employee);
         res.status(200).json(result);
     }
     catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Attendance Report Failed",
         });
     }
 };

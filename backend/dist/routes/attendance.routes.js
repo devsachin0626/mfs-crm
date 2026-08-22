@@ -39,27 +39,31 @@ const auth_middleware_1 = require("../middleware/auth.middleware");
 const role_middleware_1 = require("../middleware/role.middleware");
 const router = (0, express_1.Router)();
 /* ============================
-   CHECK IN
+   SELF CHECK IN
 ============================ */
-router.post("/check-in", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "SALES_EXECUTIVE"), attendanceController.checkIn);
+router.post("/check-in", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.checkIn);
 /* ============================
-   CHECK OUT
+   SELF CHECK OUT
 ============================ */
-router.put("/check-out", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "SALES_EXECUTIVE"), attendanceController.checkOut);
+router.put("/check-out", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.checkOut);
 /* ============================
-   GET ALL ATTENDANCE
+   GET ATTENDANCE LIST
+
+   Access filtering service/controller
+   me role ke hisaab se hoga
 ============================ */
-router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), attendanceController.getAttendances);
+router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.getAttendances);
 /* ============================
    MONTHLY ATTENDANCE REPORT
 ============================ */
-router.get("/report/:employeeId", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), attendanceController.monthlyAttendanceReport);
+router.get("/report/:employeeId", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.monthlyAttendanceReport);
 /* ============================
    GET ATTENDANCE BY ID
 ============================ */
-router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), attendanceController.getAttendanceById);
+router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.getAttendanceById);
 /* ============================
    UPDATE ATTENDANCE
+   ONLY ADMIN / HR
 ============================ */
 router.put("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR"), attendanceController.updateAttendance);
 exports.default = router;

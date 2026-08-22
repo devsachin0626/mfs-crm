@@ -1,40 +1,65 @@
 import { Router } from "express";
+
 import * as attendanceController from "../controllers/attendance/attendance.controller";
-import { authenticate } from "../middleware/auth.middleware";
-import { authorize } from "../middleware/role.middleware";
+
+import {
+  authenticate,
+} from "../middleware/auth.middleware";
+
+import {
+  authorize,
+} from "../middleware/role.middleware";
 
 const router = Router();
 
 /* ============================
-   CHECK IN
+   SELF CHECK IN
 ============================ */
 
 router.post(
   "/check-in",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER", "SALES_EXECUTIVE"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   attendanceController.checkIn
 );
 
 /* ============================
-   CHECK OUT
+   SELF CHECK OUT
 ============================ */
 
 router.put(
   "/check-out",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER", "SALES_EXECUTIVE"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   attendanceController.checkOut
 );
 
 /* ============================
-   GET ALL ATTENDANCE
+   GET ATTENDANCE LIST
+
+   Access filtering service/controller
+   me role ke hisaab se hoga
 ============================ */
 
 router.get(
   "/",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   attendanceController.getAttendances
 );
 
@@ -45,7 +70,12 @@ router.get(
 router.get(
   "/report/:employeeId",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   attendanceController.monthlyAttendanceReport
 );
 
@@ -56,18 +86,27 @@ router.get(
 router.get(
   "/:id",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   attendanceController.getAttendanceById
 );
 
 /* ============================
    UPDATE ATTENDANCE
+   ONLY ADMIN / HR
 ============================ */
 
 router.put(
   "/:id",
   authenticate,
-  authorize("ADMIN", "HR"),
+  authorize(
+    "ADMIN",
+    "HR"
+  ),
   attendanceController.updateAttendance
 );
 

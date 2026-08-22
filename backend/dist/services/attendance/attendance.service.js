@@ -7,25 +7,88 @@ exports.monthlyAttendanceReport = exports.updateAttendance = exports.getAttendan
 const prisma_1 = __importDefault(require("../../config/prisma"));
 const client_1 = require("@prisma/client");
 /* ============================
+   ATTENDANCE ACCESS
+============================ */
+const getAttendanceEmployeeIds = async (currentEmployee) => {
+    const roleName = currentEmployee.role?.name;
+    /* ADMIN / HR → ALL */
+    if (roleName === "ADMIN" ||
+        roleName === "HR") {
+        return null;
+    }
+    /* EMPLOYEE → SELF */
+    if (roleName === "EMPLOYEE") {
+        return [
+            currentEmployee.id,
+        ];
+    }
+    /* TEAM LEADER → SELF + TEAM */
+    if (roleName ===
+        "TEAM_LEADER") {
+        const teamMembers = await prisma_1.default.employee.findMany({
+            where: {
+                reportingManagerId: currentEmployee.id,
+            },
+            select: {
+                id: true,
+            },
+        });
+        return [
+            currentEmployee.id,
+            ...teamMembers.map((item) => item.id),
+        ];
+    }
+    /* UNKNOWN ROLE → NO ACCESS */
+    return [];
+};
+/* ============================
+   CHECK EMPLOYEE ACCESS
+============================ */
+const checkAttendanceEmployeeAccess = async (employeeId, currentEmployee) => {
+    const allowedIds = await getAttendanceEmployeeIds(currentEmployee);
+    /* ADMIN / HR */
+    if (allowedIds === null) {
+        return;
+    }
+    if (!allowedIds.includes(employeeId)) {
+        throw new Error("Attendance Access Denied");
+    }
+};
+/* ============================
    CHECK IN
 ============================ */
 const checkIn = async (data) => {
-    // Employee Check
     const employee = await prisma_1.default.employee.findUnique({
         where: {
             id: data.employeeId,
+        },
+        select: {
+            id: true,
+            employeeCode: true,
+            name: true,
+            isActive: true,
+            status: true,
         },
     });
     if (!employee) {
         throw new Error("Employee Not Found");
     }
-    // Today's Date (00:00:00)
+    if (!employee.isActive ||
+        employee.status !==
+            "ACTIVE") {
+        throw new Error("Employee Account Inactive");
+    }
+    /* ============================
+       TODAY
+    ============================ */
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    // Tomorrow (00:00:00)
     const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    // Duplicate Check
+    tomorrow.setDate(tomorrow.getDate() +
+        1);
+    /* ============================
+       DUPLICATE CHECK
+    ============================ */
     const existingAttendance = await prisma_1.default.attendance.findFirst({
         where: {
             employeeId: data.employeeId,
@@ -38,30 +101,39 @@ const checkIn = async (data) => {
     if (existingAttendance) {
         throw new Error("Employee Already Checked In Today");
     }
-    // Current Time
+    /* ============================
+       CURRENT TIME
+    ============================ */
     const now = new Date();
-    // Late Time (09:15 AM)
-    const lateTime = new Date();
+    /* ============================
+       LATE RULE - 09:15
+    ============================ */
+    const lateTime = new Date(today);
     lateTime.setHours(9, 15, 0, 0);
     let status = client_1.AttendanceStatus.PRESENT;
     if (now > lateTime) {
-        status = client_1.AttendanceStatus.LATE;
+        status =
+            client_1.AttendanceStatus.LATE;
     }
-    // Create Attendance
+    /* ============================
+       CREATE ATTENDANCE
+    ============================ */
     const attendance = await prisma_1.default.attendance.create({
         data: {
-            employee: {
-                connect: {
-                    id: data.employeeId,
-                },
-            },
+            employeeId: data.employeeId,
             attendanceDate: today,
             checkIn: now,
             status,
             remarks: data.remarks,
         },
         include: {
-            employee: true,
+            employee: {
+                select: {
+                    id: true,
+                    employeeCode: true,
+                    name: true,
+                },
+            },
         },
     });
     return {
@@ -75,21 +147,29 @@ exports.checkIn = checkIn;
    CHECK OUT
 ============================ */
 const checkOut = async (data) => {
-    // Employee Check
     const employee = await prisma_1.default.employee.findUnique({
         where: {
             id: data.employeeId,
+        },
+        select: {
+            id: true,
+            isActive: true,
+            status: true,
         },
     });
     if (!employee) {
         throw new Error("Employee Not Found");
     }
-    // Today's Date
+    if (!employee.isActive ||
+        employee.status !==
+            "ACTIVE") {
+        throw new Error("Employee Account Inactive");
+    }
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    // Attendance Check
+    tomorrow.setDate(tomorrow.getDate() +
+        1);
     const attendance = await prisma_1.default.attendance.findFirst({
         where: {
             employeeId: data.employeeId,
@@ -102,19 +182,29 @@ const checkOut = async (data) => {
     if (!attendance) {
         throw new Error("Please Check-In First");
     }
-    // Already Checked Out
+    if (!attendance.checkIn) {
+        throw new Error("Check-In Time Not Found");
+    }
     if (attendance.checkOut) {
         throw new Error("Employee Already Checked Out");
     }
     const now = new Date();
-    // Working Hours
-    const milliseconds = now.getTime() - attendance.checkIn.getTime();
-    const workingHours = Number((milliseconds / (1000 * 60 * 60)).toFixed(2));
-    // Default Status
+    /* ============================
+       WORKING HOURS
+    ============================ */
+    const milliseconds = now.getTime() -
+        attendance.checkIn.getTime();
+    const workingHours = Number((milliseconds /
+        (1000 *
+            60 *
+            60)).toFixed(2));
     let status = attendance.status;
-    // Half Day Rule
+    /* ============================
+       HALF DAY RULE
+    ============================ */
     if (workingHours < 4) {
-        status = "HALF_DAY";
+        status =
+            client_1.AttendanceStatus.HALF_DAY;
     }
     const updatedAttendance = await prisma_1.default.attendance.update({
         where: {
@@ -124,10 +214,17 @@ const checkOut = async (data) => {
             checkOut: now,
             workingHours: new client_1.Prisma.Decimal(workingHours),
             status,
-            remarks: data.remarks ?? attendance.remarks,
+            remarks: data.remarks ??
+                attendance.remarks,
         },
         include: {
-            employee: true,
+            employee: {
+                select: {
+                    id: true,
+                    employeeCode: true,
+                    name: true,
+                },
+            },
         },
     });
     return {
@@ -138,61 +235,125 @@ const checkOut = async (data) => {
 };
 exports.checkOut = checkOut;
 /* ============================
-   GET ALL ATTENDANCE
+   GET ATTENDANCES
 ============================ */
-const getAttendances = async (page, limit, search, status, month, year) => {
-    const skip = (page - 1) * limit;
+const getAttendances = async (page, limit, search, status, month, year, employeeId, currentEmployee) => {
+    const skip = (page - 1) *
+        limit;
     const where = {};
-    // Search by Employee Name
+    /* ============================
+       ROLE ACCESS
+    ============================ */
+    const allowedIds = await getAttendanceEmployeeIds(currentEmployee);
+    if (allowedIds !== null) {
+        where.employeeId = {
+            in: allowedIds,
+        };
+    }
+    /* ============================
+       EMPLOYEE FILTER
+    ============================ */
+    if (employeeId) {
+        await checkAttendanceEmployeeAccess(employeeId, currentEmployee);
+        where.employeeId =
+            employeeId;
+    }
+    /* ============================
+       SEARCH
+    ============================ */
     if (search) {
         where.employee = {
-            name: {
-                contains: search,
-                mode: "insensitive",
-            },
+            OR: [
+                {
+                    name: {
+                        contains: search,
+                        mode: "insensitive",
+                    },
+                },
+                {
+                    employeeCode: {
+                        contains: search,
+                        mode: "insensitive",
+                    },
+                },
+                {
+                    mobile: {
+                        contains: search,
+                    },
+                },
+            ],
         };
     }
-    // Filter by Status
+    /* ============================
+       STATUS FILTER
+    ============================ */
     if (status) {
-        where.status = status;
+        where.status =
+            status;
     }
-    // Filter by Month & Year
-    if (month && year) {
+    /* ============================
+       MONTH / YEAR FILTER
+    ============================ */
+    if (month &&
+        year) {
+        if (month < 1 ||
+            month > 12) {
+            throw new Error("Invalid Month");
+        }
         const startDate = new Date(year, month - 1, 1);
         const endDate = new Date(year, month, 1);
-        where.attendanceDate = {
-            gte: startDate,
-            lt: endDate,
-        };
+        where.attendanceDate =
+            {
+                gte: startDate,
+                lt: endDate,
+            };
     }
-    const total = await prisma_1.default.attendance.count({
-        where,
-    });
-    const attendances = await prisma_1.default.attendance.findMany({
-        where,
-        include: {
-            employee: {
-                select: {
-                    id: true,
-                    employeeCode: true,
-                    name: true,
-                    email: true,
-                    mobile: true,
+    const [attendances, total,] = await Promise.all([
+        prisma_1.default.attendance.findMany({
+            where,
+            include: {
+                employee: {
+                    select: {
+                        id: true,
+                        employeeCode: true,
+                        name: true,
+                        email: true,
+                        mobile: true,
+                        role: {
+                            select: {
+                                name: true,
+                            },
+                        },
+                        branch: {
+                            select: {
+                                name: true,
+                            },
+                        },
+                    },
                 },
             },
-        },
-        orderBy: {
-            attendanceDate: "desc",
-        },
-        skip,
-        take: limit,
-    });
+            orderBy: [
+                {
+                    attendanceDate: "desc",
+                },
+                {
+                    checkIn: "desc",
+                },
+            ],
+            skip,
+            take: limit,
+        }),
+        prisma_1.default.attendance.count({
+            where,
+        }),
+    ]);
     return {
         success: true,
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total /
+            limit),
         attendances,
     };
 };
@@ -200,7 +361,7 @@ exports.getAttendances = getAttendances;
 /* ============================
    GET ATTENDANCE BY ID
 ============================ */
-const getAttendanceById = async (id) => {
+const getAttendanceById = async (id, currentEmployee) => {
     const attendance = await prisma_1.default.attendance.findUnique({
         where: {
             id,
@@ -230,12 +391,17 @@ const getAttendanceById = async (id) => {
     if (!attendance) {
         throw new Error("Attendance Not Found");
     }
+    await checkAttendanceEmployeeAccess(attendance.employeeId, currentEmployee);
     return {
         success: true,
         attendance,
     };
 };
 exports.getAttendanceById = getAttendanceById;
+/* ============================
+   UPDATE ATTENDANCE
+   ADMIN / HR ONLY
+============================ */
 const updateAttendance = async (id, data) => {
     const attendance = await prisma_1.default.attendance.findUnique({
         where: {
@@ -245,28 +411,55 @@ const updateAttendance = async (id, data) => {
     if (!attendance) {
         throw new Error("Attendance Not Found");
     }
-    // Existing Values
+    /* ============================
+       DATE CONVERSION
+    ============================ */
     const checkIn = data.checkIn
         ? new Date(data.checkIn)
         : attendance.checkIn;
     const checkOut = data.checkOut
         ? new Date(data.checkOut)
         : attendance.checkOut;
-    // Working Hours Calculation
+    if (checkIn &&
+        Number.isNaN(checkIn.getTime())) {
+        throw new Error("Invalid Check-In Time");
+    }
+    if (checkOut &&
+        Number.isNaN(checkOut.getTime())) {
+        throw new Error("Invalid Check-Out Time");
+    }
+    if (checkIn &&
+        checkOut &&
+        checkOut <
+            checkIn) {
+        throw new Error("Check-Out cannot be before Check-In");
+    }
     let workingHours = attendance.workingHours;
-    let status = attendance.status;
-    if (checkIn && checkOut) {
-        const diff = checkOut.getTime() - checkIn.getTime();
-        const hours = Number((diff / (1000 * 60 * 60)).toFixed(2));
-        workingHours = new client_1.Prisma.Decimal(hours);
-        // Auto Half Day
+    let attendanceStatus = attendance.status;
+    /* ============================
+       CALCULATE HOURS
+    ============================ */
+    if (checkIn &&
+        checkOut) {
+        const diff = checkOut.getTime() -
+            checkIn.getTime();
+        const hours = Number((diff /
+            (1000 *
+                60 *
+                60)).toFixed(2));
+        workingHours =
+            new client_1.Prisma.Decimal(hours);
         if (hours < 4) {
-            status = client_1.AttendanceStatus.HALF_DAY;
+            attendanceStatus =
+                client_1.AttendanceStatus.HALF_DAY;
         }
     }
-    // Manual Status Override
+    /* ============================
+       MANUAL STATUS
+    ============================ */
     if (data.status) {
-        status = data.status;
+        attendanceStatus =
+            data.status;
     }
     const updatedAttendance = await prisma_1.default.attendance.update({
         where: {
@@ -276,11 +469,18 @@ const updateAttendance = async (id, data) => {
             checkIn,
             checkOut,
             workingHours,
-            status,
-            remarks: data.remarks ?? attendance.remarks,
+            status: attendanceStatus,
+            remarks: data.remarks ??
+                attendance.remarks,
         },
         include: {
-            employee: true,
+            employee: {
+                select: {
+                    id: true,
+                    employeeCode: true,
+                    name: true,
+                },
+            },
         },
     });
     return {
@@ -293,11 +493,30 @@ exports.updateAttendance = updateAttendance;
 /* ============================
    MONTHLY ATTENDANCE REPORT
 ============================ */
-const monthlyAttendanceReport = async (employeeId, month, year) => {
-    // Employee Check
+const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee) => {
+    if (month < 1 ||
+        month > 12) {
+        throw new Error("Invalid Month");
+    }
+    await checkAttendanceEmployeeAccess(employeeId, currentEmployee);
     const employee = await prisma_1.default.employee.findUnique({
         where: {
             id: employeeId,
+        },
+        select: {
+            id: true,
+            employeeCode: true,
+            name: true,
+            role: {
+                select: {
+                    name: true,
+                },
+            },
+            branch: {
+                select: {
+                    name: true,
+                },
+            },
         },
     });
     if (!employee) {
@@ -326,36 +545,39 @@ const monthlyAttendanceReport = async (employeeId, month, year) => {
     let totalWorkingHours = 0;
     attendances.forEach((attendance) => {
         switch (attendance.status) {
-            case "PRESENT":
+            case client_1.AttendanceStatus.PRESENT:
                 present++;
                 break;
-            case "LATE":
+            case client_1.AttendanceStatus.LATE:
                 late++;
                 break;
-            case "HALF_DAY":
+            case client_1.AttendanceStatus.HALF_DAY:
                 halfDay++;
                 break;
-            case "ABSENT":
+            case client_1.AttendanceStatus.ABSENT:
                 absent++;
                 break;
-            case "LEAVE":
+            case client_1.AttendanceStatus.LEAVE:
                 leave++;
                 break;
-            case "HOLIDAY":
+            case client_1.AttendanceStatus.HOLIDAY:
                 holiday++;
                 break;
         }
         if (attendance.workingHours) {
-            totalWorkingHours += Number(attendance.workingHours);
+            totalWorkingHours +=
+                Number(attendance.workingHours);
         }
     });
+    const payableDays = present +
+        late +
+        halfDay *
+            0.5 +
+        leave +
+        holiday;
     return {
         success: true,
-        employee: {
-            id: employee.id,
-            employeeCode: employee.employeeCode,
-            name: employee.name,
-        },
+        employee,
         month,
         year,
         summary: {
@@ -366,6 +588,7 @@ const monthlyAttendanceReport = async (employeeId, month, year) => {
             absent,
             leave,
             holiday,
+            payableDays: Number(payableDays.toFixed(2)),
             totalWorkingHours: Number(totalWorkingHours.toFixed(2)),
         },
         attendances,

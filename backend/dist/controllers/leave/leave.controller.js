@@ -40,40 +40,63 @@ const leaveService = __importStar(require("../../services/leave/leave.service"))
 ============================ */
 const applyLeave = async (req, res) => {
     try {
-        const result = await leaveService.applyLeave(req.body);
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const result = await leaveService.applyLeave({
+            ...req.body,
+            // Always token employee
+            employeeId: req.employee.id,
+        });
         res.status(201).json(result);
     }
     catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Leave Apply Failed",
         });
     }
 };
 exports.applyLeave = applyLeave;
 /* ============================
-   GET ALL LEAVES
+   GET LEAVES
 ============================ */
 const getLeaves = async (req, res) => {
     try {
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
         const page = Number(req.query.page) || 1;
         const limit = Number(req.query.limit) || 10;
-        const search = typeof req.query.search === "string"
+        const search = typeof req.query
+            .search === "string"
             ? req.query.search
             : undefined;
-        const status = typeof req.query.status === "string"
+        const status = typeof req.query
+            .status === "string"
             ? req.query.status
             : undefined;
-        const employeeId = typeof req.query.employeeId === "string"
+        const employeeId = typeof req.query
+            .employeeId === "string"
             ? req.query.employeeId
             : undefined;
-        const result = await leaveService.getLeaves(page, limit, search, status, employeeId);
+        const result = await leaveService.getLeaves(page, limit, search, status, employeeId, req.employee);
         res.status(200).json(result);
     }
     catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Failed to Fetch Leaves",
         });
     }
 };
@@ -83,14 +106,22 @@ exports.getLeaves = getLeaves;
 ============================ */
 const getLeaveById = async (req, res) => {
     try {
-        const { id } = req.params;
-        const result = await leaveService.getLeaveById(id);
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const id = req.params.id;
+        const result = await leaveService.getLeaveById(id, req.employee);
         res.status(200).json(result);
     }
     catch (error) {
         res.status(404).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Leave Not Found",
         });
     }
 };
@@ -100,14 +131,22 @@ exports.getLeaveById = getLeaveById;
 ============================ */
 const updateLeave = async (req, res) => {
     try {
-        const { id } = req.params;
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const id = req.params.id;
         const result = await leaveService.updateLeave(id, req.body);
         res.status(200).json(result);
     }
     catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Leave Update Failed",
         });
     }
 };
@@ -117,15 +156,36 @@ exports.updateLeave = updateLeave;
 ============================ */
 const approveRejectLeave = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { status, approvedById } = req.body;
-        const result = await leaveService.approveRejectLeave(id, status, approvedById);
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const id = req.params.id;
+        const { status, } = req.body;
+        if (status !==
+            "APPROVED" &&
+            status !==
+                "REJECTED") {
+            res.status(400).json({
+                success: false,
+                message: "Status must be APPROVED or REJECTED",
+            });
+            return;
+        }
+        const result = await leaveService.approveRejectLeave(id, status, 
+        // Approver always comes
+        // from authenticated token
+        req.employee.id, req.employee);
         res.status(200).json(result);
     }
     catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Leave Approval Failed",
         });
     }
 };

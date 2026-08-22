@@ -60,7 +60,6 @@ export interface LeaveQuery {
 }
 
 export interface ApplyLeavePayload {
-  employeeId: string;
   fromDate: string;
   toDate: string;
   reason?: string;

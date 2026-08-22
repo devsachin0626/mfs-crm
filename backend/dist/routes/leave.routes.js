@@ -38,14 +38,32 @@ const leaveController = __importStar(require("../controllers/leave/leave.control
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const role_middleware_1 = require("../middleware/role.middleware");
 const router = (0, express_1.Router)();
-// Apply Leave
+/* ============================
+   APPLY LEAVE
+============================ */
 router.post("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leaveController.applyLeave);
-// Get All Leaves
-router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), leaveController.getLeaves);
-// Get Leave By ID
-router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), leaveController.getLeaveById);
-// Update Leave
+/* ============================
+   GET LEAVES
+
+   EMPLOYEE     → own
+   TEAM_LEADER  → own + team
+   ADMIN / HR   → all
+============================ */
+router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leaveController.getLeaves);
+/* ============================
+   GET LEAVE BY ID
+============================ */
+router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leaveController.getLeaveById);
+/* ============================
+   UPDATE LEAVE
+
+   ADMIN / HR only
+============================ */
 router.put("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR"), leaveController.updateLeave);
-// Approve / Reject Leave
-router.put("/:id/approve", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR"), leaveController.approveRejectLeave);
+/* ============================
+   APPROVE / REJECT
+
+   ADMIN / HR / TEAM LEADER
+============================ */
+router.put("/:id/approve", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), leaveController.approveRejectLeave);
 exports.default = router;

@@ -30,86 +30,158 @@ import type {
 } from "../../types/leave.types";
 
 export default function LeaveDetailsPage() {
-  const { id } = useParams();
+  const { id } =
+    useParams();
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const employee = useAppSelector(
-    (state) => state.auth.employee
-  );
+  const employee =
+    useAppSelector(
+      (state) =>
+        state.auth.employee
+    );
 
-  const [leave, setLeave] =
-    useState<Leave | null>(null);
+  const role =
+    employee?.role || "";
 
-  const [loading, setLoading] =
+  const canApprove =
+    role === "ADMIN" ||
+    role === "HR" ||
+    role === "TEAM_LEADER";
+
+  const [
+    leave,
+    setLeave,
+  ] =
+    useState<Leave | null>(
+      null
+    );
+
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
-  const [processing, setProcessing] =
+  const [
+    processing,
+    setProcessing,
+  ] =
     useState(false);
 
-  const [error, setError] =
+  const [
+    error,
+    setError,
+  ] =
     useState("");
 
-  const loadLeave = async () => {
-    if (!id) return;
+  /* ============================
+     LOAD LEAVE
+  ============================ */
 
-    try {
-      setLoading(true);
-      setError("");
+  const loadLeave =
+    async () => {
+      if (!id) {
+        return;
+      }
 
-      const response =
-        await getLeaveById(id);
+      try {
+        setLoading(
+          true
+        );
 
-      setLeave(response.leave);
-    } catch (error: any) {
-      setError(
-        error?.response?.data?.message ||
-          "Failed to load leave"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        setError(
+          ""
+        );
+
+        const response =
+          await getLeaveById(
+            id
+          );
+
+        setLeave(
+          response.leave
+        );
+      } catch (
+        error: any
+      ) {
+        setError(
+          error?.response
+            ?.data
+            ?.message ||
+            "Failed to load leave"
+        );
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
 
   useEffect(() => {
     loadLeave();
   }, [id]);
 
-  const handleDecision = async (
-    status: "APPROVED" | "REJECTED"
-  ) => {
-    if (!id || !employee?.id) return;
+  /* ============================
+     APPROVE / REJECT
+  ============================ */
 
-    const confirmed =
-      window.confirm(
-        `Are you sure you want to ${status.toLowerCase()} this leave?`
-      );
+  const handleDecision =
+    async (
+      status:
+        | "APPROVED"
+        | "REJECTED"
+    ) => {
+      if (!id) {
+        return;
+      }
 
-    if (!confirmed) return;
+      const confirmed =
+        window.confirm(
+          `Are you sure you want to ${status.toLowerCase()} this leave?`
+        );
 
-    try {
-      setProcessing(true);
-      setError("");
+      if (
+        !confirmed
+      ) {
+        return;
+      }
 
-      await approveRejectLeave(
-        id,
-        {
-          status,
-          approvedById:
-            employee.id,
-        }
-      );
+      try {
+        setProcessing(
+          true
+        );
 
-      await loadLeave();
-    } catch (error: any) {
-      setError(
-        error?.response?.data?.message ||
-          "Leave update failed"
-      );
-    } finally {
-      setProcessing(false);
-    }
-  };
+        setError(
+          ""
+        );
+
+        await approveRejectLeave(
+          id,
+          status
+        );
+
+        await loadLeave();
+      } catch (
+        error: any
+      ) {
+        setError(
+          error?.response
+            ?.data
+            ?.message ||
+            "Leave update failed"
+        );
+      } finally {
+        setProcessing(
+          false
+        );
+      }
+    };
+
+  /* ============================
+     LOADING
+  ============================ */
 
   if (loading) {
     return (
@@ -125,7 +197,14 @@ export default function LeaveDetailsPage() {
     );
   }
 
-  if (error && !leave) {
+  /* ============================
+     ERROR
+  ============================ */
+
+  if (
+    error &&
+    !leave
+  ) {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
         <p className="text-red-700">
@@ -143,19 +222,40 @@ export default function LeaveDetailsPage() {
     );
   }
 
+  /* ============================
+     BUTTON VISIBILITY
+  ============================ */
+
+  const isOwnLeave =
+    leave.employee.id ===
+    employee?.id;
+
+  const showDecisionButtons =
+    leave.status ===
+      "PENDING" &&
+    canApprove &&
+    !isOwnLeave;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* ============================
+          HEADER
+      ============================ */}
+
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() =>
-              navigate("/leaves")
+              navigate(
+                "/leaves"
+              )
             }
             className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50"
           >
-            <ArrowLeft size={19} />
+            <ArrowLeft
+              size={19}
+            />
           </button>
 
           <div>
@@ -164,7 +264,10 @@ export default function LeaveDetailsPage() {
             </h1>
 
             <p className="text-sm text-slate-500">
-              {leave.employee.name}
+              {
+                leave.employee
+                  .name
+              }
               {" • "}
               {
                 leave.employee
@@ -174,12 +277,17 @@ export default function LeaveDetailsPage() {
           </div>
         </div>
 
-        {leave.status ===
-          "PENDING" && (
+        {/* ============================
+            APPROVE / REJECT
+        ============================ */}
+
+        {showDecisionButtons && (
           <div className="flex gap-3">
             <button
               type="button"
-              disabled={processing}
+              disabled={
+                processing
+              }
               onClick={() =>
                 handleDecision(
                   "REJECTED"
@@ -187,13 +295,20 @@ export default function LeaveDetailsPage() {
               }
               className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
             >
-              <X size={17} />
-              Reject
+              <X
+                size={17}
+              />
+
+              {processing
+                ? "Processing..."
+                : "Reject"}
             </button>
 
             <button
               type="button"
-              disabled={processing}
+              disabled={
+                processing
+              }
               onClick={() =>
                 handleDecision(
                   "APPROVED"
@@ -201,12 +316,21 @@ export default function LeaveDetailsPage() {
               }
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              <Check size={17} />
-              Approve
+              <Check
+                size={17}
+              />
+
+              {processing
+                ? "Processing..."
+                : "Approve"}
             </button>
           </div>
         )}
       </div>
+
+      {/* ============================
+          ERROR MESSAGE
+      ============================ */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -214,12 +338,18 @@ export default function LeaveDetailsPage() {
         </div>
       )}
 
-      {/* Employee Card */}
+      {/* ============================
+          EMPLOYEE CARD
+      ============================ */}
+
       <div className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <h2 className="text-xl font-bold text-slate-900">
-              {leave.employee.name}
+              {
+                leave.employee
+                  .name
+              }
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
@@ -231,12 +361,17 @@ export default function LeaveDetailsPage() {
           </div>
 
           <LeaveStatusBadge
-            status={leave.status}
+            status={
+              leave.status
+            }
           />
         </div>
       </div>
 
-      {/* Leave Information */}
+      {/* ============================
+          INFO CARDS
+      ============================ */}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <InfoCard
           label="From Date"
@@ -264,9 +399,15 @@ export default function LeaveDetailsPage() {
 
         <InfoCard
           label="Status"
-          value={leave.status}
+          value={
+            leave.status
+          }
         />
       </div>
+
+      {/* ============================
+          DETAILS
+      ============================ */}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -288,21 +429,26 @@ export default function LeaveDetailsPage() {
           <div className="mt-5 space-y-4">
             <DetailRow
               label="Status"
-              value={leave.status}
+              value={
+                leave.status
+              }
             />
 
             <DetailRow
               label="Approved By"
               value={
-                leave.approvedBy
-                  ?.name || "-"
+                leave
+                  .approvedBy
+                  ?.name ||
+                "-"
               }
             />
 
             <DetailRow
               label="Approver Code"
               value={
-                leave.approvedBy
+                leave
+                  .approvedBy
                   ?.employeeCode ||
                 "-"
               }
@@ -313,6 +459,10 @@ export default function LeaveDetailsPage() {
     </div>
   );
 }
+
+/* ============================
+   INFO CARD
+============================ */
 
 function InfoCard({
   label,
@@ -334,6 +484,10 @@ function InfoCard({
   );
 }
 
+/* ============================
+   DETAIL ROW
+============================ */
+
 function DetailRow({
   label,
   value,
@@ -354,27 +508,42 @@ function DetailRow({
   );
 }
 
+/* ============================
+   FORMAT DATE
+============================ */
+
 function formatDate(
   value: string
 ) {
   return new Date(
     value
-  ).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  ).toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
 }
+
+/* ============================
+   TOTAL DAYS
+============================ */
 
 function calculateDays(
   fromDate: string,
   toDate: string
 ) {
   const from =
-    new Date(fromDate);
+    new Date(
+      fromDate
+    );
 
   const to =
-    new Date(toDate);
+    new Date(
+      toDate
+    );
 
   const diff =
     to.getTime() -

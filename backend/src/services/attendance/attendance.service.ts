@@ -921,6 +921,10 @@ export const monthlyAttendanceReport =
     year: number,
     currentEmployee: CurrentEmployee
   ) => {
+    /* ============================
+       VALIDATION
+    ============================ */
+
     if (
       month < 1 ||
       month > 12
@@ -943,10 +947,7 @@ export const monthlyAttendanceReport =
 
         select: {
           id: true,
-
-          employeeCode:
-            true,
-
+          employeeCode: true,
           name: true,
 
           role: {
@@ -969,12 +970,23 @@ export const monthlyAttendanceReport =
       );
     }
 
+    /* ============================
+       MONTH RANGE
+    ============================ */
+
     const startDate =
       new Date(
         year,
         month - 1,
         1
       );
+
+    startDate.setHours(
+      0,
+      0,
+      0,
+      0
+    );
 
     const endDate =
       new Date(
@@ -983,25 +995,216 @@ export const monthlyAttendanceReport =
         1
       );
 
-    const attendances =
-      await prisma.attendance.findMany({
-        where: {
-          employeeId,
+    endDate.setHours(
+      0,
+      0,
+      0,
+      0
+    );
 
-          attendanceDate: {
-            gte:
-              startDate,
+    const daysInMonth =
+      new Date(
+        year,
+        month,
+        0
+      ).getDate();
 
-            lt:
-              endDate,
+    /* ============================
+       FETCH DATA
+    ============================ */
+
+    const [
+      attendances,
+      holidays,
+      approvedLeaves,
+    ] =
+      await Promise.all([
+        prisma.attendance.findMany({
+          where: {
+            employeeId,
+
+            attendanceDate: {
+              gte: startDate,
+              lt: endDate,
+            },
           },
-        },
 
-        orderBy: {
-          attendanceDate:
-            "asc",
-        },
-      });
+          orderBy: {
+            attendanceDate:
+              "asc",
+          },
+        }),
+
+        prisma.holiday.findMany({
+          where: {
+            holidayDate: {
+              gte: startDate,
+              lt: endDate,
+            },
+          },
+        }),
+
+        prisma.leave.findMany({
+          where: {
+            employeeId,
+
+            status:
+              "APPROVED",
+
+            fromDate: {
+              lt: endDate,
+            },
+
+            toDate: {
+              gte: startDate,
+            },
+          },
+
+          orderBy: {
+            fromDate:
+              "asc",
+          },
+        }),
+      ]);
+
+    /* ============================
+       DATE KEY HELPER
+    ============================ */
+
+    const dateKey = (
+      date: Date
+    ) => {
+      const localDate =
+        new Date(date);
+
+      return `${localDate.getFullYear()}-${String(
+        localDate.getMonth() + 1
+      ).padStart(
+        2,
+        "0"
+      )}-${String(
+        localDate.getDate()
+      ).padStart(
+        2,
+        "0"
+      )}`;
+    };
+
+    /* ============================
+       ATTENDANCE MAP
+    ============================ */
+
+    const attendanceMap =
+      new Map<
+        string,
+        (typeof attendances)[number]
+      >();
+
+    attendances.forEach(
+      (item) => {
+        attendanceMap.set(
+          dateKey(
+            item.attendanceDate
+          ),
+          item
+        );
+      }
+    );
+
+    /* ============================
+       HOLIDAY MAP
+    ============================ */
+
+    const holidayMap =
+      new Map<
+        string,
+        (typeof holidays)[number]
+      >();
+
+    holidays.forEach(
+      (item) => {
+        holidayMap.set(
+          dateKey(
+            item.holidayDate
+          ),
+          item
+        );
+      }
+    );
+
+    /* ============================
+       LEAVE FINDER
+    ============================ */
+
+    const findApprovedLeave =
+      (
+        date: Date
+      ) => {
+        const currentDate =
+          new Date(date);
+
+        currentDate.setHours(
+          0,
+          0,
+          0,
+          0
+        );
+
+        return approvedLeaves.find(
+          (
+            leaveItem
+          ) => {
+            const fromDate =
+              new Date(
+                leaveItem.fromDate
+              );
+
+            const toDate =
+              new Date(
+                leaveItem.toDate
+              );
+
+            fromDate.setHours(
+              0,
+              0,
+              0,
+              0
+            );
+
+            toDate.setHours(
+              23,
+              59,
+              59,
+              999
+            );
+
+            return (
+              currentDate >=
+                fromDate &&
+              currentDate <=
+                toDate
+            );
+          }
+        );
+      };
+
+    /* ============================
+       TODAY
+    ============================ */
+
+    const today =
+      new Date();
+
+    today.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    /* ============================
+       COUNTERS
+    ============================ */
 
     let present = 0;
     let late = 0;
@@ -1009,33 +1212,95 @@ export const monthlyAttendanceReport =
     let absent = 0;
     let leave = 0;
     let holiday = 0;
+    let workingDays = 0;
 
     let totalWorkingHours =
       0;
 
-    attendances.forEach(
-      (attendance) => {
+    const calendar: any[] =
+      [];
+
+    /* ============================
+       BUILD MONTH
+    ============================ */
+
+    for (
+      let day = 1;
+      day <= daysInMonth;
+      day++
+    ) {
+      const date =
+        new Date(
+          year,
+          month - 1,
+          day
+        );
+
+      date.setHours(
+        0,
+        0,
+        0,
+        0
+      );
+
+      const key =
+        dateKey(date);
+
+      const attendance =
+        attendanceMap.get(
+          key
+        );
+
+      const companyHoliday =
+        holidayMap.get(
+          key
+        );
+
+      const approvedLeave =
+        findApprovedLeave(
+          date
+        );
+
+      const isSunday =
+        date.getDay() ===
+        0;
+
+      const isFuture =
+        date >
+        today;
+
+      /* ============================
+         PRIORITY 1
+         ACTUAL ATTENDANCE
+      ============================ */
+
+      if (attendance) {
         switch (
           attendance.status
         ) {
           case AttendanceStatus.PRESENT:
             present++;
+            workingDays++;
             break;
 
           case AttendanceStatus.LATE:
             late++;
+            workingDays++;
             break;
 
           case AttendanceStatus.HALF_DAY:
             halfDay++;
+            workingDays++;
             break;
 
           case AttendanceStatus.ABSENT:
             absent++;
+            workingDays++;
             break;
 
           case AttendanceStatus.LEAVE:
             leave++;
+            workingDays++;
             break;
 
           case AttendanceStatus.HOLIDAY:
@@ -1051,8 +1316,214 @@ export const monthlyAttendanceReport =
               attendance.workingHours
             );
         }
+
+        calendar.push({
+          ...attendance,
+
+          source:
+            "ATTENDANCE",
+        });
+
+        continue;
       }
-    );
+
+      /* ============================
+         PRIORITY 2
+         COMPANY HOLIDAY
+      ============================ */
+
+      if (
+        companyHoliday
+      ) {
+        holiday++;
+
+        calendar.push({
+          id:
+            `holiday-${key}`,
+
+          employeeId,
+
+          attendanceDate:
+            date,
+
+          status:
+            "HOLIDAY",
+
+          checkIn: null,
+
+          checkOut: null,
+
+          workingHours:
+            null,
+
+          remarks:
+            companyHoliday.title,
+
+          source:
+            "HOLIDAY",
+        });
+
+        continue;
+      }
+
+      /* ============================
+         PRIORITY 3
+         WEEKLY OFF
+      ============================ */
+
+      if (
+        isSunday
+      ) {
+        holiday++;
+
+        calendar.push({
+          id:
+            `weekoff-${key}`,
+
+          employeeId,
+
+          attendanceDate:
+            date,
+
+          status:
+            "HOLIDAY",
+
+          checkIn: null,
+
+          checkOut: null,
+
+          workingHours:
+            null,
+
+          remarks:
+            "Weekly Off",
+
+          source:
+            "WEEK_OFF",
+        });
+
+        continue;
+      }
+
+      /* ============================
+         PRIORITY 4
+         APPROVED LEAVE
+
+         Important:
+         future approved leave bhi
+         yahin show hogi.
+      ============================ */
+
+      if (
+        approvedLeave
+      ) {
+        leave++;
+        workingDays++;
+
+        calendar.push({
+          id:
+            `leave-${key}`,
+
+          employeeId,
+
+          attendanceDate:
+            date,
+
+          status:
+            "LEAVE",
+
+          checkIn: null,
+
+          checkOut: null,
+
+          workingHours:
+            null,
+
+          remarks:
+            approvedLeave.reason,
+
+          source:
+            "LEAVE",
+        });
+
+        continue;
+      }
+
+      /* ============================
+         PRIORITY 5
+         FUTURE DATE
+      ============================ */
+
+      if (
+        isFuture
+      ) {
+        calendar.push({
+          id:
+            `future-${key}`,
+
+          employeeId,
+
+          attendanceDate:
+            date,
+
+          status:
+            null,
+
+          checkIn: null,
+
+          checkOut: null,
+
+          workingHours:
+            null,
+
+          remarks:
+            null,
+
+          source:
+            "FUTURE",
+        });
+
+        continue;
+      }
+
+      /* ============================
+         PRIORITY 6
+         ABSENT
+      ============================ */
+
+      absent++;
+      workingDays++;
+
+      calendar.push({
+        id:
+          `absent-${key}`,
+
+        employeeId,
+
+        attendanceDate:
+          date,
+
+        status:
+          "ABSENT",
+
+        checkIn: null,
+
+        checkOut: null,
+
+        workingHours:
+          null,
+
+        remarks:
+          "No Attendance Record",
+
+        source:
+          "SYSTEM",
+      });
+    }
+
+    /* ============================
+       PAYABLE DAYS
+    ============================ */
 
     const payableDays =
       present +
@@ -1061,6 +1532,10 @@ export const monthlyAttendanceReport =
         0.5 +
       leave +
       holiday;
+
+    /* ============================
+       RETURN
+    ============================ */
 
     return {
       success: true,
@@ -1073,7 +1548,9 @@ export const monthlyAttendanceReport =
 
       summary: {
         totalRecords:
-          attendances.length,
+          calendar.length,
+
+        workingDays,
 
         present,
 
@@ -1102,6 +1579,7 @@ export const monthlyAttendanceReport =
           ),
       },
 
-      attendances,
+      attendances:
+        calendar,
     };
   };

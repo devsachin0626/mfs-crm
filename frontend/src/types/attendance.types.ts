@@ -83,6 +83,7 @@ export interface MonthlyAttendanceReport {
     leave: number;
     holiday: number;
     totalWorkingHours: number;
+    workingDays: number;
     payableDays: number;
   };
 

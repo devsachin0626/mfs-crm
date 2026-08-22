@@ -1,348 +1,1069 @@
 import prisma from "../../config/prisma";
-import { ApplyLeaveRequest } from "../../types/leave.types";
 
-export const applyLeave = async (
-  data: ApplyLeaveRequest
+import type {
+  ApplyLeaveRequest,
+  UpdateLeaveRequest,
+} from "../../types/leave.types";
+
+/* ============================
+   CURRENT EMPLOYEE
+============================ */
+
+interface CurrentEmployee {
+  id: string;
+
+  role: {
+    name: string;
+  };
+}
+
+/* ============================
+   DATE HELPERS
+============================ */
+
+const startOfDay = (
+  value: Date | string
 ) => {
-  // Check Employee
-  const employee = await prisma.employee.findUnique({
-    where: {
-      id: data.employeeId,
-    },
-  });
+  const date =
+    new Date(value);
 
-  if (!employee) {
-    throw new Error("Employee Not Found");
-  }
-
-  // Validate Dates
-  if (new Date(data.fromDate) > new Date(data.toDate)) {
-    throw new Error("From Date cannot be greater than To Date");
-  }
-
-  // Check Leave Overlap
-  const existingLeave = await prisma.leave.findFirst({
-    where: {
-      employeeId: data.employeeId,
-
-      OR: [
-        {
-          fromDate: {
-            lte: new Date(data.toDate),
-          },
-
-          toDate: {
-            gte: new Date(data.fromDate),
-          },
-        },
-      ],
-    },
-  });
-
-  if (existingLeave) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     throw new Error(
-      "Leave Already Applied For Selected Dates"
+      "Invalid Date"
     );
   }
 
-  // Apply Leave
-  const leave = await prisma.leave.create({
-    data: {
-      employeeId: data.employeeId,
+  date.setHours(
+    0,
+    0,
+    0,
+    0
+  );
 
-      fromDate: new Date(data.fromDate),
-
-      toDate: new Date(data.toDate),
-
-      reason: data.reason,
-    },
-
-    include: {
-      employee: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
-        },
-      },
-    },
-  });
-
-  return {
-    success: true,
-    message: "Leave Applied Successfully",
-    leave,
-  };
+  return date;
 };
 
-export const getLeaves = async (
-  page: number,
-  limit: number,
-  search?: string,
-  status?: string,
-  employeeId?: string,
-
+const endOfDay = (
+  value: Date | string
 ) => {
-  const skip = (page - 1) * limit;
+  const date =
+    new Date(value);
 
-  const where: any = {};
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    throw new Error(
+      "Invalid Date"
+    );
+  }
 
-  // Search Employee Name
-  if (search) {
-    where.employee = {
-      name: {
-        contains: search,
-        mode: "insensitive",
-      },
+  date.setHours(
+    23,
+    59,
+    59,
+    999
+  );
+
+  return date;
+};
+
+/* ============================
+   LEAVE ACCESS IDS
+
+   ADMIN / HR
+   → ALL
+
+   EMPLOYEE
+   → SELF
+
+   TEAM LEADER
+   → SELF + TEAM
+============================ */
+
+const getLeaveEmployeeIds =
+  async (
+    currentEmployee:
+      CurrentEmployee
+  ) => {
+    const roleName =
+      currentEmployee
+        .role?.name;
+
+    /* ADMIN / HR */
+
+    if (
+      roleName ===
+        "ADMIN" ||
+      roleName ===
+        "HR"
+    ) {
+      return null;
+    }
+
+    /* EMPLOYEE */
+
+    if (
+      roleName ===
+      "EMPLOYEE"
+    ) {
+      return [
+        currentEmployee.id,
+      ];
+    }
+
+    /* TEAM LEADER */
+
+    if (
+      roleName ===
+      "TEAM_LEADER"
+    ) {
+      const teamMembers =
+        await prisma.employee.findMany({
+          where: {
+            reportingManagerId:
+              currentEmployee.id,
+
+            isActive:
+              true,
+          },
+
+          select: {
+            id: true,
+          },
+        });
+
+      return [
+        currentEmployee.id,
+
+        ...teamMembers.map(
+          (item) =>
+            item.id
+        ),
+      ];
+    }
+
+    return [];
+  };
+
+/* ============================
+   CHECK EMPLOYEE ACCESS
+============================ */
+
+const checkLeaveEmployeeAccess =
+  async (
+    employeeId: string,
+    currentEmployee:
+      CurrentEmployee
+  ) => {
+    const allowedIds =
+      await getLeaveEmployeeIds(
+        currentEmployee
+      );
+
+    /* ADMIN / HR */
+
+    if (
+      allowedIds === null
+    ) {
+      return;
+    }
+
+    if (
+      !allowedIds.includes(
+        employeeId
+      )
+    ) {
+      throw new Error(
+        "Leave Access Denied"
+      );
+    }
+  };
+
+/* ============================
+   APPLY LEAVE
+============================ */
+
+export const applyLeave =
+  async (
+    data:
+      ApplyLeaveRequest
+  ) => {
+    /* ============================
+       EMPLOYEE CHECK
+    ============================ */
+
+    const employee =
+      await prisma.employee.findUnique({
+        where: {
+          id:
+            data.employeeId,
+        },
+
+        select: {
+          id: true,
+          employeeCode:
+            true,
+          name: true,
+          isActive: true,
+          status: true,
+        },
+      });
+
+    if (!employee) {
+      throw new Error(
+        "Employee Not Found"
+      );
+    }
+
+    if (
+      !employee.isActive ||
+      employee.status !==
+        "ACTIVE"
+    ) {
+      throw new Error(
+        "Employee Account Inactive"
+      );
+    }
+
+    /* ============================
+       REQUIRED VALUES
+    ============================ */
+
+    if (
+      !data.fromDate ||
+      !data.toDate
+    ) {
+      throw new Error(
+        "From Date and To Date are required"
+      );
+    }
+
+    if (
+      !data.reason?.trim()
+    ) {
+      throw new Error(
+        "Leave Reason is required"
+      );
+    }
+
+    /* ============================
+       DATES
+    ============================ */
+
+    const fromDate =
+      startOfDay(
+        data.fromDate
+      );
+
+    const toDate =
+      endOfDay(
+        data.toDate
+      );
+
+    if (
+      fromDate >
+      toDate
+    ) {
+      throw new Error(
+        "From Date cannot be greater than To Date"
+      );
+    }
+
+    /* ============================
+       PAST DATE CHECK
+    ============================ */
+
+    const today =
+      startOfDay(
+        new Date()
+      );
+
+    if (
+      fromDate <
+      today
+    ) {
+      throw new Error(
+        "Leave cannot be applied for a past date"
+      );
+    }
+
+    /* ============================
+       OVERLAP CHECK
+
+       REJECTED leave should not
+       block a new leave request.
+    ============================ */
+
+    const existingLeave =
+      await prisma.leave.findFirst({
+        where: {
+          employeeId:
+            data.employeeId,
+
+          status: {
+            in: [
+              "PENDING",
+              "APPROVED",
+            ],
+          },
+
+          fromDate: {
+            lte:
+              toDate,
+          },
+
+          toDate: {
+            gte:
+              fromDate,
+          },
+        },
+      });
+
+    if (
+      existingLeave
+    ) {
+      throw new Error(
+        "Leave already exists for selected dates"
+      );
+    }
+
+    /* ============================
+       CREATE
+    ============================ */
+
+    const leave =
+      await prisma.leave.create({
+        data: {
+          employeeId:
+            data.employeeId,
+
+          fromDate,
+
+          toDate,
+
+          reason:
+            data.reason.trim(),
+
+          status:
+            "PENDING",
+        },
+
+        include: {
+          employee: {
+            select: {
+              id: true,
+
+              employeeCode:
+                true,
+
+              name: true,
+
+              mobile: true,
+
+              email: true,
+            },
+          },
+        },
+      });
+
+    return {
+      success: true,
+
+      message:
+        "Leave Applied Successfully",
+
+      leave,
     };
-  }
-
-  // Filter by Status
-  if (status) {
-    where.status = status;
-  }
-
-  if (employeeId) {
-  where.employeeId = employeeId;
-}
-
-  const total = await prisma.leave.count({
-    where,
-  });
-
-  const leaves = await prisma.leave.findMany({
-    where,
-
-    include: {
-      employee: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
-        },
-      },
-
-      approvedBy: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-        },
-      },
-    },
-
-    orderBy: {
-      createdAt: "desc",
-    },
-
-    skip,
-    take: limit,
-  });
-
-  return {
-    success: true,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
-    leaves,
   };
-};
 
-export const getLeaveById = async (id: string) => {
-  const leave = await prisma.leave.findUnique({
-    where: {
-      id,
-    },
+/* ============================
+   GET LEAVES
+============================ */
 
-    include: {
-      employee: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
-        },
-      },
+export const getLeaves =
+  async (
+    page: number,
+    limit: number,
+    search:
+      | string
+      | undefined,
+    status:
+      | string
+      | undefined,
+    employeeId:
+      | string
+      | undefined,
+    currentEmployee:
+      CurrentEmployee
+  ) => {
+    const safePage =
+      Math.max(
+        page || 1,
+        1
+      );
 
-      approvedBy: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
-        },
-      },
-    },
-  });
+    const safeLimit =
+      Math.min(
+        Math.max(
+          limit || 10,
+          1
+        ),
+        100
+      );
 
-  if (!leave) {
-    throw new Error("Leave Not Found");
-  }
+    const skip =
+      (safePage - 1) *
+      safeLimit;
 
-  return {
-    success: true,
-    leave,
+    const where: any =
+      {};
+
+    /* ============================
+       ROLE ACCESS
+    ============================ */
+
+    const allowedIds =
+      await getLeaveEmployeeIds(
+        currentEmployee
+      );
+
+    if (
+      allowedIds !== null
+    ) {
+      where.employeeId = {
+        in:
+          allowedIds,
+      };
+    }
+
+    /* ============================
+       EMPLOYEE FILTER
+    ============================ */
+
+    if (
+      employeeId
+    ) {
+      await checkLeaveEmployeeAccess(
+        employeeId,
+        currentEmployee
+      );
+
+      where.employeeId =
+        employeeId;
+    }
+
+    /* ============================
+       STATUS FILTER
+    ============================ */
+
+    if (status) {
+      if (
+        ![
+          "PENDING",
+          "APPROVED",
+          "REJECTED",
+        ].includes(
+          status
+        )
+      ) {
+        throw new Error(
+          "Invalid Leave Status"
+        );
+      }
+
+      where.status =
+        status;
+    }
+
+    /* ============================
+       SEARCH
+    ============================ */
+
+    if (search) {
+      where.employee = {
+        OR: [
+          {
+            name: {
+              contains:
+                search,
+
+              mode:
+                "insensitive",
+            },
+          },
+
+          {
+            employeeCode: {
+              contains:
+                search,
+
+              mode:
+                "insensitive",
+            },
+          },
+
+          {
+            mobile: {
+              contains:
+                search,
+            },
+          },
+        ],
+      };
+    }
+
+    const [
+      leaves,
+      total,
+    ] =
+      await Promise.all([
+        prisma.leave.findMany({
+          where,
+
+          include: {
+            employee: {
+              select: {
+                id: true,
+
+                employeeCode:
+                  true,
+
+                name: true,
+
+                mobile: true,
+
+                email: true,
+              },
+            },
+
+            approvedBy: {
+              select: {
+                id: true,
+
+                employeeCode:
+                  true,
+
+                name: true,
+              },
+            },
+          },
+
+          orderBy: [
+            {
+              createdAt:
+                "desc",
+            },
+          ],
+
+          skip,
+
+          take:
+            safeLimit,
+        }),
+
+        prisma.leave.count({
+          where,
+        }),
+      ]);
+
+    return {
+      success: true,
+
+      total,
+
+      page:
+        safePage,
+
+      limit:
+        safeLimit,
+
+      totalPages:
+        Math.ceil(
+          total /
+            safeLimit
+        ),
+
+      leaves,
+    };
   };
-};
 
-import { UpdateLeaveRequest } from "../../types/leave.types";
+/* ============================
+   GET LEAVE BY ID
+============================ */
 
-export const updateLeave = async (
-  id: string,
-  data: UpdateLeaveRequest
-) => {
-  // Check Leave Exists
-  const leave = await prisma.leave.findUnique({
-    where: {
-      id,
-    },
-  });
-
-  if (!leave) {
-    throw new Error("Leave Not Found");
-  }
-
-  // Validate Dates
-  const fromDate = data.fromDate
-    ? new Date(data.fromDate)
-    : leave.fromDate;
-
-  const toDate = data.toDate
-    ? new Date(data.toDate)
-    : leave.toDate;
-
-  if (fromDate > toDate) {
-    throw new Error("From Date cannot be greater than To Date");
-  }
-
-  // Update Leave
-  const updatedLeave = await prisma.leave.update({
-    where: {
-      id,
-    },
-
-    data: {
-      fromDate,
-
-      toDate,
-
-      reason: data.reason ?? leave.reason,
-
-      status: data.status ?? leave.status,
-
-      approvedById:
-        data.approvedById !== undefined
-          ? data.approvedById
-          : leave.approvedById,
-    },
-
-    include: {
-      employee: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
+export const getLeaveById =
+  async (
+    id: string,
+    currentEmployee:
+      CurrentEmployee
+  ) => {
+    const leave =
+      await prisma.leave.findUnique({
+        where: {
+          id,
         },
-      },
 
-      approvedBy: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
+        include: {
+          employee: {
+            select: {
+              id: true,
+
+              employeeCode:
+                true,
+
+              name: true,
+
+              mobile: true,
+
+              email: true,
+
+              role: {
+                select: {
+                  name: true,
+                },
+              },
+
+              branch: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+
+          approvedBy: {
+            select: {
+              id: true,
+
+              employeeCode:
+                true,
+
+              name: true,
+            },
+          },
         },
-      },
-    },
-  });
+      });
 
-  return {
-    success: true,
-    message: "Leave Updated Successfully",
-    leave: updatedLeave,
+    if (!leave) {
+      throw new Error(
+        "Leave Not Found"
+      );
+    }
+
+    /* SECURITY */
+
+    await checkLeaveEmployeeAccess(
+      leave.employeeId,
+      currentEmployee
+    );
+
+    return {
+      success: true,
+
+      leave,
+    };
   };
-};
 
+/* ============================
+   UPDATE LEAVE
+   ADMIN / HR ONLY
+============================ */
 
-export const approveRejectLeave = async (
-  id: string,
-  status: "APPROVED" | "REJECTED",
-  approvedById: string
-) => {
-  // Check Leave Exists
-  const leave = await prisma.leave.findUnique({
-    where: {
-      id,
-    },
-  });
-
-  if (!leave) {
-    throw new Error("Leave Not Found");
-  }
-
-  // Check Approver Exists
-  const approver = await prisma.employee.findUnique({
-    where: {
-      id: approvedById,
-    },
-  });
-
-  if (!approver) {
-    throw new Error("Approver Not Found");
-  }
-
-  // Prevent Multiple Approval/Rejection
-  if (leave.status !== "PENDING") {
-    throw new Error("Leave has already been processed");
-  }
-
-  // Approve / Reject Leave
-  const updatedLeave = await prisma.leave.update({
-    where: {
-      id,
-    },
-
-    data: {
-      status,
-      approvedById,
-    },
-
-    include: {
-      employee: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
+export const updateLeave =
+  async (
+    id: string,
+    data:
+      UpdateLeaveRequest
+  ) => {
+    const leave =
+      await prisma.leave.findUnique({
+        where: {
+          id,
         },
-      },
+      });
 
-      approvedBy: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
+    if (!leave) {
+      throw new Error(
+        "Leave Not Found"
+      );
+    }
+
+    /* ============================
+       DATE VALUES
+    ============================ */
+
+    const fromDate =
+      data.fromDate
+        ? startOfDay(
+            data.fromDate
+          )
+        : leave.fromDate;
+
+    const toDate =
+      data.toDate
+        ? endOfDay(
+            data.toDate
+          )
+        : leave.toDate;
+
+    if (
+      fromDate >
+      toDate
+    ) {
+      throw new Error(
+        "From Date cannot be greater than To Date"
+      );
+    }
+
+    /* ============================
+       OVERLAP CHECK
+    ============================ */
+
+    if (
+      data.fromDate ||
+      data.toDate
+    ) {
+      const overlapping =
+        await prisma.leave.findFirst({
+          where: {
+            employeeId:
+              leave.employeeId,
+
+            id: {
+              not:
+                id,
+            },
+
+            status: {
+              in: [
+                "PENDING",
+                "APPROVED",
+              ],
+            },
+
+            fromDate: {
+              lte:
+                toDate,
+            },
+
+            toDate: {
+              gte:
+                fromDate,
+            },
+          },
+        });
+
+      if (
+        overlapping
+      ) {
+        throw new Error(
+          "Another leave already exists for selected dates"
+        );
+      }
+    }
+
+    /* ============================
+       UPDATE
+    ============================ */
+
+    const updatedLeave =
+      await prisma.leave.update({
+        where: {
+          id,
         },
-      },
-    },
-  });
 
-  return {
-    success: true,
-    message: `Leave ${status.toLowerCase()} successfully`,
-    leave: updatedLeave,
+        data: {
+          fromDate,
+
+          toDate,
+
+          reason:
+            data.reason !==
+            undefined
+              ? data.reason.trim()
+              : leave.reason,
+
+          status:
+            data.status ??
+            leave.status,
+
+          approvedById:
+            data.approvedById !==
+            undefined
+              ? data.approvedById
+              : leave.approvedById,
+        },
+
+        include: {
+          employee: {
+            select: {
+              id: true,
+
+              employeeCode:
+                true,
+
+              name: true,
+
+              mobile: true,
+
+              email: true,
+            },
+          },
+
+          approvedBy: {
+            select: {
+              id: true,
+
+              employeeCode:
+                true,
+
+              name: true,
+            },
+          },
+        },
+      });
+
+    return {
+      success: true,
+
+      message:
+        "Leave Updated Successfully",
+
+      leave:
+        updatedLeave,
+    };
   };
-};
+
+/* ============================
+   APPROVE / REJECT LEAVE
+============================ */
+
+export const approveRejectLeave =
+  async (
+    id: string,
+
+    status:
+      | "APPROVED"
+      | "REJECTED",
+
+    approvedById:
+      string,
+
+    currentEmployee:
+      CurrentEmployee
+  ) => {
+    /* ============================
+       LEAVE
+    ============================ */
+
+    const leave =
+      await prisma.leave.findUnique({
+        where: {
+          id,
+        },
+
+        include: {
+          employee: {
+            select: {
+              id: true,
+
+              employeeCode:
+                true,
+
+              name: true,
+
+              reportingManagerId:
+                true,
+            },
+          },
+        },
+      });
+
+    if (!leave) {
+      throw new Error(
+        "Leave Not Found"
+      );
+    }
+
+    if (
+      leave.status !==
+      "PENDING"
+    ) {
+      throw new Error(
+        "Leave has already been processed"
+      );
+    }
+
+    /* ============================
+       STATUS VALIDATION
+    ============================ */
+
+    if (
+      status !==
+        "APPROVED" &&
+      status !==
+        "REJECTED"
+    ) {
+      throw new Error(
+        "Invalid Leave Decision"
+      );
+    }
+
+    /* ============================
+       NO SELF APPROVAL
+    ============================ */
+
+    if (
+      leave.employeeId ===
+      approvedById
+    ) {
+      throw new Error(
+        "You cannot approve or reject your own leave"
+      );
+    }
+
+    /* ============================
+       ROLE APPROVAL ACCESS
+    ============================ */
+
+    const roleName =
+      currentEmployee
+        .role?.name;
+
+    if (
+      roleName !==
+        "ADMIN" &&
+      roleName !==
+        "HR" &&
+      roleName !==
+        "TEAM_LEADER"
+    ) {
+      throw new Error(
+        "Leave Approval Access Denied"
+      );
+    }
+
+    /* ============================
+       TEAM LEADER
+       CAN ONLY PROCESS TEAM
+    ============================ */
+
+    if (
+      roleName ===
+      "TEAM_LEADER"
+    ) {
+      if (
+        leave.employee
+          .reportingManagerId !==
+        currentEmployee.id
+      ) {
+        throw new Error(
+          "You can only process leave requests of your team members"
+        );
+      }
+    }
+
+    /* ============================
+       APPROVER VALIDATION
+    ============================ */
+
+    const approver =
+      await prisma.employee.findUnique({
+        where: {
+          id:
+            approvedById,
+        },
+
+        select: {
+          id: true,
+
+          employeeCode:
+            true,
+
+          name: true,
+
+          isActive: true,
+        },
+      });
+
+    if (!approver) {
+      throw new Error(
+        "Approver Not Found"
+      );
+    }
+
+    if (
+      !approver.isActive
+    ) {
+      throw new Error(
+        "Approver Account Inactive"
+      );
+    }
+
+    /* ============================
+       UPDATE LEAVE
+
+       Attendance calendar does
+       NOT need rows created here.
+
+       Monthly Attendance Report
+       derives APPROVED leave
+       automatically.
+    ============================ */
+
+    const updatedLeave =
+      await prisma.leave.update({
+        where: {
+          id,
+        },
+
+        data: {
+          status,
+
+          approvedById,
+        },
+
+        include: {
+          employee: {
+            select: {
+              id: true,
+
+              employeeCode:
+                true,
+
+              name: true,
+            },
+          },
+
+          approvedBy: {
+            select: {
+              id: true,
+
+              employeeCode:
+                true,
+
+              name: true,
+            },
+          },
+        },
+      });
+
+    return {
+      success: true,
+
+      message:
+        status ===
+        "APPROVED"
+          ? "Leave Approved Successfully"
+          : "Leave Rejected Successfully",
+
+      leave:
+        updatedLeave,
+    };
+  };

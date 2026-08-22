@@ -1,47 +1,99 @@
 import { Router } from "express";
+
 import * as leaveController from "../controllers/leave/leave.controller";
-import { authenticate } from "../middleware/auth.middleware";
-import { authorize } from "../middleware/role.middleware";
+
+import {
+  authenticate,
+} from "../middleware/auth.middleware";
+
+import {
+  authorize,
+} from "../middleware/role.middleware";
 
 const router = Router();
 
-// Apply Leave
+/* ============================
+   APPLY LEAVE
+============================ */
+
 router.post(
   "/",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   leaveController.applyLeave
 );
 
-// Get All Leaves
+/* ============================
+   GET LEAVES
+
+   EMPLOYEE     → own
+   TEAM_LEADER  → own + team
+   ADMIN / HR   → all
+============================ */
+
 router.get(
   "/",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   leaveController.getLeaves
 );
 
-// Get Leave By ID
+/* ============================
+   GET LEAVE BY ID
+============================ */
+
 router.get(
   "/:id",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   leaveController.getLeaveById
 );
 
-// Update Leave
+/* ============================
+   UPDATE LEAVE
+
+   ADMIN / HR only
+============================ */
+
 router.put(
   "/:id",
   authenticate,
-  authorize("ADMIN", "HR"),
+  authorize(
+    "ADMIN",
+    "HR"
+  ),
   leaveController.updateLeave
 );
 
-// Approve / Reject Leave
+/* ============================
+   APPROVE / REJECT
+
+   ADMIN / HR / TEAM LEADER
+============================ */
+
 router.put(
   "/:id/approve",
   authenticate,
-  authorize("ADMIN", "HR"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER"
+  ),
   leaveController.approveRejectLeave
 );
 

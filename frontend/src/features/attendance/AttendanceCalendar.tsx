@@ -160,7 +160,7 @@ export default function AttendanceCalendar({
                     {day}
                   </span>
 
-                  {attendance && (
+                  {attendance?.status && (
                     <span className="rounded-lg bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700">
                       {
                         statusLabel[

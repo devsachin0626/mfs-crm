@@ -29,6 +29,24 @@ export default function LeaveListPage() {
 
   const navigate = useNavigate();
 
+  const employee =
+  useAppSelector(
+    (state) =>
+      state.auth.employee
+  );
+
+const role =
+  employee?.role || "";
+
+const isEmployee =
+  role === "EMPLOYEE";
+
+const canSearchEmployees =
+  role === "ADMIN" ||
+  role === "HR" ||
+  role ===
+    "TEAM_LEADER";
+
   const [page, setPage] =
     useState(1);
 
@@ -53,8 +71,11 @@ export default function LeaveListPage() {
       fetchLeaves({
         page,
         limit: 10,
-        search:
-          search || undefined,
+      search:
+  canSearchEmployees &&
+  search
+    ? search
+    : undefined,
         status:
           status || undefined,
       })
@@ -84,8 +105,10 @@ export default function LeaveListPage() {
             </h1>
 
             <p className="text-sm text-slate-500">
-              Manage employee leave requests
-            </p>
+  {isEmployee
+    ? "View and manage your leave requests"
+    : "Manage employee leave requests"}
+</p>
           </div>
         </div>
 
@@ -137,18 +160,31 @@ export default function LeaveListPage() {
         </div>
       </div>
 
-      <LeaveFilters
-        search={search}
-        status={status}
-        onSearchChange={(value) => {
-          setPage(1);
-          setSearch(value);
-        }}
-        onStatusChange={(value) => {
-          setPage(1);
-          setStatus(value);
-        }}
-      />
+    <LeaveFilters
+  search={search}
+  status={status}
+  showEmployeeSearch={
+    canSearchEmployees
+  }
+  onSearchChange={(
+    value
+  ) => {
+    setPage(1);
+
+    setSearch(
+      value
+    );
+  }}
+  onStatusChange={(
+    value
+  ) => {
+    setPage(1);
+
+    setStatus(
+      value
+    );
+  }}
+/>
 
       {loading && (
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">

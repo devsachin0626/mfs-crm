@@ -120,3 +120,56 @@ export const changePassword = async (
     message: "Password Changed Successfully",
   };
 };
+
+
+export const resetEmployeePassword = async (
+  employeeCode: string,
+  newPassword: string
+) => {
+  if (!employeeCode || !newPassword) {
+    throw new Error(
+      "Employee Code and New Password are required"
+    );
+  }
+
+  if (newPassword.length < 8) {
+    throw new Error(
+      "Password must be at least 8 characters long"
+    );
+  }
+
+  const employee =
+    await prisma.employee.findUnique({
+      where: {
+        employeeCode,
+      },
+    });
+
+  if (!employee) {
+    throw new Error(
+      "Employee Not Found"
+    );
+  }
+
+  const hashedPassword =
+    await hashPassword(
+      newPassword
+    );
+
+  await prisma.employee.update({
+    where: {
+      id: employee.id,
+    },
+
+    data: {
+      password:
+        hashedPassword,
+    },
+  });
+
+  return {
+    success: true,
+    message:
+      "Employee Password Reset Successfully",
+  };
+};

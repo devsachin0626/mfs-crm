@@ -53,4 +53,5 @@ router.get("/admin-test", auth_middleware_1.authenticate, (0, role_middleware_1.
         message: "Welcome Admin",
     });
 });
+router.patch("/reset-employee-password", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN"), authController.resetEmployeePassword);
 exports.default = router;

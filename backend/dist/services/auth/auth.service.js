@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.changePassword = exports.login = void 0;
+exports.resetEmployeePassword = exports.changePassword = exports.login = void 0;
 const prisma_1 = __importDefault(require("../../config/prisma"));
 const password_1 = require("../../utils/password");
 const jwt_1 = require("../../utils/jwt");
@@ -92,3 +92,33 @@ const changePassword = async (employeeId, oldPassword, newPassword) => {
     };
 };
 exports.changePassword = changePassword;
+const resetEmployeePassword = async (employeeCode, newPassword) => {
+    if (!employeeCode || !newPassword) {
+        throw new Error("Employee Code and New Password are required");
+    }
+    if (newPassword.length < 8) {
+        throw new Error("Password must be at least 8 characters long");
+    }
+    const employee = await prisma_1.default.employee.findUnique({
+        where: {
+            employeeCode,
+        },
+    });
+    if (!employee) {
+        throw new Error("Employee Not Found");
+    }
+    const hashedPassword = await (0, password_2.hashPassword)(newPassword);
+    await prisma_1.default.employee.update({
+        where: {
+            id: employee.id,
+        },
+        data: {
+            password: hashedPassword,
+        },
+    });
+    return {
+        success: true,
+        message: "Employee Password Reset Successfully",
+    };
+};
+exports.resetEmployeePassword = resetEmployeePassword;

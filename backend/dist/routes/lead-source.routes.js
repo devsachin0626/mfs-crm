@@ -2,15 +2,27 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const lead_source_controller_1 = require("../controllers/lead-source/lead-source.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const role_middleware_1 = require("../middleware/role.middleware");
 const router = (0, express_1.Router)();
-// Create Lead Source
-router.post("/", lead_source_controller_1.createLeadSourceController);
-// Get All Lead Sources
-router.get("/", lead_source_controller_1.getLeadSourcesController);
-// Get Lead Source By ID
-router.get("/:id", lead_source_controller_1.getLeadSourceByIdController);
-// Update Lead Source
-router.put("/:id", lead_source_controller_1.updateLeadSourceController);
-// Delete Lead Source
-router.delete("/:id", lead_source_controller_1.deleteLeadSourceController);
+/* ============================
+   CREATE LEAD SOURCE
+============================ */
+router.post("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), lead_source_controller_1.createLeadSourceController);
+/* ============================
+   GET ALL LEAD SOURCES
+============================ */
+router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), lead_source_controller_1.getLeadSourcesController);
+/* ============================
+   GET LEAD SOURCE BY ID
+============================ */
+router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), lead_source_controller_1.getLeadSourceByIdController);
+/* ============================
+   UPDATE LEAD SOURCE
+============================ */
+router.put("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), lead_source_controller_1.updateLeadSourceController);
+/* ============================
+   DELETE LEAD SOURCE
+============================ */
+router.delete("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), lead_source_controller_1.deleteLeadSourceController);
 exports.default = router;

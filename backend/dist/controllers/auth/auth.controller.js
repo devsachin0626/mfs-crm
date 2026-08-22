@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.changePassword = exports.me = exports.login = void 0;
+exports.resetEmployeePassword = exports.changePassword = exports.me = exports.login = void 0;
 const authService = __importStar(require("../../services/auth/auth.service"));
 // Login
 const login = async (req, res) => {
@@ -79,3 +79,21 @@ const changePassword = async (req, res) => {
     }
 };
 exports.changePassword = changePassword;
+const resetEmployeePassword = async (req, res) => {
+    try {
+        const { employeeCode, newPassword, } = req.body;
+        const result = await authService.resetEmployeePassword(employeeCode, newPassword);
+        res
+            .status(200)
+            .json(result);
+    }
+    catch (error) {
+        res
+            .status(400)
+            .json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+exports.resetEmployeePassword = resetEmployeePassword;

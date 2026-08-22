@@ -58,3 +58,34 @@ export const changePassword = async (
     });
   }
 };
+
+export const resetEmployeePassword =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const {
+        employeeCode,
+        newPassword,
+      } = req.body;
+
+      const result =
+        await authService.resetEmployeePassword(
+          employeeCode,
+          newPassword
+        );
+
+      res
+        .status(200)
+        .json(result);
+    } catch (error: any) {
+      res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            error.message,
+        });
+    }
+  };

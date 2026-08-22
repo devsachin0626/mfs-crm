@@ -8,21 +8,94 @@ import {
   deleteLeadStatusController,
 } from "../controllers/lead-status/lead-status.controller";
 
+import {
+  authenticate,
+} from "../middleware/auth.middleware";
+
+import {
+  authorize,
+} from "../middleware/role.middleware";
+
 const router = Router();
 
-// Create Lead Status
-router.post("/", createLeadStatusController);
+/* ============================
+   CREATE LEAD STATUS
+   Admin / HR / Team Leader
+============================ */
 
-// Get All Lead Statuses
-router.get("/", getLeadStatusesController);
+router.post(
+  "/",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER"
+  ),
+  createLeadStatusController
+);
 
-// Get Lead Status By ID
-router.get("/:id", getLeadStatusByIdController);
+/* ============================
+   GET ALL LEAD STATUSES
+   Employee also needs this
+   for filters/dropdowns
+============================ */
 
-// Update Lead Status
-router.put("/:id", updateLeadStatusController);
+router.get(
+  "/",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  getLeadStatusesController
+);
 
-// Delete Lead Status
-router.delete("/:id", deleteLeadStatusController);
+/* ============================
+   GET LEAD STATUS BY ID
+============================ */
+
+router.get(
+  "/:id",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  getLeadStatusByIdController
+);
+
+/* ============================
+   UPDATE LEAD STATUS
+============================ */
+
+router.put(
+  "/:id",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER"
+  ),
+  updateLeadStatusController
+);
+
+/* ============================
+   DELETE LEAD STATUS
+============================ */
+
+router.delete(
+  "/:id",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER"
+  ),
+  deleteLeadStatusController
+);
 
 export default router;

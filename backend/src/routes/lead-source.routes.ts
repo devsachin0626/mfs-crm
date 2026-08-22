@@ -8,21 +8,91 @@ import {
   deleteLeadSourceController,
 } from "../controllers/lead-source/lead-source.controller";
 
+import {
+  authenticate,
+} from "../middleware/auth.middleware";
+
+import {
+  authorize,
+} from "../middleware/role.middleware";
+
 const router = Router();
 
-// Create Lead Source
-router.post("/", createLeadSourceController);
+/* ============================
+   CREATE LEAD SOURCE
+============================ */
 
-// Get All Lead Sources
-router.get("/", getLeadSourcesController);
+router.post(
+  "/",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER"
+  ),
+  createLeadSourceController
+);
 
-// Get Lead Source By ID
-router.get("/:id", getLeadSourceByIdController);
+/* ============================
+   GET ALL LEAD SOURCES
+============================ */
 
-// Update Lead Source
-router.put("/:id", updateLeadSourceController);
+router.get(
+  "/",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  getLeadSourcesController
+);
 
-// Delete Lead Source
-router.delete("/:id", deleteLeadSourceController);
+/* ============================
+   GET LEAD SOURCE BY ID
+============================ */
+
+router.get(
+  "/:id",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  getLeadSourceByIdController
+);
+
+/* ============================
+   UPDATE LEAD SOURCE
+============================ */
+
+router.put(
+  "/:id",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER"
+  ),
+  updateLeadSourceController
+);
+
+/* ============================
+   DELETE LEAD SOURCE
+============================ */
+
+router.delete(
+  "/:id",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER"
+  ),
+  deleteLeadSourceController
+);
 
 export default router;

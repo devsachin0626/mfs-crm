@@ -46,11 +46,18 @@ export interface AttendanceListResponse {
 
 export interface AttendanceQuery {
   page?: number;
+
   limit?: number;
+
   search?: string;
+
   status?: string;
+
   month?: number;
+
   year?: number;
+
+  employeeId?: string;
 }
 
 
@@ -76,6 +83,7 @@ export interface MonthlyAttendanceReport {
     leave: number;
     holiday: number;
     totalWorkingHours: number;
+    payableDays: number;
   };
 
   attendances: Attendance[];

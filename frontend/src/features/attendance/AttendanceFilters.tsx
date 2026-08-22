@@ -1,10 +1,17 @@
-import { Search } from "lucide-react";
+import {
+  Search,
+} from "lucide-react";
 
 type Props = {
   search: string;
+
   status: string;
+
   month: number;
+
   year: number;
+
+  showEmployeeSearch?: boolean;
 
   onSearchChange: (
     value: string
@@ -28,6 +35,7 @@ export default function AttendanceFilters({
   status,
   month,
   year,
+  showEmployeeSearch = true,
 
   onSearchChange,
   onStatusChange,
@@ -45,25 +53,33 @@ export default function AttendanceFilters({
   ];
 
   return (
-    <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-4">
-      <div className="relative">
-        <Search
-          size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-        />
+    <div
+      className={`grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 ${
+        showEmployeeSearch
+          ? "md:grid-cols-4"
+          : "md:grid-cols-3"
+      }`}
+    >
+      {showEmployeeSearch && (
+        <div className="relative">
+          <Search
+            size={18}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
 
-        <input
-          type="text"
-          value={search}
-          onChange={(e) =>
-            onSearchChange(
-              e.target.value
-            )
-          }
-          placeholder="Search employee..."
-          className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500"
-        />
-      </div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) =>
+              onSearchChange(
+                e.target.value
+              )
+            }
+            placeholder="Search employee..."
+            className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-blue-500"
+          />
+        </div>
+      )}
 
       <select
         value={status}
@@ -107,7 +123,9 @@ export default function AttendanceFilters({
         value={month}
         onChange={(e) =>
           onMonthChange(
-            Number(e.target.value)
+            Number(
+              e.target.value
+            )
           )
         }
         className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"
@@ -115,36 +133,47 @@ export default function AttendanceFilters({
         <option value={1}>
           January
         </option>
+
         <option value={2}>
           February
         </option>
+
         <option value={3}>
           March
         </option>
+
         <option value={4}>
           April
         </option>
+
         <option value={5}>
           May
         </option>
+
         <option value={6}>
           June
         </option>
+
         <option value={7}>
           July
         </option>
+
         <option value={8}>
           August
         </option>
+
         <option value={9}>
           September
         </option>
+
         <option value={10}>
           October
         </option>
+
         <option value={11}>
           November
         </option>
+
         <option value={12}>
           December
         </option>
@@ -154,7 +183,9 @@ export default function AttendanceFilters({
         value={year}
         onChange={(e) =>
           onYearChange(
-            Number(e.target.value)
+            Number(
+              e.target.value
+            )
           )
         }
         className="rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500"

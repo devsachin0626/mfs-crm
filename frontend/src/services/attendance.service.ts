@@ -32,28 +32,26 @@ export const getAttendanceById = async (
 };
 
 export const checkIn = async (
-  data: {
-    employeeId: string;
+  data?: {
     remarks?: string;
   }
 ) => {
   const response = await api.post(
     "/attendance/check-in",
-    data
+    data || {}
   );
 
   return response.data;
 };
 
 export const checkOut = async (
-  data: {
-    employeeId: string;
+  data?: {
     remarks?: string;
   }
 ) => {
   const response = await api.put(
     "/attendance/check-out",
-    data
+    data || {}
   );
 
   return response.data;

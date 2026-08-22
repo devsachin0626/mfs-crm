@@ -236,55 +236,77 @@ const handleBulkSuccess = (
       LOAD FILTER OPTIONS
   ========================= */
 
-  useEffect(() => {
-    const loadFilters =
-      async () => {
-        try {
-          const [
-            statusResponse,
-            sourceResponse,
-            employeeResponse,
-          ] =
-            await Promise.all([
-              getLeadStatuses(),
+useEffect(() => {
+  const loadFilters = async () => {
+    /* ============================
+       LOAD STATUSES
+    ============================ */
 
-              getLeadSources(),
+    try {
+      const statusResponse =
+        await getLeadStatuses();
 
-              getEmployees({
-                page: 1,
-                limit: 100,
-              }),
-            ]);
+      setStatuses(
+        statusResponse.leadStatuses ||
+        []
+      );
+    } catch (error) {
+      console.error(
+        "Lead status error",
+        error
+      );
 
-          setStatuses(
-            statusResponse
-              .leadStatuses ||
-              []
-          );
+      setStatuses([]);
+    }
 
-          setSources(
-            sourceResponse
-              .leadSources ||
-              []
-          );
+    /* ============================
+       LOAD SOURCES
+    ============================ */
 
-          setEmployees(
-            employeeResponse
-              .employees ||
-              []
-          );
-        } catch (
-          error
-        ) {
-          console.error(
-            "Lead filter error",
-            error
-          );
-        }
-      };
+    try {
+      const sourceResponse =
+        await getLeadSources();
 
-    loadFilters();
-  }, []);
+      setSources(
+        sourceResponse.leadSources ||
+        []
+      );
+    } catch (error) {
+      console.error(
+        "Lead source error",
+        error
+      );
+
+      setSources([]);
+    }
+
+    /* ============================
+       LOAD EMPLOYEES
+    ============================ */
+
+    try {
+      const employeeResponse =
+        await getEmployees({
+          page: 1,
+          limit: 100,
+        });
+
+      setEmployees(
+        employeeResponse.employees ||
+        []
+      );
+    } catch (error) {
+      console.error(
+        "Employee filter error",
+        error
+      );
+
+      setEmployees([]);
+    }
+  };
+
+  loadFilters();
+}, []);
 
   /* =========================
       FETCH LEADS

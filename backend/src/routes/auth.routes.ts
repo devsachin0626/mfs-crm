@@ -35,4 +35,11 @@ router.get(
   }
 );
 
+router.patch(
+  "/reset-employee-password",
+  authenticate,
+  authorize("ADMIN"),
+  authController.resetEmployeePassword
+);
+
 export default router;

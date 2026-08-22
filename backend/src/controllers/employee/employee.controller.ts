@@ -136,11 +136,40 @@ export const uploadProfileImage = async (
       req.file.filename
     );
 
-    res.status(200).json(result);
+   res.status(200).json({
+  ...result,
+  employee: {
+    ...result.employee,
+    profileImage: `${req.protocol}://${req.get("host")}/uploads/${result.employee.profileImage}`,
+  },
+});
   } catch (error: any) {
     res.status(400).json({
       success: false,
       message: error.message || "Profile Image Upload Failed",
+    });
+  }
+};
+
+export const resetEmployeePassword = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+
+    const { newPassword } = req.body;
+
+    const result = await employeeService.resetEmployeePassword(
+      id,
+      newPassword
+    );
+
+    res.status(200).json(result);
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message: error.message || "Password Reset Failed",
     });
   }
 };

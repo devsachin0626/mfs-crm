@@ -102,3 +102,12 @@ export interface EmployeeQuery {
 
   branch?: string;
 }
+
+export interface ChangeEmployeePasswordRequest {
+  oldPassword: string;
+  newPassword: string;
+}
+
+export interface ResetEmployeePasswordRequest {
+  newPassword: string;
+}

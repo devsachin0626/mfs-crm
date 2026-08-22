@@ -1,0 +1,209 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const prisma_1 = __importDefault(require("../config/prisma"));
+const password_1 = require("../utils/password");
+const client_1 = require("@prisma/client");
+async function main() {
+    console.log("🌱 Seeding Started...");
+    // ==========================
+    // Branch
+    // ==========================
+    const branch = await prisma_1.default.branch.upsert({
+        where: {
+            branchCode: "HO001",
+        },
+        update: {},
+        create: {
+            branchCode: "HO001",
+            name: "Head Office",
+            city: "Indore",
+            state: "Madhya Pradesh",
+            isActive: true,
+        },
+    });
+    console.log("✅ Branch Created");
+    // ==========================
+    // Roles
+    // ==========================
+    const adminRole = await prisma_1.default.role.upsert({
+        where: {
+            name: "ADMIN",
+        },
+        update: {},
+        create: {
+            name: "ADMIN",
+            description: "System Administrator",
+        },
+    });
+    await prisma_1.default.role.upsert({
+        where: {
+            name: "HR",
+        },
+        update: {},
+        create: {
+            name: "HR",
+            description: "Human Resource",
+        },
+    });
+    await prisma_1.default.role.upsert({
+        where: {
+            name: "TEAM_LEADER",
+        },
+        update: {},
+        create: {
+            name: "TEAM_LEADER",
+            description: "Team Leader",
+        },
+    });
+    await prisma_1.default.role.upsert({
+        where: {
+            name: "EMPLOYEE",
+        },
+        update: {},
+        create: {
+            name: "EMPLOYEE",
+            description: "Employee",
+        },
+    });
+    console.log("✅ Roles Created");
+    // ==========================
+    // Admin User
+    // ==========================
+    const password = await (0, password_1.hashPassword)("Admin@123");
+    await prisma_1.default.employee.upsert({
+        where: {
+            employeeCode: "ADMIN001",
+        },
+        update: {},
+        create: {
+            employeeCode: "ADMIN001",
+            name: "System Administrator",
+            mobile: "9999999999",
+            email: "admin@mfscrm.com",
+            password,
+            branchId: branch.id,
+            roleId: adminRole.id,
+            status: "ACTIVE",
+            isActive: true,
+        },
+    });
+    console.log("✅ Admin Created");
+    // ==========================
+    // Lead Status
+    // ==========================
+    const leadStatuses = [
+        "NEW",
+        "INTERESTED",
+        "FOLLOW_UP",
+        "CALL_BACK",
+        "NOT_INTERESTED",
+        "CONVERTED",
+        "LOST",
+    ];
+    for (const status of leadStatuses) {
+        await prisma_1.default.leadStatus.upsert({
+            where: {
+                name: status,
+            },
+            update: {},
+            create: {
+                name: status,
+                isActive: true,
+            },
+        });
+    }
+    console.log("✅ Lead Status Seeded");
+    // ==========================
+    // Lead Sources
+    // ==========================
+    const leadSources = [
+        "Facebook",
+        "Instagram",
+        "Google",
+        "Website",
+        "Reference",
+        "WhatsApp",
+        "Manual",
+    ];
+    for (const source of leadSources) {
+        await prisma_1.default.leadSource.upsert({
+            where: {
+                name: source,
+            },
+            update: {},
+            create: {
+                name: source,
+                isActive: true,
+            },
+        });
+    }
+    console.log("✅ Lead Sources Seeded");
+    // ==========================
+    // Products
+    // ==========================
+    const products = [
+        {
+            productCode: "PRD00001",
+            name: "Platinum Research",
+            type: client_1.ProductType.RESEARCH,
+            description: "Premium Research Service",
+            price: 25000,
+            gst: 18,
+            durationDays: 90,
+            isTrialAvailable: true,
+        },
+        {
+            productCode: "PRD00002",
+            name: "Pre IPO",
+            type: client_1.ProductType.PRE_IPO,
+            description: "Pre IPO Investment",
+            price: 50000,
+            gst: 18,
+            durationDays: 180,
+            isTrialAvailable: true,
+        },
+        {
+            productCode: "PRD00003",
+            name: "SIP",
+            type: client_1.ProductType.SIP,
+            description: "Systematic Investment Plan",
+            price: 0,
+            gst: 18,
+            durationDays: null,
+            isTrialAvailable: false,
+        },
+    ];
+    for (const product of products) {
+        await prisma_1.default.product.upsert({
+            where: {
+                productCode: product.productCode,
+            },
+            update: {},
+            create: {
+                productCode: product.productCode,
+                name: product.name,
+                type: product.type,
+                description: product.description,
+                price: product.price,
+                gst: product.gst,
+                durationDays: product.durationDays,
+                isTrialAvailable: product.isTrialAvailable,
+                isActive: true,
+            },
+        });
+    }
+    console.log("✅ Products Seeded");
+    console.log("🎉 Database Seed Completed Successfully");
+}
+main()
+    .then(async () => {
+    await prisma_1.default.$disconnect();
+})
+    .catch(async (e) => {
+    console.error(e);
+    await prisma_1.default.$disconnect();
+    process.exit(1);
+});

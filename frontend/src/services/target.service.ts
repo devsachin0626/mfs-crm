@@ -2,53 +2,78 @@ import api from "./api";
 
 import type {
   CreateTargetPayload,
-  UpdateTargetPayload,
+  TargetDetailsResponse,
   TargetListResponse,
   TargetQuery,
+  UpdateTargetPayload,
 } from "../types/target.types";
 
-export const getTargets = async (
-  params: TargetQuery
-): Promise<TargetListResponse> => {
-  const response = await api.get(
-    "/targets",
-    {
-      params,
-    }
-  );
+/* ============================
+   GET TARGETS
+============================ */
 
-  return response.data;
-};
+export const getTargets =
+  async (
+    params: TargetQuery
+  ): Promise<TargetListResponse> => {
+    const response =
+      await api.get(
+        "/targets",
+        {
+          params,
+        }
+      );
 
-export const getTargetById = async (
-  id: string
-) => {
-  const response = await api.get(
-    `/targets/${id}`
-  );
+    return response.data;
+  };
 
-  return response.data;
-};
+/* ============================
+   GET TARGET BY ID
+============================ */
 
-export const createTarget = async (
-  data: CreateTargetPayload
-) => {
-  const response = await api.post(
-    "/targets",
-    data
-  );
+export const getTargetById =
+  async (
+    id: string
+  ): Promise<TargetDetailsResponse> => {
+    const response =
+      await api.get(
+        `/targets/${id}`
+      );
 
-  return response.data;
-};
+    return response.data;
+  };
 
-export const updateTarget = async (
-  id: string,
-  data: UpdateTargetPayload
-) => {
-  const response = await api.put(
-    `/targets/${id}`,
-    data
-  );
+/* ============================
+   CREATE TARGET
+============================ */
 
-  return response.data;
-};
+export const createTarget =
+  async (
+    data: CreateTargetPayload
+  ) => {
+    const response =
+      await api.post(
+        "/targets",
+        data
+      );
+
+    return response.data;
+  };
+
+/* ============================
+   UPDATE TARGET
+============================ */
+
+export const updateTarget =
+  async (
+    id: string,
+    data: UpdateTargetPayload
+  ) => {
+    const response =
+      await api.put(
+        `/targets/${id}`,
+        data
+      );
+
+    return response.data;
+  };

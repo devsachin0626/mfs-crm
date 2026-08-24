@@ -1,10 +1,12 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import type {
   FormEvent,
+  ReactNode,
 } from "react";
 
 import {
@@ -13,8 +15,10 @@ import {
 
 import {
   ArrowLeft,
+  CalendarDays,
   Save,
   Target,
+  User,
 } from "lucide-react";
 
 import {
@@ -30,34 +34,62 @@ import type {
 } from "../../types/employee.types";
 
 export default function TargetCreatePage() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const now = new Date();
+  const now =
+    new Date();
 
-  const [employees, setEmployees] =
-    useState<Employee[]>([]);
+  const [
+    employees,
+    setEmployees,
+  ] =
+    useState<Employee[]>(
+      []
+    );
 
-  const [loadingEmployees, setLoadingEmployees] =
+  const [
+    loadingEmployees,
+    setLoadingEmployees,
+  ] =
     useState(true);
 
-  const [saving, setSaving] =
+  const [
+    saving,
+    setSaving,
+  ] =
     useState(false);
 
-  const [error, setError] =
+  const [
+    error,
+    setError,
+  ] =
     useState("");
 
-  const [form, setForm] =
+  const [
+    form,
+    setForm,
+  ] =
     useState({
       employeeId: "",
+
       month:
-        now.getMonth() + 1,
+        now.getMonth() +
+        1,
+
       year:
         now.getFullYear(),
 
       brokerageTarget: "",
-      dematTarget: "",
+
       revenueTarget: "",
+
+      dematTarget: "",
     });
+
+  /* ============================
+     LOAD EMPLOYEES
+  ============================ */
 
   useEffect(() => {
     const loadEmployees =
@@ -65,6 +97,10 @@ export default function TargetCreatePage() {
         try {
           setLoadingEmployees(
             true
+          );
+
+          setError(
+            ""
           );
 
           const response =
@@ -82,7 +118,8 @@ export default function TargetCreatePage() {
         ) {
           setError(
             error?.response
-              ?.data?.message ||
+              ?.data
+              ?.message ||
               "Failed to load employees"
           );
         } finally {
@@ -95,6 +132,52 @@ export default function TargetCreatePage() {
     loadEmployees();
   }, []);
 
+  /* ============================
+     TARGET CYCLE
+  ============================ */
+
+  const targetPeriod =
+    useMemo(() => {
+      const periodEnd =
+        new Date(
+          form.year,
+          form.month - 1,
+          25
+        );
+
+      const previousMonth =
+        form.month === 1
+          ? 12
+          : form.month - 1;
+
+      const previousYear =
+        form.month === 1
+          ? form.year - 1
+          : form.year;
+
+      const periodStart =
+        new Date(
+          previousYear,
+          previousMonth - 1,
+          26
+        );
+
+      return {
+        start:
+          periodStart,
+
+        end:
+          periodEnd,
+      };
+    }, [
+      form.month,
+      form.year,
+    ]);
+
+  /* ============================
+     SUBMIT
+  ============================ */
+
   const handleSubmit =
     async (
       e: FormEvent
@@ -103,15 +186,38 @@ export default function TargetCreatePage() {
 
       setError("");
 
-      if (!form.employeeId) {
+      if (
+        !form.employeeId
+      ) {
         setError(
           "Employee is required"
         );
+
+        return;
+      }
+
+      if (
+        Number(
+          form.brokerageTarget
+        ) < 0 ||
+        Number(
+          form.revenueTarget
+        ) < 0 ||
+        Number(
+          form.dematTarget
+        ) < 0
+      ) {
+        setError(
+          "Target values cannot be negative"
+        );
+
         return;
       }
 
       try {
-        setSaving(true);
+        setSaving(
+          true
+        );
 
         await createTarget({
           employeeId:
@@ -133,15 +239,15 @@ export default function TargetCreatePage() {
                 0
             ),
 
-          dematTarget:
-            Number(
-              form.dematTarget ||
-                0
-            ),
-
           revenueTarget:
             Number(
               form.revenueTarget ||
+                0
+            ),
+
+          dematTarget:
+            Number(
+              form.dematTarget ||
                 0
             ),
         });
@@ -154,18 +260,21 @@ export default function TargetCreatePage() {
       ) {
         setError(
           error?.response
-            ?.data?.message ||
+            ?.data
+            ?.message ||
             error?.message ||
             "Target creation failed"
         );
       } finally {
-        setSaving(false);
+        setSaving(
+          false
+        );
       }
     };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* HEADER */}
 
       <div className="flex items-center gap-3">
         <button
@@ -184,15 +293,16 @@ export default function TargetCreatePage() {
 
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
-            Assign Target
+            Create Target
           </h1>
 
           <p className="text-sm text-slate-500">
-            Create monthly
-            employee target
+            Assign monthly employee target
           </p>
         </div>
       </div>
+
+      {/* ERROR */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -206,29 +316,20 @@ export default function TargetCreatePage() {
         }
         className="space-y-6"
       >
+        {/* TARGET INFORMATION */}
+
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="rounded-xl bg-blue-50 p-3 text-blue-700">
+          <SectionHeader
+            icon={
               <Target
                 size={20}
               />
-            </div>
+            }
+            title="Target Information"
+            description="Select employee and target cycle"
+          />
 
-            <div>
-              <h2 className="font-semibold text-slate-900">
-                Target Information
-              </h2>
-
-              <p className="text-sm text-slate-500">
-                Set monthly
-                brokerage,
-                demat and
-                revenue targets
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-3">
             <Field
               label="Employee"
               required
@@ -237,23 +338,23 @@ export default function TargetCreatePage() {
                 value={
                   form.employeeId
                 }
+                disabled={
+                  loadingEmployees
+                }
                 onChange={(
                   e
                 ) =>
                   setForm(
                     (
-                      prev
+                      previous
                     ) => ({
-                      ...prev,
+                      ...previous,
+
                       employeeId:
-                        e
-                          .target
+                        e.target
                           .value,
                     })
                   )
-                }
-                disabled={
-                  loadingEmployees
                 }
                 className={
                   inputClass
@@ -261,7 +362,7 @@ export default function TargetCreatePage() {
               >
                 <option value="">
                   {loadingEmployees
-                    ? "Loading employees..."
+                    ? "Loading Employees..."
                     : "Select Employee"}
                 </option>
 
@@ -291,7 +392,7 @@ export default function TargetCreatePage() {
             </Field>
 
             <Field
-              label="Month"
+              label="Target Month"
               required
             >
               <select
@@ -303,13 +404,13 @@ export default function TargetCreatePage() {
                 ) =>
                   setForm(
                     (
-                      prev
+                      previous
                     ) => ({
-                      ...prev,
+                      ...previous,
+
                       month:
                         Number(
-                          e
-                            .target
+                          e.target
                             .value
                         ),
                     })
@@ -319,36 +420,21 @@ export default function TargetCreatePage() {
                   inputClass
                 }
               >
-                {[
-                  "January",
-                  "February",
-                  "March",
-                  "April",
-                  "May",
-                  "June",
-                  "July",
-                  "August",
-                  "September",
-                  "October",
-                  "November",
-                  "December",
-                ].map(
+                {monthNames.map(
                   (
-                    monthName,
+                    month,
                     index
                   ) => (
                     <option
                       key={
-                        monthName
+                        month
                       }
                       value={
                         index +
                         1
                       }
                     >
-                      {
-                        monthName
-                      }
+                      {month}
                     </option>
                   )
                 )}
@@ -359,7 +445,10 @@ export default function TargetCreatePage() {
               label="Year"
               required
             >
-              <select
+              <input
+                type="number"
+                min={2020}
+                max={2100}
                 value={
                   form.year
                 }
@@ -368,13 +457,13 @@ export default function TargetCreatePage() {
                 ) =>
                   setForm(
                     (
-                      prev
+                      previous
                     ) => ({
-                      ...prev,
+                      ...previous,
+
                       year:
                         Number(
-                          e
-                            .target
+                          e.target
                             .value
                         ),
                     })
@@ -383,67 +472,117 @@ export default function TargetCreatePage() {
                 className={
                   inputClass
                 }
-              >
-                {[
-                  now.getFullYear() -
-                    1,
-                  now.getFullYear(),
-                  now.getFullYear() +
-                    1,
-                ].map(
-                  (year) => (
-                    <option
-                      key={
-                        year
-                      }
-                      value={
-                        year
-                      }
-                    >
-                      {year}
-                    </option>
+              />
+            </Field>
+          </div>
+
+          {/* PERIOD PREVIEW */}
+
+          <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <div className="flex items-center gap-2 text-blue-800">
+              <CalendarDays
+                size={18}
+              />
+
+              <span className="font-semibold">
+                Target Period
+              </span>
+            </div>
+
+            <p className="mt-2 text-sm text-blue-700">
+              {formatDate(
+                targetPeriod.start
+              )}
+              {" → "}
+              {formatDate(
+                targetPeriod.end
+              )}
+            </p>
+
+            <p className="mt-1 text-xs text-blue-600">
+              All target achievement between these dates will count in{" "}
+              {
+                monthNames[
+                  form.month - 1
+                ]
+              }{" "}
+              {form.year}.
+            </p>
+          </div>
+        </section>
+
+        {/* TARGET VALUES */}
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <SectionHeader
+            icon={
+              <User
+                size={20}
+              />
+            }
+            title="Monthly Targets"
+            description="Set brokerage, revenue and demat targets"
+          />
+
+          <div className="grid gap-5 md:grid-cols-3">
+            <Field
+              label="Brokerage Target"
+              required
+            >
+              <MoneyInput
+                value={
+                  form.brokerageTarget
+                }
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+
+                      brokerageTarget:
+                        value,
+                    })
                   )
-                )}
-              </select>
+                }
+              />
             </Field>
 
-            <Field label="Brokerage Target">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-                  ₹
-                </span>
+            <Field
+              label="Revenue Target"
+              required
+            >
+              <MoneyInput
+                value={
+                  form.revenueTarget
+                }
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
 
-                <input
-                  type="number"
-                  min="0"
-                  value={
-                    form.brokerageTarget
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setForm(
-                      (
-                        prev
-                      ) => ({
-                        ...prev,
-                        brokerageTarget:
-                          e
-                            .target
-                            .value,
-                      })
-                    )
-                  }
-                  placeholder="0"
-                  className={`${inputClass} pl-8`}
-                />
-              </div>
+                      revenueTarget:
+                        value,
+                    })
+                  )
+                }
+              />
             </Field>
 
-            <Field label="Demat Target">
+            <Field
+              label="Demat Target"
+              required
+            >
               <input
                 type="number"
                 min="0"
+                step="1"
                 value={
                   form.dematTarget
                 }
@@ -452,12 +591,12 @@ export default function TargetCreatePage() {
                 ) =>
                   setForm(
                     (
-                      prev
+                      previous
                     ) => ({
-                      ...prev,
+                      ...previous,
+
                       dematTarget:
-                        e
-                          .target
+                        e.target
                           .value,
                     })
                   )
@@ -468,41 +607,53 @@ export default function TargetCreatePage() {
                 }
               />
             </Field>
-
-            <Field label="Revenue Target">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-                  ₹
-                </span>
-
-                <input
-                  type="number"
-                  min="0"
-                  value={
-                    form.revenueTarget
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setForm(
-                      (
-                        prev
-                      ) => ({
-                        ...prev,
-                        revenueTarget:
-                          e
-                            .target
-                            .value,
-                      })
-                    )
-                  }
-                  placeholder="0"
-                  className={`${inputClass} pl-8`}
-                />
-              </div>
-            </Field>
           </div>
         </section>
+
+        {/* SUMMARY */}
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <h2 className="font-semibold text-slate-900">
+            Target Preview
+          </h2>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <SummaryCard
+              label="Target Month"
+              value={`${
+                monthNames[
+                  form.month - 1
+                ]
+              } ${
+                form.year
+              }`}
+            />
+
+            <SummaryCard
+              label="Brokerage"
+              value={`₹${formatMoney(
+                form.brokerageTarget
+              )}`}
+            />
+
+            <SummaryCard
+              label="Revenue"
+              value={`₹${formatMoney(
+                form.revenueTarget
+              )}`}
+            />
+
+            <SummaryCard
+              label="Demat"
+              value={
+                form.dematTarget ||
+                "0"
+              }
+            />
+          </div>
+        </section>
+
+        {/* ACTIONS */}
 
         <div className="flex justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
           <button
@@ -525,15 +676,15 @@ export default function TargetCreatePage() {
             disabled={
               saving
             }
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
           >
             <Save
               size={17}
             />
 
             {saving
-              ? "Assigning..."
-              : "Assign Target"}
+              ? "Creating..."
+              : "Create Target"}
           </button>
         </div>
       </form>
@@ -541,8 +692,9 @@ export default function TargetCreatePage() {
   );
 }
 
-const inputClass =
-  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+/* ============================
+   FIELD
+============================ */
 
 function Field({
   label,
@@ -550,8 +702,11 @@ function Field({
   children,
 }: {
   label: string;
+
   required?: boolean;
-  children: React.ReactNode;
+
+  children:
+    ReactNode;
 }) {
   return (
     <label className="block">
@@ -569,3 +724,165 @@ function Field({
     </label>
   );
 }
+
+/* ============================
+   SECTION HEADER
+============================ */
+
+function SectionHeader({
+  icon,
+  title,
+  description,
+}: {
+  icon:
+    ReactNode;
+
+  title: string;
+
+  description: string;
+}) {
+  return (
+    <div className="mb-6 flex items-center gap-3">
+      <div className="rounded-xl bg-blue-50 p-3 text-blue-700">
+        {icon}
+      </div>
+
+      <div>
+        <h2 className="font-semibold text-slate-900">
+          {title}
+        </h2>
+
+        <p className="text-sm text-slate-500">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================
+   MONEY INPUT
+============================ */
+
+function MoneyInput({
+  value,
+  onChange,
+}: {
+  value: string;
+
+  onChange: (
+    value: string
+  ) => void;
+}) {
+  return (
+    <div className="relative">
+      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+        ₹
+      </span>
+
+      <input
+        type="number"
+        min="0"
+        step="0.01"
+        value={
+          value
+        }
+        onChange={(
+          e
+        ) =>
+          onChange(
+            e.target.value
+          )
+        }
+        placeholder="0"
+        className={`${inputClass} pl-8`}
+      />
+    </div>
+  );
+}
+
+/* ============================
+   SUMMARY CARD
+============================ */
+
+function SummaryCard({
+  label,
+  value,
+}: {
+  label: string;
+
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-xl font-bold text-slate-900">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+/* ============================
+   INPUT CLASS
+============================ */
+
+const inputClass =
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+
+/* ============================
+   FORMAT MONEY
+============================ */
+
+function formatMoney(
+  value: string
+) {
+  return Number(
+    value || 0
+  ).toLocaleString(
+    "en-IN",
+    {
+      maximumFractionDigits:
+        2,
+    }
+  );
+}
+
+/* ============================
+   DATE FORMAT
+============================ */
+
+function formatDate(
+  value: Date
+) {
+  return value.toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
+}
+
+/* ============================
+   MONTHS
+============================ */
+
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];

@@ -12,31 +12,74 @@ import {
 
 const router = Router();
 
+/* ============================
+   CREATE TARGET
+   ADMIN / HR
+============================ */
+
 router.post(
   "/",
   authenticate,
-  authorize("ADMIN", "HR"),
+  authorize(
+    "ADMIN",
+    "HR"
+  ),
   targetController.createTarget
 );
+
+/* ============================
+   GET TARGETS
+
+   ADMIN / HR
+   -> ALL
+
+   TEAM LEADER
+   -> SELF + TEAM
+
+   EMPLOYEE
+   -> SELF
+============================ */
 
 router.get(
   "/",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   targetController.getTargets
 );
+
+/* ============================
+   GET TARGET BY ID
+============================ */
 
 router.get(
   "/:id",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"),
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
   targetController.getTargetById
 );
+
+/* ============================
+   UPDATE TARGET
+   ADMIN / HR
+============================ */
 
 router.put(
   "/:id",
   authenticate,
-  authorize("ADMIN", "HR"),
+  authorize(
+    "ADMIN",
+    "HR"
+  ),
   targetController.updateTarget
 );
 

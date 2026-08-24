@@ -40,18 +40,29 @@ const role_middleware_1 = require("../middleware/role.middleware");
 const router = (0, express_1.Router)();
 /* ============================
    CREATE TARGET
+   ADMIN / HR
 ============================ */
 router.post("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR"), targetController.createTarget);
 /* ============================
-   GET ALL TARGETS
+   GET TARGETS
+
+   ADMIN / HR
+   -> ALL
+
+   TEAM LEADER
+   -> SELF + TEAM
+
+   EMPLOYEE
+   -> SELF
 ============================ */
-router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), targetController.getTargets);
+router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), targetController.getTargets);
 /* ============================
    GET TARGET BY ID
 ============================ */
-router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), targetController.getTargetById);
+router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), targetController.getTargetById);
 /* ============================
    UPDATE TARGET
+   ADMIN / HR
 ============================ */
 router.put("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR"), targetController.updateTarget);
 exports.default = router;

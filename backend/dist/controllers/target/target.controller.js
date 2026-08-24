@@ -40,28 +40,50 @@ const targetService = __importStar(require("../../services/target/target.service
 ============================ */
 const createTarget = async (req, res) => {
     try {
-        const result = await targetService.createTarget(req.body);
-        res.status(201).json(result);
+        if (!req.employee) {
+            res
+                .status(401)
+                .json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const result = await targetService.createTarget(req.body, req.employee);
+        res
+            .status(201)
+            .json(result);
     }
     catch (error) {
-        res.status(400).json({
+        res
+            .status(400)
+            .json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Target Creation Failed",
         });
     }
 };
 exports.createTarget = createTarget;
 /* ============================
-   GET ALL TARGETS
+   GET TARGETS
 ============================ */
 const getTargets = async (req, res) => {
     try {
+        if (!req.employee) {
+            res
+                .status(401)
+                .json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
         const page = Number(req.query.page) || 1;
         const limit = Number(req.query.limit) || 10;
-        const employeeId = typeof req.query.employeeId === "string"
-            ? req.query.employeeId
-            : undefined;
-        const search = typeof req.query.search === "string"
+        const search = typeof req.query
+            .search ===
+            "string"
             ? req.query.search
             : undefined;
         const month = req.query.month
@@ -70,13 +92,24 @@ const getTargets = async (req, res) => {
         const year = req.query.year
             ? Number(req.query.year)
             : undefined;
-        const result = await targetService.getTargets(page, limit, search, month, year, employeeId);
-        res.status(200).json(result);
+        const employeeId = typeof req.query
+            .employeeId ===
+            "string"
+            ? req.query
+                .employeeId
+            : undefined;
+        const result = await targetService.getTargets(page, limit, search, month, year, employeeId, req.employee);
+        res
+            .status(200)
+            .json(result);
     }
     catch (error) {
-        res.status(400).json({
+        res
+            .status(400)
+            .json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Failed To Fetch Targets",
         });
     }
 };
@@ -86,14 +119,29 @@ exports.getTargets = getTargets;
 ============================ */
 const getTargetById = async (req, res) => {
     try {
-        const { id } = req.params;
-        const result = await targetService.getTargetById(id);
-        res.status(200).json(result);
+        if (!req.employee) {
+            res
+                .status(401)
+                .json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const id = req.params
+            .id;
+        const result = await targetService.getTargetById(id, req.employee);
+        res
+            .status(200)
+            .json(result);
     }
     catch (error) {
-        res.status(404).json({
+        res
+            .status(404)
+            .json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Target Not Found",
         });
     }
 };
@@ -103,14 +151,29 @@ exports.getTargetById = getTargetById;
 ============================ */
 const updateTarget = async (req, res) => {
     try {
-        const { id } = req.params;
-        const result = await targetService.updateTarget(id, req.body);
-        res.status(200).json(result);
+        if (!req.employee) {
+            res
+                .status(401)
+                .json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const id = req.params
+            .id;
+        const result = await targetService.updateTarget(id, req.body, req.employee);
+        res
+            .status(200)
+            .json(result);
     }
     catch (error) {
-        res.status(400).json({
+        res
+            .status(400)
+            .json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Target Update Failed",
         });
     }
 };

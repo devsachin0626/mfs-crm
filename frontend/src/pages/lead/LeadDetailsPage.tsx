@@ -432,8 +432,7 @@ const handleConvertLead =
         await createFollowUp({
           leadId: lead.id,
 
-          employeeId:
-            loggedInEmployee.id,
+         
 
           followUpDate,
 

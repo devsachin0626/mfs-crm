@@ -1,51 +1,26 @@
-/* ============================
-   FOLLOW UP VIEW
-============================ */
-
 export type FollowUpView =
   | "TODAY"
   | "OVERDUE"
   | "UPCOMING";
 
-/* ============================
-   EMPLOYEE
-============================ */
-
 export interface FollowUpEmployee {
   id: string;
-
   employeeCode: string;
-
   name: string;
 }
-
-/* ============================
-   LEAD STATUS
-============================ */
 
 export interface FollowUpLeadStatus {
   id: string;
-
   name: string;
-
   color?: string | null;
 }
 
-/* ============================
-   LEAD
-============================ */
-
 export interface FollowUpLead {
   id: string;
-
   leadCode: string;
-
   name?: string | null;
-
   mobile: string;
-
   email?: string | null;
-
   city?: string | null;
 
   status?: FollowUpLeadStatus | null;
@@ -54,10 +29,6 @@ export interface FollowUpLead {
     | FollowUpEmployee
     | null;
 }
-
-/* ============================
-   FOLLOW UP
-============================ */
 
 export interface FollowUp {
   id: string;
@@ -83,9 +54,13 @@ export interface FollowUp {
     | null;
 }
 
-/* ============================
-   FOLLOW UP QUERY
-============================ */
+export interface CreateFollowUpPayload {
+  leadId: string;
+
+  followUpDate: string;
+
+  remarks?: string;
+}
 
 export interface FollowUpQuery {
   page?: number;
@@ -100,10 +75,6 @@ export interface FollowUpQuery {
 
   view?: FollowUpView;
 }
-
-/* ============================
-   FOLLOW UP LIST RESPONSE
-============================ */
 
 export interface FollowUpListResponse {
   success: boolean;

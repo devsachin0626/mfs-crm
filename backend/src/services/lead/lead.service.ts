@@ -1100,13 +1100,19 @@ export const createFollowUp = async (
   );
 
   /* ============================
-     CHECK LEAD
+     LEAD CHECK
   ============================ */
 
   const lead =
     await prisma.lead.findUnique({
       where: {
         id: leadId,
+      },
+
+      select: {
+        id: true,
+        isConverted: true,
+        stage: true,
       },
     });
 
@@ -1116,8 +1122,23 @@ export const createFollowUp = async (
     );
   }
 
+  if (lead.isConverted) {
+    throw new Error(
+      "Converted Lead Cannot Have Follow-up"
+    );
+  }
+
+  if (
+    lead.stage === "LOST" ||
+    lead.stage === "CONVERTED"
+  ) {
+    throw new Error(
+      "Follow-up Cannot Be Created For Closed Lead"
+    );
+  }
+
   /* ============================
-     CHECK EMPLOYEE
+     EMPLOYEE CHECK
   ============================ */
 
   const employee =
@@ -1125,11 +1146,26 @@ export const createFollowUp = async (
       where: {
         id: employeeId,
       },
+
+      select: {
+        id: true,
+        isActive: true,
+        status: true,
+      },
     });
 
   if (!employee) {
     throw new Error(
       "Employee Not Found"
+    );
+  }
+
+  if (
+    !employee.isActive ||
+    employee.status !== "ACTIVE"
+  ) {
+    throw new Error(
+      "Employee Account Inactive"
     );
   }
 
@@ -1153,31 +1189,58 @@ export const createFollowUp = async (
   }
 
   if (
-    followUpDate <
+    followUpDate <=
     new Date()
   ) {
     throw new Error(
-      "Follow-up date cannot be in the past"
+      "Follow-up Date Must Be In The Future"
     );
   }
 
   /* ============================
      TRANSACTION
+
+     Rule:
+     Only one active follow-up
+     per lead.
   ============================ */
 
   const result =
     await prisma.$transaction(
       async (tx) => {
+        /* Close previous active follow-ups */
+
+        await tx.followUp.updateMany({
+          where: {
+            leadId,
+
+            isCompleted: false,
+          },
+
+          data: {
+            isCompleted: true,
+          },
+        });
+
+        /* Create new follow-up */
+
         const followUp =
           await tx.followUp.create({
             data: {
               leadId,
+
               employeeId,
+
               followUpDate,
+
               remarks:
-                data.remarks,
+                data.remarks
+                  ?.trim() ||
+                undefined,
             },
           });
+
+        /* Update lead */
 
         await tx.lead.update({
           where: {
@@ -1187,6 +1250,11 @@ export const createFollowUp = async (
           data: {
             nextFollowUp:
               followUpDate,
+
+            stage:
+              lead.stage === "NEW"
+                ? "FOLLOW_UP"
+                : lead.stage,
           },
         });
 
@@ -1198,11 +1266,13 @@ export const createFollowUp = async (
     success: true,
 
     message:
-      "Follow-up Created Successfully",
+      "Follow-up Scheduled Successfully",
 
     followUp: result,
   };
 };
+
+
 export const getFollowUps = async (
   query: FollowUpQuery,
   currentEmployee: any
@@ -1448,10 +1518,20 @@ export const completeFollowUp = async (
   followUpId: string,
   currentEmployee: any
 ) => {
+  /* ============================
+     GET FOLLOW-UP
+  ============================ */
+
   const followUp =
     await prisma.followUp.findUnique({
       where: {
         id: followUpId,
+      },
+
+      select: {
+        id: true,
+        leadId: true,
+        isCompleted: true,
       },
     });
 
@@ -1478,9 +1558,15 @@ export const completeFollowUp = async (
     );
   }
 
+  /* ============================
+     TRANSACTION
+  ============================ */
+
   const result =
     await prisma.$transaction(
       async (tx) => {
+        /* Complete current follow-up */
+
         const updatedFollowUp =
           await tx.followUp.update({
             where: {
@@ -1493,6 +1579,31 @@ export const completeFollowUp = async (
             },
           });
 
+        /* Find next active follow-up */
+
+        const nextFollowUp =
+          await tx.followUp.findFirst({
+            where: {
+              leadId:
+                followUp.leadId,
+
+              isCompleted:
+                false,
+            },
+
+            orderBy: {
+              followUpDate:
+                "asc",
+            },
+
+            select: {
+              followUpDate:
+                true,
+            },
+          });
+
+        /* Sync lead.nextFollowUp */
+
         await tx.lead.update({
           where: {
             id:
@@ -1501,11 +1612,19 @@ export const completeFollowUp = async (
 
           data: {
             nextFollowUp:
+              nextFollowUp
+                ?.followUpDate ||
               null,
           },
         });
 
-        return updatedFollowUp;
+        return {
+          updatedFollowUp,
+          nextFollowUp:
+            nextFollowUp
+              ?.followUpDate ||
+            null,
+        };
       }
     );
 
@@ -1516,10 +1635,12 @@ export const completeFollowUp = async (
       "Follow-up Completed Successfully",
 
     followUp:
-      result,
+      result.updatedFollowUp,
+
+    nextFollowUp:
+      result.nextFollowUp,
   };
 };
-
 
 export const saveCallOutcome =
   async (

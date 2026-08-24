@@ -11,6 +11,7 @@ import type {
 
 import {
   useNavigate,
+  useSearchParams
 } from "react-router-dom";
 
 import {
@@ -139,6 +140,17 @@ interface LeadStatusOption {
 export default function CallingWorkspacePage() {
   const navigate =
     useNavigate();
+
+
+const [
+  searchParams,
+] =
+  useSearchParams();
+
+const requestedLeadId =
+  searchParams.get(
+    "leadId"
+  );
 
   const loggedInEmployee =
     useAppSelector(
@@ -421,6 +433,74 @@ export default function CallingWorkspacePage() {
             response.queue ||
               []
           );
+
+          const queueItems =
+  response.queue ||
+  [];
+
+setQueue(
+  queueItems
+);
+
+setTotal(
+  response.total ||
+    0
+);
+
+setTotalPages(
+  response.totalPages ||
+    1
+);
+
+if (
+  requestedLeadId
+) {
+  const requestedIndex =
+    queueItems.findIndex(
+      (
+        lead
+      ) =>
+        lead.id ===
+        requestedLeadId
+    );
+
+  if (
+    requestedIndex >=
+    0
+  ) {
+    setSelectedIndex(
+      requestedIndex
+    );
+
+    return;
+  }
+}
+
+if (
+  resetSelection
+) {
+  setSelectedIndex(
+    0
+  );
+} else {
+  setSelectedIndex(
+    (
+      current
+    ) => {
+      const maxIndex =
+        Math.max(
+          queueItems.length -
+            1,
+          0
+        );
+
+      return Math.min(
+        current,
+        maxIndex
+      );
+    }
+  );
+}
 
           setTotal(
             response.total ||

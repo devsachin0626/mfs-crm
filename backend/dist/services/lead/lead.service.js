@@ -746,26 +746,47 @@ const createFollowUp = async (leadId, employeeId, data, currentEmployee) => {
     ============================ */
     await (0, leadAccess_1.checkLeadAccess)(leadId, currentEmployee);
     /* ============================
-       CHECK LEAD
+       LEAD CHECK
     ============================ */
     const lead = await prisma_1.default.lead.findUnique({
         where: {
             id: leadId,
         },
+        select: {
+            id: true,
+            isConverted: true,
+            stage: true,
+        },
     });
     if (!lead) {
         throw new Error("Lead Not Found");
     }
+    if (lead.isConverted) {
+        throw new Error("Converted Lead Cannot Have Follow-up");
+    }
+    if (lead.stage === "LOST" ||
+        lead.stage === "CONVERTED") {
+        throw new Error("Follow-up Cannot Be Created For Closed Lead");
+    }
     /* ============================
-       CHECK EMPLOYEE
+       EMPLOYEE CHECK
     ============================ */
     const employee = await prisma_1.default.employee.findUnique({
         where: {
             id: employeeId,
         },
+        select: {
+            id: true,
+            isActive: true,
+            status: true,
+        },
     });
     if (!employee) {
         throw new Error("Employee Not Found");
+    }
+    if (!employee.isActive ||
+        employee.status !== "ACTIVE") {
+        throw new Error("Employee Account Inactive");
     }
     /* ============================
        DATE VALIDATION
@@ -774,35 +795,56 @@ const createFollowUp = async (leadId, employeeId, data, currentEmployee) => {
     if (Number.isNaN(followUpDate.getTime())) {
         throw new Error("Invalid Follow-up Date");
     }
-    if (followUpDate <
+    if (followUpDate <=
         new Date()) {
-        throw new Error("Follow-up date cannot be in the past");
+        throw new Error("Follow-up Date Must Be In The Future");
     }
     /* ============================
        TRANSACTION
+  
+       Rule:
+       Only one active follow-up
+       per lead.
     ============================ */
     const result = await prisma_1.default.$transaction(async (tx) => {
+        /* Close previous active follow-ups */
+        await tx.followUp.updateMany({
+            where: {
+                leadId,
+                isCompleted: false,
+            },
+            data: {
+                isCompleted: true,
+            },
+        });
+        /* Create new follow-up */
         const followUp = await tx.followUp.create({
             data: {
                 leadId,
                 employeeId,
                 followUpDate,
-                remarks: data.remarks,
+                remarks: data.remarks
+                    ?.trim() ||
+                    undefined,
             },
         });
+        /* Update lead */
         await tx.lead.update({
             where: {
                 id: leadId,
             },
             data: {
                 nextFollowUp: followUpDate,
+                stage: lead.stage === "NEW"
+                    ? "FOLLOW_UP"
+                    : lead.stage,
             },
         });
         return followUp;
     });
     return {
         success: true,
-        message: "Follow-up Created Successfully",
+        message: "Follow-up Scheduled Successfully",
         followUp: result,
     };
 };
@@ -964,9 +1006,17 @@ const getFollowUps = async (query, currentEmployee) => {
 };
 exports.getFollowUps = getFollowUps;
 const completeFollowUp = async (followUpId, currentEmployee) => {
+    /* ============================
+       GET FOLLOW-UP
+    ============================ */
     const followUp = await prisma_1.default.followUp.findUnique({
         where: {
             id: followUpId,
+        },
+        select: {
+            id: true,
+            leadId: true,
+            isCompleted: true,
         },
     });
     if (!followUp) {
@@ -979,7 +1029,11 @@ const completeFollowUp = async (followUpId, currentEmployee) => {
     if (followUp.isCompleted) {
         throw new Error("Follow-up Already Completed");
     }
+    /* ============================
+       TRANSACTION
+    ============================ */
     const result = await prisma_1.default.$transaction(async (tx) => {
+        /* Complete current follow-up */
         const updatedFollowUp = await tx.followUp.update({
             where: {
                 id: followUpId,
@@ -988,20 +1042,42 @@ const completeFollowUp = async (followUpId, currentEmployee) => {
                 isCompleted: true,
             },
         });
+        /* Find next active follow-up */
+        const nextFollowUp = await tx.followUp.findFirst({
+            where: {
+                leadId: followUp.leadId,
+                isCompleted: false,
+            },
+            orderBy: {
+                followUpDate: "asc",
+            },
+            select: {
+                followUpDate: true,
+            },
+        });
+        /* Sync lead.nextFollowUp */
         await tx.lead.update({
             where: {
                 id: followUp.leadId,
             },
             data: {
-                nextFollowUp: null,
+                nextFollowUp: nextFollowUp
+                    ?.followUpDate ||
+                    null,
             },
         });
-        return updatedFollowUp;
+        return {
+            updatedFollowUp,
+            nextFollowUp: nextFollowUp
+                ?.followUpDate ||
+                null,
+        };
     });
     return {
         success: true,
         message: "Follow-up Completed Successfully",
-        followUp: result,
+        followUp: result.updatedFollowUp,
+        nextFollowUp: result.nextFollowUp,
     };
 };
 exports.completeFollowUp = completeFollowUp;

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.bulkChangeLeadStatus = exports.bulkChangeLeadStage = exports.bulkAssignLeads = exports.changeLeadStatus = exports.getLeadPipeline = exports.getLeadTimeline = exports.getDailyCallingSummary = exports.saveCallOutcome = exports.completeFollowUp = exports.getFollowUps = exports.createFollowUp = exports.changeLeadStage = exports.assignLead = exports.updateLead = exports.getLeadById = exports.getLeads = exports.createLead = void 0;
+exports.getCallingQueue = exports.bulkChangeLeadStatus = exports.bulkChangeLeadStage = exports.bulkAssignLeads = exports.changeLeadStatus = exports.getLeadPipeline = exports.getLeadTimeline = exports.getDailyCallingSummary = exports.saveCallOutcome = exports.completeFollowUp = exports.getFollowUps = exports.createFollowUp = exports.changeLeadStage = exports.assignLead = exports.updateLead = exports.getLeadById = exports.getLeads = exports.createLead = void 0;
 const leadService = __importStar(require("../../services/lead/lead.service"));
 /* ============================
    CREATE LEAD
@@ -335,17 +335,24 @@ exports.saveCallOutcome = saveCallOutcome;
 const getDailyCallingSummary = async (req, res) => {
     try {
         if (!req.employee) {
-            res.status(401).json({
+            res
+                .status(401)
+                .json({
                 success: false,
                 message: "Authenticated Employee Not Found",
             });
             return;
         }
-        const roleName = req.employee.role
-            ?.name;
+        const roleName = typeof req.employee
+            .role ===
+            "string"
+            ? req.employee
+                .role
+            : req.employee
+                .role?.name;
         /*
-         * EMPLOYEE cannot request
-         * another employee's summary.
+         * Employee can only request
+         * their own summary.
          */
         const employeeId = roleName ===
             "EMPLOYEE"
@@ -356,7 +363,7 @@ const getDailyCallingSummary = async (req, res) => {
                 ? req.query
                     .employeeId
                 : req.employee.id;
-        const result = await leadService.getDailyCallingSummary(employeeId);
+        const result = await leadService.getDailyCallingSummary(employeeId, req.employee);
         res
             .status(200)
             .json(result);
@@ -366,7 +373,8 @@ const getDailyCallingSummary = async (req, res) => {
             .status(400)
             .json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Failed To Load Calling Summary",
         });
     }
 };
@@ -545,3 +553,53 @@ const bulkChangeLeadStatus = async (req, res) => {
     }
 };
 exports.bulkChangeLeadStatus = bulkChangeLeadStatus;
+/* ============================
+ CALLING QUEUE
+============================ */
+const getCallingQueue = async (req, res) => {
+    try {
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const page = req.query.page
+            ? Number(req.query.page)
+            : 1;
+        const limit = req.query.limit
+            ? Number(req.query.limit)
+            : 20;
+        const search = typeof req.query
+            .search ===
+            "string"
+            ? req.query.search
+            : undefined;
+        const employeeId = typeof req.query
+            .employeeId ===
+            "string"
+            ? req.query
+                .employeeId
+            : undefined;
+        const result = await leadService.getCallingQueue({
+            page,
+            limit,
+            search,
+            employeeId,
+        }, req.employee);
+        res
+            .status(200)
+            .json(result);
+    }
+    catch (error) {
+        res
+            .status(400)
+            .json({
+            success: false,
+            message: error.message ||
+                "Failed To Load Calling Queue",
+        });
+    }
+};
+exports.getCallingQueue = getCallingQueue;

@@ -73,6 +73,8 @@ router.patch(
   leadController.completeFollowUp
 );
 
+
+
 /* ============================
    CALLING SUMMARY
 ============================ */
@@ -87,6 +89,23 @@ router.get(
     "EMPLOYEE"
   ),
   leadController.getDailyCallingSummary
+);
+
+
+/* ============================
+   CALLING QUEUE
+============================ */
+
+router.get(
+  "/calling-queue",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  leadController.getCallingQueue
 );
 
 /* ============================

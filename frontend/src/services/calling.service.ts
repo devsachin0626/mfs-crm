@@ -1,6 +1,8 @@
 import api from "./api";
 
+
 import type {
+  CallingQueueResponse,
   DailyCallingSummary,
   SaveCallOutcomeRequest,
 } from "../types/calling.types";
@@ -56,4 +58,28 @@ export const convertLeadToClient = async (
 
   return response.data;
 };
+
+/* ============================
+   GET CALLING QUEUE
+============================ */
+
+export const getCallingQueue =
+  async (
+    params?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      employeeId?: string;
+    }
+  ): Promise<CallingQueueResponse> => {
+    const response =
+      await api.get<CallingQueueResponse>(
+        "/leads/calling-queue",
+        {
+          params,
+        }
+      );
+
+    return response.data;
+  };
 

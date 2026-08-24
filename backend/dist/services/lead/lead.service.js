@@ -3,10 +3,92 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.bulkChangeLeadStatus = exports.bulkChangeLeadStage = exports.bulkAssignLeads = exports.changeLeadStage = exports.getLeadPipeline = exports.getLeadTimeline = exports.getDailyCallingSummary = exports.saveCallOutcome = exports.completeFollowUp = exports.getFollowUps = exports.createFollowUp = exports.changeLeadStatus = exports.assignLead = exports.updateLead = exports.getLeadById = exports.getLeads = exports.createLead = void 0;
+exports.getCallingQueue = exports.bulkChangeLeadStatus = exports.bulkChangeLeadStage = exports.bulkAssignLeads = exports.changeLeadStage = exports.getLeadPipeline = exports.getLeadTimeline = exports.getDailyCallingSummary = exports.saveCallOutcome = exports.completeFollowUp = exports.getFollowUps = exports.createFollowUp = exports.changeLeadStatus = exports.assignLead = exports.updateLead = exports.getLeadById = exports.getLeads = exports.createLead = void 0;
 const prisma_1 = __importDefault(require("../../config/prisma"));
 const leadAging_1 = require("../../utils/leadAging");
+const client_1 = require("@prisma/client");
 const leadAccess_1 = require("../../utils/leadAccess");
+/* ============================
+   CALLING HELPERS
+============================ */
+const getRoleName = (currentEmployee) => {
+    if (typeof currentEmployee?.role ===
+        "string") {
+        return currentEmployee.role;
+    }
+    return (currentEmployee?.role?.name ||
+        "");
+};
+/* ============================
+   CALLING SUMMARY ACCESS
+
+   ADMIN / HR
+   -> ANY EMPLOYEE
+
+   TEAM LEADER
+   -> SELF + TEAM
+
+   EMPLOYEE
+   -> SELF
+============================ */
+const checkCallingSummaryAccess = async (targetEmployeeId, currentEmployee) => {
+    const roleName = getRoleName(currentEmployee);
+    if (roleName === "ADMIN" ||
+        roleName === "HR") {
+        return;
+    }
+    if (roleName === "EMPLOYEE") {
+        if (targetEmployeeId !==
+            currentEmployee.id) {
+            throw new Error("Calling Summary Access Denied");
+        }
+        return;
+    }
+    if (roleName ===
+        "TEAM_LEADER") {
+        if (targetEmployeeId ===
+            currentEmployee.id) {
+            return;
+        }
+        const teamMember = await prisma_1.default.employee.findFirst({
+            where: {
+                id: targetEmployeeId,
+                reportingManagerId: currentEmployee.id,
+                isActive: true,
+            },
+            select: {
+                id: true,
+            },
+        });
+        if (!teamMember) {
+            throw new Error("Calling Summary Access Denied");
+        }
+        return;
+    }
+    throw new Error("Calling Summary Access Denied");
+};
+/* ============================
+   DAILY CALLING TARGET
+
+   Setting key:
+   CALLING_DAILY_TARGET
+
+   Default:
+   250
+============================ */
+const getDailyCallingTarget = async () => {
+    const setting = await prisma_1.default.setting.findUnique({
+        where: {
+            key: "CALLING_DAILY_TARGET",
+        },
+    });
+    const configuredTarget = Number(setting?.value);
+    if (Number.isFinite(configuredTarget) &&
+        configuredTarget > 0) {
+        return Math.floor(configuredTarget);
+    }
+    return 250;
+};
 const createLead = async (data, createdById) => {
     const { name, mobile, email, city, state, address, sourceId, remarks, assignedEmployeeId, } = data;
     // Required Validation
@@ -924,28 +1006,58 @@ const completeFollowUp = async (followUpId, currentEmployee) => {
 };
 exports.completeFollowUp = completeFollowUp;
 const saveCallOutcome = async (leadId, employeeId, data, currentEmployee) => {
+    /* ============================
+       ACCESS
+    ============================ */
     await (0, leadAccess_1.checkLeadAccess)(leadId, currentEmployee);
     /* ============================
-       CHECK LEAD
+       LEAD
     ============================ */
     const lead = await prisma_1.default.lead.findUnique({
         where: {
             id: leadId,
         },
+        select: {
+            id: true,
+            leadCode: true,
+            assignedEmployeeId: true,
+            stage: true,
+            isConverted: true,
+        },
     });
     if (!lead) {
         throw new Error("Lead Not Found");
     }
+    if (lead.isConverted) {
+        throw new Error("Converted Lead Cannot Be Called");
+    }
     /* ============================
-       CHECK EMPLOYEE
+       EMPLOYEE
     ============================ */
     const employee = await prisma_1.default.employee.findUnique({
         where: {
             id: employeeId,
         },
+        select: {
+            id: true,
+            isActive: true,
+            status: true,
+        },
     });
     if (!employee) {
         throw new Error("Employee Not Found");
+    }
+    if (!employee.isActive ||
+        employee.status !==
+            "ACTIVE") {
+        throw new Error("Employee Account Inactive");
+    }
+    /* ============================
+       OUTCOME VALIDATION
+    ============================ */
+    if (!data.outcome ||
+        !Object.values(client_1.CallOutcome).includes(data.outcome)) {
+        throw new Error("Invalid Call Outcome");
     }
     /* ============================
        STATUS VALIDATION
@@ -955,14 +1067,27 @@ const saveCallOutcome = async (leadId, employeeId, data, currentEmployee) => {
             where: {
                 id: data.statusId,
             },
+            select: {
+                id: true,
+                isActive: true,
+            },
         });
-        if (!status) {
+        if (!status ||
+            !status.isActive) {
             throw new Error("Invalid Lead Status");
         }
     }
     /* ============================
-       FOLLOW-UP DATE
+       FOLLOW-UP RULES
     ============================ */
+    const requiresFollowUp = data.outcome ===
+        "CALL_BACK" ||
+        data.outcome ===
+            "INTERESTED";
+    if (requiresFollowUp &&
+        !data.followUpDate) {
+        throw new Error("Follow-up date is required for this call outcome");
+    }
     let followUpDate;
     if (data.followUpDate) {
         followUpDate =
@@ -970,23 +1095,64 @@ const saveCallOutcome = async (leadId, employeeId, data, currentEmployee) => {
         if (Number.isNaN(followUpDate.getTime())) {
             throw new Error("Invalid Follow-up Date");
         }
-        if (followUpDate <
+        if (followUpDate <=
             new Date()) {
-            throw new Error("Follow-up date cannot be in the past");
+            throw new Error("Follow-up date must be in the future");
         }
     }
+    /* ============================
+       AUTO STAGE RULES
+    ============================ */
+    const shouldMarkLost = data.outcome ===
+        "NOT_INTERESTED" ||
+        data.outcome ===
+            "WRONG_NUMBER";
     /* ============================
        TRANSACTION
     ============================ */
     const result = await prisma_1.default.$transaction(async (tx) => {
-        /* Update Lead */
+        /* ============================
+           FOLLOW-UP MANAGEMENT
+
+           Only one active follow-up
+           should remain after call.
+        ============================ */
+        if (followUpDate) {
+            await tx.followUp.updateMany({
+                where: {
+                    leadId,
+                    isCompleted: false,
+                },
+                data: {
+                    isCompleted: true,
+                },
+            });
+        }
+        if (shouldMarkLost) {
+            await tx.followUp.updateMany({
+                where: {
+                    leadId,
+                    isCompleted: false,
+                },
+                data: {
+                    isCompleted: true,
+                },
+            });
+        }
+        /* ============================
+           UPDATE LEAD
+
+           Call remarks are NOT written
+           into lead.remarks.
+
+           Remarks remain in history.
+        ============================ */
         const updatedLead = await tx.lead.update({
             where: {
                 id: leadId,
             },
             data: {
                 lastCallAt: new Date(),
-                remarks: data.remarks,
                 ...(data.statusId && {
                     status: {
                         connect: {
@@ -996,6 +1162,10 @@ const saveCallOutcome = async (leadId, employeeId, data, currentEmployee) => {
                 }),
                 ...(followUpDate && {
                     nextFollowUp: followUpDate,
+                }),
+                ...(shouldMarkLost && {
+                    stage: "LOST",
+                    nextFollowUp: null,
                 }),
             },
             include: {
@@ -1010,17 +1180,23 @@ const saveCallOutcome = async (leadId, employeeId, data, currentEmployee) => {
                 },
             },
         });
-        /* Call History */
+        /* ============================
+           CALL HISTORY
+        ============================ */
         const history = await tx.leadHistory.create({
             data: {
                 leadId,
                 employeeId,
                 statusId: data.statusId,
                 callOutcome: data.outcome,
-                remarks: data.remarks,
+                remarks: data.remarks
+                    ?.trim() ||
+                    undefined,
             },
         });
-        /* Optional Follow-up */
+        /* ============================
+           CREATE NEW FOLLOW-UP
+        ============================ */
         let followUp = null;
         if (followUpDate) {
             followUp =
@@ -1029,7 +1205,9 @@ const saveCallOutcome = async (leadId, employeeId, data, currentEmployee) => {
                         leadId,
                         employeeId,
                         followUpDate,
-                        remarks: data.remarks,
+                        remarks: data.remarks
+                            ?.trim() ||
+                            undefined,
                     },
                 });
         }
@@ -1041,12 +1219,23 @@ const saveCallOutcome = async (leadId, employeeId, data, currentEmployee) => {
     });
     return {
         success: true,
-        message: "Call Outcome Saved Successfully",
+        message: shouldMarkLost
+            ? "Call Saved And Lead Marked As Lost"
+            : followUpDate
+                ? "Call Saved And Follow-up Scheduled"
+                : "Call Outcome Saved Successfully",
         ...result,
     };
 };
 exports.saveCallOutcome = saveCallOutcome;
-const getDailyCallingSummary = async (employeeId) => {
+const getDailyCallingSummary = async (employeeId, currentEmployee) => {
+    /* ============================
+       ACCESS
+    ============================ */
+    await checkCallingSummaryAccess(employeeId, currentEmployee);
+    /* ============================
+       EMPLOYEE
+    ============================ */
     const employee = await prisma_1.default.employee.findUnique({
         where: {
             id: employeeId,
@@ -1055,61 +1244,87 @@ const getDailyCallingSummary = async (employeeId) => {
             id: true,
             employeeCode: true,
             name: true,
+            isActive: true,
         },
     });
-    if (!employee) {
+    if (!employee ||
+        !employee.isActive) {
         throw new Error("Employee Not Found");
     }
+    /* ============================
+       TODAY
+    ============================ */
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(startOfDay);
-    endOfDay.setDate(endOfDay.getDate() + 1);
-    const todayCalls = await prisma_1.default.leadHistory.count({
-        where: {
-            employeeId,
-            callOutcome: {
-                not: null,
+    endOfDay.setDate(endOfDay.getDate() +
+        1);
+    /* ============================
+       CALL DATA
+    ============================ */
+    const [todayCalls, outcomeGroups, dailyTarget,] = await Promise.all([
+        prisma_1.default.leadHistory.count({
+            where: {
+                employeeId,
+                callOutcome: {
+                    not: null,
+                },
+                createdAt: {
+                    gte: startOfDay,
+                    lt: endOfDay,
+                },
             },
-            createdAt: {
-                gte: startOfDay,
-                lt: endOfDay,
+        }),
+        prisma_1.default.leadHistory.groupBy({
+            by: [
+                "callOutcome",
+            ],
+            where: {
+                employeeId,
+                callOutcome: {
+                    not: null,
+                },
+                createdAt: {
+                    gte: startOfDay,
+                    lt: endOfDay,
+                },
             },
-        },
-    });
-    const outcomeGroups = await prisma_1.default.leadHistory.groupBy({
-        by: [
-            "callOutcome",
-        ],
-        where: {
-            employeeId,
-            callOutcome: {
-                not: null,
+            _count: {
+                _all: true,
             },
-            createdAt: {
-                gte: startOfDay,
-                lt: endOfDay,
-            },
-        },
-        _count: {
-            _all: true,
-        },
-    });
+        }),
+        getDailyCallingTarget(),
+    ]);
+    /* ============================
+       OUTCOME COUNTS
+    ============================ */
     const outcomes = {};
+    Object.values(client_1.CallOutcome).forEach((outcome) => {
+        outcomes[outcome] = 0;
+    });
     outcomeGroups.forEach((item) => {
         if (item.callOutcome) {
             outcomes[item.callOutcome] =
                 item._count._all;
         }
     });
-    const dailyTarget = 250;
+    /* ============================
+       SUMMARY
+    ============================ */
     const remaining = Math.max(dailyTarget -
         todayCalls, 0);
-    const achievementPercent = Number(((todayCalls /
-        dailyTarget) *
-        100).toFixed(2));
+    const achievementPercent = dailyTarget > 0
+        ? Number((todayCalls /
+            dailyTarget *
+            100).toFixed(2))
+        : 0;
     return {
         success: true,
-        employee,
+        employee: {
+            id: employee.id,
+            employeeCode: employee.employeeCode,
+            name: employee.name,
+        },
         date: startOfDay,
         summary: {
             todayCalls,
@@ -1715,3 +1930,218 @@ const bulkChangeLeadStatus = async (data, employeeId) => {
     };
 };
 exports.bulkChangeLeadStatus = bulkChangeLeadStatus;
+/* ============================
+ CALLING QUEUE
+============================ */
+const getCallingQueue = async (query, currentEmployee) => {
+    const page = Math.max(Number(query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
+    const skip = (page - 1) *
+        limit;
+    /* ============================
+       ACCESS
+    ============================ */
+    const accessWhere = await (0, leadAccess_1.getLeadAccessWhere)(currentEmployee);
+    const where = {
+        AND: [
+            accessWhere,
+            {
+                isConverted: false,
+            },
+            {
+                stage: {
+                    notIn: [
+                        "LOST",
+                        "CONVERTED",
+                    ],
+                },
+            },
+        ],
+    };
+    /* ============================
+       OPTIONAL EMPLOYEE FILTER
+    ============================ */
+    if (query.employeeId) {
+        const roleName = typeof currentEmployee
+            .role ===
+            "string"
+            ? currentEmployee
+                .role
+            : currentEmployee
+                .role?.name;
+        if (roleName ===
+            "EMPLOYEE") {
+            if (query.employeeId !==
+                currentEmployee.id) {
+                throw new Error("Calling Queue Access Denied");
+            }
+        }
+        if (roleName ===
+            "TEAM_LEADER") {
+            const allowed = await prisma_1.default.employee.findFirst({
+                where: {
+                    id: query.employeeId,
+                    OR: [
+                        {
+                            id: currentEmployee.id,
+                        },
+                        {
+                            reportingManagerId: currentEmployee.id,
+                        },
+                    ],
+                },
+                select: {
+                    id: true,
+                },
+            });
+            if (!allowed) {
+                throw new Error("Calling Queue Access Denied");
+            }
+        }
+        where.AND.push({
+            assignedEmployeeId: query.employeeId,
+        });
+    }
+    /* ============================
+       SEARCH
+    ============================ */
+    if (query.search) {
+        where.AND.push({
+            OR: [
+                {
+                    leadCode: {
+                        contains: query.search,
+                        mode: "insensitive",
+                    },
+                },
+                {
+                    name: {
+                        contains: query.search,
+                        mode: "insensitive",
+                    },
+                },
+                {
+                    mobile: {
+                        contains: query.search,
+                    },
+                },
+                {
+                    email: {
+                        contains: query.search,
+                        mode: "insensitive",
+                    },
+                },
+            ],
+        });
+    }
+    /* ============================
+       FETCH ACTIONABLE LEADS
+    ============================ */
+    const [leads, total,] = await Promise.all([
+        prisma_1.default.lead.findMany({
+            where,
+            skip,
+            take: limit,
+            include: {
+                status: true,
+                source: true,
+                assignedEmployee: {
+                    select: {
+                        id: true,
+                        employeeCode: true,
+                        name: true,
+                    },
+                },
+            },
+            orderBy: [
+                {
+                    nextFollowUp: "asc",
+                },
+                {
+                    lastCallAt: "asc",
+                },
+                {
+                    createdAt: "asc",
+                },
+            ],
+        }),
+        prisma_1.default.lead.count({
+            where,
+        }),
+    ]);
+    /* ============================
+       PRIORITY
+    ============================ */
+    const now = new Date();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(startOfToday);
+    endOfToday.setDate(endOfToday.getDate() +
+        1);
+    const queue = leads
+        .map((lead) => {
+        let priority = 4;
+        let queueType = "GENERAL";
+        if (lead.nextFollowUp &&
+            lead.nextFollowUp <
+                now) {
+            priority =
+                1;
+            queueType =
+                "OVERDUE";
+        }
+        else if (lead.nextFollowUp &&
+            lead.nextFollowUp >=
+                startOfToday &&
+            lead.nextFollowUp <
+                endOfToday) {
+            priority =
+                2;
+            queueType =
+                "TODAY";
+        }
+        else if (lead.stage ===
+            "NEW") {
+            priority =
+                3;
+            queueType =
+                "NEW";
+        }
+        return {
+            ...lead,
+            queueType,
+            priority,
+            aging: (0, leadAging_1.calculateLeadAging)({
+                createdAt: lead.createdAt,
+                updatedAt: lead.updatedAt,
+                lastCallAt: lead.lastCallAt,
+                nextFollowUp: lead.nextFollowUp,
+            }),
+        };
+    })
+        .sort((a, b) => {
+        if (a.priority !==
+            b.priority) {
+            return (a.priority -
+                b.priority);
+        }
+        const aFollowUp = a.nextFollowUp
+            ? new Date(a.nextFollowUp).getTime()
+            : Number.MAX_SAFE_INTEGER;
+        const bFollowUp = b.nextFollowUp
+            ? new Date(b.nextFollowUp).getTime()
+            : Number.MAX_SAFE_INTEGER;
+        return (aFollowUp -
+            bFollowUp);
+    });
+    return {
+        success: true,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total /
+            limit),
+        queue,
+    };
+};
+exports.getCallingQueue = getCallingQueue;

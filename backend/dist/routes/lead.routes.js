@@ -57,6 +57,10 @@ router.patch("/follow-ups/:id/complete", auth_middleware_1.authenticate, (0, rol
 ============================ */
 router.get("/calling-summary", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leadController.getDailyCallingSummary);
 /* ============================
+   CALLING QUEUE
+============================ */
+router.get("/calling-queue", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leadController.getCallingQueue);
+/* ============================
    LEAD PIPELINE
 ============================ */
 router.get("/pipeline/view", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leadController.getLeadPipeline);

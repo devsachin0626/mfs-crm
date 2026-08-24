@@ -455,24 +455,36 @@ export const getDailyCallingSummary =
     res: Response
   ): Promise<void> => {
     try {
-      if (!req.employee) {
-        res.status(401).json({
-          success: false,
-          message:
-            "Authenticated Employee Not Found",
-        });
+      if (
+        !req.employee
+      ) {
+        res
+          .status(401)
+          .json({
+            success:
+              false,
+
+            message:
+              "Authenticated Employee Not Found",
+          });
 
         return;
       }
 
       const roleName =
-        req.employee.role
-          ?.name;
+        typeof req.employee
+          .role ===
+        "string"
+          ? req.employee
+              .role
+          : req.employee
+              .role?.name;
 
       /*
-       * EMPLOYEE cannot request
-       * another employee's summary.
+       * Employee can only request
+       * their own summary.
        */
+
       const employeeId =
         roleName ===
         "EMPLOYEE"
@@ -486,19 +498,27 @@ export const getDailyCallingSummary =
 
       const result =
         await leadService.getDailyCallingSummary(
-          employeeId
+          employeeId,
+          req.employee
         );
 
       res
         .status(200)
-        .json(result);
-    } catch (error: any) {
+        .json(
+          result
+        );
+    } catch (
+      error: any
+    ) {
       res
         .status(400)
         .json({
-          success: false,
+          success:
+            false,
+
           message:
-            error.message,
+            error.message ||
+            "Failed To Load Calling Summary",
         });
     }
   };
@@ -755,6 +775,84 @@ export const bulkChangeLeadStatus =
           success: false,
           message:
             error.message,
+        });
+    }
+  };
+
+  /* ============================
+   CALLING QUEUE
+============================ */
+
+export const getCallingQueue =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
+
+        return;
+      }
+
+      const page =
+        req.query.page
+          ? Number(
+              req.query.page
+            )
+          : 1;
+
+      const limit =
+        req.query.limit
+          ? Number(
+              req.query.limit
+            )
+          : 20;
+
+      const search =
+        typeof req.query
+          .search ===
+        "string"
+          ? req.query.search
+          : undefined;
+
+      const employeeId =
+        typeof req.query
+          .employeeId ===
+        "string"
+          ? req.query
+              .employeeId
+          : undefined;
+
+      const result =
+        await leadService.getCallingQueue(
+          {
+            page,
+            limit,
+            search,
+            employeeId,
+          },
+          req.employee
+        );
+
+      res
+        .status(200)
+        .json(result);
+    } catch (
+      error: any
+    ) {
+      res
+        .status(400)
+        .json({
+          success: false,
+
+          message:
+            error.message ||
+            "Failed To Load Calling Queue",
         });
     }
   };

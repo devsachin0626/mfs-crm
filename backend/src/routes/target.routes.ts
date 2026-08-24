@@ -1,13 +1,16 @@
 import { Router } from "express";
+
 import * as targetController from "../controllers/target/target.controller";
-import { authenticate } from "../middleware/auth.middleware";
-import { authorize } from "../middleware/role.middleware";
+
+import {
+  authenticate,
+} from "../middleware/auth.middleware";
+
+import {
+  authorize,
+} from "../middleware/role.middleware";
 
 const router = Router();
-
-/* ============================
-   CREATE TARGET
-============================ */
 
 router.post(
   "/",
@@ -16,31 +19,19 @@ router.post(
   targetController.createTarget
 );
 
-/* ============================
-   GET ALL TARGETS
-============================ */
-
 router.get(
   "/",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"),
   targetController.getTargets
 );
-
-/* ============================
-   GET TARGET BY ID
-============================ */
 
 router.get(
   "/:id",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"),
   targetController.getTargetById
 );
-
-/* ============================
-   UPDATE TARGET
-============================ */
 
 router.put(
   "/:id",

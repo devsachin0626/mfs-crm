@@ -5,6 +5,7 @@ import {
 
 import type {
   FormEvent,
+  ReactNode,
 } from "react";
 
 import {
@@ -14,7 +15,9 @@ import {
 
 import {
   ArrowLeft,
+  Banknote,
   Save,
+  WalletCards,
 } from "lucide-react";
 
 import {
@@ -22,320 +25,317 @@ import {
   updatePayroll,
 } from "../../services/payroll.service";
 
+import type {
+  Payroll,
+} from "../../types/payroll.types";
+
 export default function PayrollEditPage() {
-  const { id } = useParams();
+  const {
+    id,
+  } = useParams<{
+    id: string;
+  }>();
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const [loading, setLoading] =
+  const [
+    payroll,
+    setPayroll,
+  ] =
+    useState<Payroll | null>(
+      null
+    );
+
+  const [
+    loading,
+    setLoading,
+  ] =
     useState(true);
 
-  const [saving, setSaving] =
+  const [
+    saving,
+    setSaving,
+  ] =
     useState(false);
 
-  const [error, setError] =
+  const [
+    error,
+    setError,
+  ] =
     useState("");
 
-  const [employeeName, setEmployeeName] =
-    useState("");
-
-  const [form, setForm] =
+  const [
+    form,
+    setForm,
+  ] =
     useState({
-      month: 1,
-      year: new Date().getFullYear(),
-
-      basicSalary: "",
-      workingDays: "",
-      presentDays: "",
-      lateDays: "",
-      halfDays: "",
-      leaveDays: "",
-      absentDays: "",
-
-      grossSalary: "",
-      incentive: "",
-      bonus: "",
-      deduction: "",
-      netSalary: "",
-
-      status: "PENDING",
+      incentive: "0",
+      bonus: "0",
+      deduction: "0",
       remarks: "",
     });
 
+  /* ============================
+     LOAD PAYROLL
+  ============================ */
+
   useEffect(() => {
-    const loadPayroll = async () => {
-      if (!id) return;
+    const loadPayroll =
+      async () => {
+        if (!id) {
+          setError(
+            "Payroll ID is missing"
+          );
 
-      try {
-        setLoading(true);
+          setLoading(
+            false
+          );
 
-        const response =
-          await getPayrollById(id);
+          return;
+        }
 
-        const payroll =
-          response.payroll;
+        try {
+          setLoading(
+            true
+          );
 
-        setEmployeeName(
-          `${payroll.employee.name} - ${payroll.employee.employeeCode}`
-        );
+          setError(
+            ""
+          );
 
-        setForm({
-          month:
-            payroll.month,
+          const response =
+            await getPayrollById(
+              id
+            );
 
-          year:
-            payroll.year,
+          const data =
+            response.payroll;
 
-          basicSalary:
-            String(
-              payroll.basicSalary
-            ),
+          setPayroll(
+            data
+          );
 
-          workingDays:
-            String(
-              payroll.workingDays
-            ),
+          setForm({
+            incentive:
+              String(
+                data.incentive ||
+                  0
+              ),
 
-          presentDays:
-            String(
-              payroll.presentDays
-            ),
+            bonus:
+              String(
+                data.bonus ||
+                  0
+              ),
 
-          lateDays:
-            String(
-              payroll.lateDays
-            ),
+            deduction:
+              String(
+                data.deduction ||
+                  0
+              ),
 
-          halfDays:
-            String(
-              payroll.halfDays
-            ),
-
-          leaveDays:
-            String(
-              payroll.leaveDays
-            ),
-
-          absentDays:
-            String(
-              payroll.absentDays
-            ),
-
-          grossSalary:
-            String(
-              payroll.grossSalary
-            ),
-
-          incentive:
-            String(
-              payroll.incentive
-            ),
-
-          bonus:
-            String(
-              payroll.bonus
-            ),
-
-          deduction:
-            String(
-              payroll.deduction
-            ),
-
-          netSalary:
-            String(
-              payroll.netSalary
-            ),
-
-          status:
-            payroll.status,
-
-          remarks:
-            payroll.remarks || "",
-        });
-      } catch (error: any) {
-        setError(
-          error?.response?.data?.message ||
-            "Failed to load payroll"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+            remarks:
+              data.remarks ||
+              "",
+          });
+        } catch (
+          error: any
+        ) {
+          setError(
+            error?.response
+              ?.data
+              ?.message ||
+              error?.message ||
+              "Failed to load payroll"
+          );
+        } finally {
+          setLoading(
+            false
+          );
+        }
+      };
 
     loadPayroll();
   }, [id]);
 
-  useEffect(() => {
-    const net =
-      Number(
-        form.grossSalary || 0
-      ) +
-      Number(
-        form.incentive || 0
-      ) +
-      Number(
-        form.bonus || 0
-      ) -
-      Number(
-        form.deduction || 0
-      );
+  /* ============================
+     SAVE
+  ============================ */
 
-    setForm((prev) => ({
-      ...prev,
-      netSalary:
-        String(
-          Math.max(net, 0)
-        ),
-    }));
-  }, [
-    form.grossSalary,
-    form.incentive,
-    form.bonus,
-    form.deduction,
-  ]);
+  const handleSubmit =
+    async (
+      e: FormEvent
+    ) => {
+      e.preventDefault();
 
-  const handleSubmit = async (
-    e: FormEvent
-  ) => {
-    e.preventDefault();
+      if (
+        !id ||
+        !payroll
+      ) {
+        return;
+      }
 
-    if (!id) return;
+      try {
+        setSaving(
+          true
+        );
 
-    try {
-      setSaving(true);
-      setError("");
+        setError(
+          ""
+        );
 
-      await updatePayroll(
-        id,
-        {
-          month:
-            Number(
-              form.month
-            ),
-
-          year:
-            Number(
-              form.year
-            ),
-
-          basicSalary:
-            Number(
-              form.basicSalary ||
+        await updatePayroll(
+          id,
+          {
+            incentive:
+              Math.max(
+                Number(
+                  form.incentive ||
+                    0
+                ),
                 0
-            ),
+              ),
 
-          workingDays:
-            Number(
-              form.workingDays ||
+            bonus:
+              Math.max(
+                Number(
+                  form.bonus ||
+                    0
+                ),
                 0
-            ),
+              ),
 
-          presentDays:
-            Number(
-              form.presentDays ||
+            deduction:
+              Math.max(
+                Number(
+                  form.deduction ||
+                    0
+                ),
                 0
-            ),
+              ),
 
-          lateDays:
-            Number(
-              form.lateDays ||
-                0
-            ),
+            remarks:
+              form.remarks.trim() ||
+              undefined,
+          }
+        );
 
-          halfDays:
-            Number(
-              form.halfDays ||
-                0
-            ),
+        navigate(
+          `/payroll/${id}`
+        );
+      } catch (
+        error: any
+      ) {
+        setError(
+          error?.response
+            ?.data
+            ?.message ||
+            error?.message ||
+            "Payroll update failed"
+        );
+      } finally {
+        setSaving(
+          false
+        );
+      }
+    };
 
-          leaveDays:
-            Number(
-              form.leaveDays ||
-                0
-            ),
-
-          absentDays:
-            Number(
-              form.absentDays ||
-                0
-            ),
-
-          grossSalary:
-            Number(
-              form.grossSalary ||
-                0
-            ),
-
-          incentive:
-            Number(
-              form.incentive ||
-                0
-            ),
-
-          bonus:
-            Number(
-              form.bonus ||
-                0
-            ),
-
-          deduction:
-            Number(
-              form.deduction ||
-                0
-            ),
-
-          netSalary:
-            Number(
-              form.netSalary ||
-                0
-            ),
-
-          status:
-            form.status as
-              | "PENDING"
-              | "PROCESSED"
-              | "PAID",
-
-          remarks:
-            form.remarks ||
-            undefined,
-        }
-      );
-
-      navigate(
-        `/payroll/${id}`
-      );
-    } catch (error: any) {
-      setError(
-        error?.response?.data?.message ||
-          "Payroll update failed"
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+  /* ============================
+     LOADING
+  ============================ */
 
   if (loading) {
     return (
-      <div className="p-10 text-center">
-        Loading payroll...
+      <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+        <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" />
+
+        <p className="mt-3 text-sm text-slate-500">
+          Loading payroll...
+        </p>
       </div>
     );
   }
 
+  /* ============================
+     ERROR
+  ============================ */
+
+  if (
+    error &&
+    !payroll
+  ) {
+    return (
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={() =>
+            navigate(
+              "/payroll"
+            )
+          }
+          className="inline-flex items-center gap-2 text-sm text-slate-600"
+        >
+          <ArrowLeft
+            size={17}
+          />
+
+          Back to Payroll
+        </button>
+
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!payroll) {
+    return null;
+  }
+
+  const calculatedNet =
+    Math.max(
+      Number(
+        payroll.grossSalary ||
+          0
+      ) +
+        Number(
+          form.incentive ||
+            0
+        ) +
+        Number(
+          form.bonus ||
+            0
+        ) -
+        Number(
+          form.deduction ||
+            0
+        ) -
+        Number(
+          payroll.lateDeduction ||
+            0
+        ),
+      0
+    );
+
   return (
     <div className="space-y-6">
+      {/* HEADER */}
+
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={() =>
             navigate(
-              `/payroll/${id}`
+              `/payroll/${payroll.id}`
             )
           }
-          className="rounded-xl border border-slate-200 bg-white p-2.5"
+          className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50"
         >
-          <ArrowLeft size={19} />
+          <ArrowLeft
+            size={19}
+          />
         </button>
 
         <div>
@@ -344,222 +344,350 @@ export default function PayrollEditPage() {
           </h1>
 
           <p className="text-sm text-slate-500">
-            {employeeName}
+            Edit only payroll adjustments
           </p>
         </div>
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
 
+      {/* LOCKED PAYROLL INFO */}
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <SectionHeader
+          icon={
+            <Banknote
+              size={20}
+            />
+          }
+          title="Payroll Information"
+          description="Attendance and salary base are locked"
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ReadOnlyCard
+            label="Employee"
+            value={
+              payroll.employee
+                ?.name ||
+              "-"
+            }
+          />
+
+          <ReadOnlyCard
+            label="Employee Code"
+            value={
+              payroll.employee
+                ?.employeeCode ||
+              "-"
+            }
+          />
+
+          <ReadOnlyCard
+            label="Payroll Month"
+            value={`${monthNames[
+              payroll.month - 1
+            ]} ${payroll.year}`}
+          />
+
+          <ReadOnlyCard
+            label="Status"
+            value={
+              payroll.status
+            }
+          />
+        </div>
+      </section>
+
+      {/* ATTENDANCE */}
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="font-semibold text-slate-900">
+          Attendance Summary
+        </h2>
+
+        <p className="mt-1 text-sm text-slate-500">
+          These values come from the payroll policy engine and cannot be edited manually
+        </p>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+          <ReadOnlyCard
+            label="Working Days"
+            value={String(
+              payroll
+                .scheduledWorkingDays ??
+                payroll.workingDays
+            )}
+          />
+
+          <ReadOnlyCard
+            label="Present"
+            value={String(
+              payroll.presentDays
+            )}
+          />
+
+          <ReadOnlyCard
+            label="Late"
+            value={String(
+              payroll.lateDays
+            )}
+          />
+
+          <ReadOnlyCard
+            label="Half Day"
+            value={String(
+              payroll.halfDays
+            )}
+          />
+
+          <ReadOnlyCard
+            label="Leave"
+            value={String(
+              payroll.leaveDays
+            )}
+          />
+
+          <ReadOnlyCard
+            label="Absent"
+            value={String(
+              payroll.absentDays
+            )}
+          />
+        </div>
+      </section>
+
+      {/* FIXED SALARY */}
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="font-semibold text-slate-900">
+          Salary Base
+        </h2>
+
+        <p className="mt-1 text-sm text-slate-500">
+          Payroll base calculation is locked
+        </p>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <MoneyCard
+            label="Basic Salary"
+            value={
+              payroll.basicSalary
+            }
+          />
+
+          <MoneyCard
+            label="Gross Salary"
+            value={
+              payroll.grossSalary
+            }
+          />
+
+          <MoneyCard
+            label="Late Deduction"
+            value={
+              payroll.lateDeduction ||
+              0
+            }
+          />
+
+          <MoneyCard
+            label="Current Net Salary"
+            value={
+              payroll.netSalary
+            }
+          />
+        </div>
+      </section>
+
+      {/* EDITABLE */}
+
       <form
-        onSubmit={handleSubmit}
+        onSubmit={
+          handleSubmit
+        }
         className="space-y-6"
       >
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <SectionHeader
+            icon={
+              <WalletCards
+                size={20}
+              />
+            }
+            title="Salary Adjustments"
+            description="Only these values can be edited"
+          />
+
           <div className="grid gap-5 md:grid-cols-3">
-            <NumberField
-              label="Working Days"
-              value={form.workingDays}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  workingDays: v,
-                }))
-              }
-            />
-
-            <NumberField
-              label="Present Days"
-              value={form.presentDays}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  presentDays: v,
-                }))
-              }
-            />
-
-            <NumberField
-              label="Late Days"
-              value={form.lateDays}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  lateDays: v,
-                }))
-              }
-            />
-
-            <NumberField
-              label="Half Days"
-              value={form.halfDays}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  halfDays: v,
-                }))
-              }
-            />
-
-            <NumberField
-              label="Leave Days"
-              value={form.leaveDays}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  leaveDays: v,
-                }))
-              }
-            />
-
-            <NumberField
-              label="Absent Days"
-              value={form.absentDays}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  absentDays: v,
-                }))
-              }
-            />
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="grid gap-5 md:grid-cols-3">
-            <MoneyField
-              label="Basic Salary"
-              value={form.basicSalary}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  basicSalary: v,
-                }))
-              }
-            />
-
-            <MoneyField
-              label="Gross Salary"
-              value={form.grossSalary}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  grossSalary: v,
-                }))
-              }
-            />
-
-            <MoneyField
-              label="Incentive"
-              value={form.incentive}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  incentive: v,
-                }))
-              }
-            />
-
-            <MoneyField
-              label="Bonus"
-              value={form.bonus}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  bonus: v,
-                }))
-              }
-            />
-
-            <MoneyField
-              label="Deduction"
-              value={form.deduction}
-              onChange={(v) =>
-                setForm((p) => ({
-                  ...p,
-                  deduction: v,
-                }))
-              }
-            />
-
-            <MoneyField
-              label="Net Salary"
-              value={form.netSalary}
-              readOnly
-            />
-          </div>
-
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field label="Status">
-              <select
-                value={form.status}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    status:
-                      e.target.value,
-                  }))
+            <Field label="Incentive">
+              <MoneyInput
+                value={
+                  form.incentive
                 }
-                className={inputClass}
-              >
-                <option value="PENDING">
-                  Pending
-                </option>
-
-                <option value="PROCESSED">
-                  Processed
-                </option>
-
-                <option value="PAID">
-                  Paid
-                </option>
-              </select>
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      incentive:
+                        value,
+                    })
+                  )
+                }
+              />
             </Field>
 
-            <Field label="Remarks">
-              <textarea
-                rows={3}
-                value={form.remarks}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    remarks:
-                      e.target.value,
-                  }))
+            <Field label="Bonus">
+              <MoneyInput
+                value={
+                  form.bonus
                 }
-                className={inputClass}
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      bonus:
+                        value,
+                    })
+                  )
+                }
+              />
+            </Field>
+
+            <Field label="Other Deduction">
+              <MoneyInput
+                value={
+                  form.deduction
+                }
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      deduction:
+                        value,
+                    })
+                  )
+                }
               />
             </Field>
           </div>
+
+          {/* LIVE NET */}
+
+          <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-5">
+            <p className="text-xs font-medium uppercase tracking-wide text-blue-600">
+              Updated Net Salary
+            </p>
+
+            <p className="mt-2 text-3xl font-bold text-blue-950">
+              ₹
+              {formatMoney(
+                calculatedNet
+              )}
+            </p>
+
+            <p className="mt-2 text-xs text-blue-700">
+              Gross + Incentive + Bonus - Other Deduction - Late Deduction
+            </p>
+          </div>
         </section>
 
-        <div className="flex justify-end gap-3">
+        {/* REMARKS */}
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <Field label="Remarks">
+            <textarea
+              rows={4}
+              maxLength={
+                500
+              }
+              value={
+                form.remarks
+              }
+              onChange={(
+                e
+              ) =>
+                setForm(
+                  (
+                    previous
+                  ) => ({
+                    ...previous,
+
+                    remarks:
+                      e.target
+                        .value,
+                  })
+                )
+              }
+              placeholder="Enter payroll remarks..."
+              className={
+                inputClass
+              }
+            />
+
+            <p className="mt-2 text-right text-xs text-slate-400">
+              {
+                form.remarks
+                  .length
+              }
+              /500
+            </p>
+          </Field>
+        </section>
+
+        {/* ACTIONS */}
+
+        <div className="flex justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
           <button
             type="button"
+            disabled={
+              saving
+            }
             onClick={() =>
               navigate(
-                `/payroll/${id}`
+                `/payroll/${payroll.id}`
               )
             }
-            className="rounded-xl border border-slate-200 px-5 py-2.5"
+            className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             Cancel
           </button>
 
           <button
             type="submit"
-            disabled={saving}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-white disabled:opacity-50"
+            disabled={
+              saving ||
+              payroll.status ===
+                "PAID"
+            }
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Save size={17} />
+            <Save
+              size={17}
+            />
 
             {saving
               ? "Saving..."
-              : "Save Changes"}
+              : payroll.status ===
+                  "PAID"
+                ? "Payroll Locked"
+                : "Save Changes"}
           </button>
         </div>
       </form>
@@ -567,15 +695,25 @@ export default function PayrollEditPage() {
   );
 }
 
+/* ============================
+   INPUT
+============================ */
+
 const inputClass =
-  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+
+/* ============================
+   FIELD
+============================ */
 
 function Field({
   label,
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+
+  children:
+    ReactNode;
 }) {
   return (
     <label className="block">
@@ -588,61 +726,172 @@ function Field({
   );
 }
 
-function NumberField({
-  label,
-  value,
-  onChange,
+/* ============================
+   SECTION HEADER
+============================ */
+
+function SectionHeader({
+  icon,
+  title,
+  description,
 }: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
+  icon:
+    ReactNode;
+
+  title: string;
+
+  description: string;
 }) {
   return (
-    <Field label={label}>
-      <input
-        type="number"
-        min="0"
-        value={value}
-        onChange={(e) =>
-          onChange(
-            e.target.value
-          )
-        }
-        className={inputClass}
-      />
-    </Field>
+    <div className="mb-6 flex items-center gap-3">
+      <div className="rounded-xl bg-blue-50 p-3 text-blue-700">
+        {icon}
+      </div>
+
+      <div>
+        <h2 className="font-semibold text-slate-900">
+          {title}
+        </h2>
+
+        <p className="text-sm text-slate-500">
+          {description}
+        </p>
+      </div>
+    </div>
   );
 }
 
-function MoneyField({
-  label,
+/* ============================
+   MONEY INPUT
+============================ */
+
+function MoneyInput({
   value,
   onChange,
-  readOnly = false,
 }: {
-  label: string;
   value: string;
-  onChange?: (value: string) => void;
-  readOnly?: boolean;
+
+  onChange: (
+    value: string
+  ) => void;
 }) {
   return (
-    <Field label={label}>
+    <div className="relative">
+      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+        ₹
+      </span>
+
       <input
         type="number"
         min="0"
-        value={value}
-        readOnly={readOnly}
-        onChange={(e) =>
-          onChange?.(
-            e.target.value
+        step="0.01"
+        value={
+          value
+        }
+        onChange={(
+          e
+        ) =>
+          onChange(
+            e.target
+              .value
           )
         }
-        className={`${inputClass} ${
-          readOnly
-            ? "bg-slate-50"
-            : ""
-        }`}
+        className={`${inputClass} pl-8`}
       />
-    </Field>
+    </div>
   );
 }
+
+/* ============================
+   READ ONLY
+============================ */
+
+function ReadOnlyCard({
+  label,
+  value,
+}: {
+  label: string;
+
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 font-semibold text-slate-900">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+/* ============================
+   MONEY CARD
+============================ */
+
+function MoneyCard({
+  label,
+  value,
+}: {
+  label: string;
+
+  value:
+    | string
+    | number;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-xl font-bold text-slate-900">
+        ₹
+        {formatMoney(
+          value
+        )}
+      </p>
+    </div>
+  );
+}
+
+/* ============================
+   FORMAT MONEY
+============================ */
+
+function formatMoney(
+  value:
+    | number
+    | string
+) {
+  return Number(
+    value || 0
+  ).toLocaleString(
+    "en-IN",
+    {
+      maximumFractionDigits:
+        2,
+    }
+  );
+}
+
+/* ============================
+   MONTHS
+============================ */
+
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];

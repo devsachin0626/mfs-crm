@@ -5,6 +5,7 @@ import {
 
 import type {
   FormEvent,
+  ReactNode,
 } from "react";
 
 import {
@@ -13,78 +14,107 @@ import {
 
 import {
   ArrowLeft,
-  Save,
   Banknote,
+  Calculator,
+  CalendarDays,
+  Clock3,
+  Save,
+  Umbrella,
+  UserCheck,
+  UserX,
+  WalletCards,
 } from "lucide-react";
 
 import {
   createPayroll,
+  previewPayroll,
 } from "../../services/payroll.service";
 
 import {
   getEmployees,
-  getEmployeeById,
 } from "../../services/employee.service";
-
-import {
-  getMonthlyAttendanceReport,
-} from "../../services/attendance.service";
 
 import type {
   Employee,
 } from "../../types/employee.types";
 
+import type {
+  PayrollPreviewResponse,
+} from "../../types/payroll.types";
+
 export default function PayrollCreatePage() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const now = new Date();
+  const now =
+    new Date();
 
-  const [employees, setEmployees] =
-    useState<Employee[]>([]);
+  const [
+    employees,
+    setEmployees,
+  ] =
+    useState<Employee[]>(
+      []
+    );
 
-  const [loadingEmployees, setLoadingEmployees] =
+  const [
+    loadingEmployees,
+    setLoadingEmployees,
+  ] =
     useState(true);
 
-  const [loadingAttendance, setLoadingAttendance] =
+  const [
+    previewLoading,
+    setPreviewLoading,
+  ] =
     useState(false);
 
-  const [saving, setSaving] =
+  const [
+    saving,
+    setSaving,
+  ] =
     useState(false);
 
-  const [error, setError] =
+  const [
+    error,
+    setError,
+  ] =
     useState("");
 
-  const [form, setForm] =
+  const [
+    preview,
+    setPreview,
+  ] =
+    useState<PayrollPreviewResponse | null>(
+      null
+    );
+
+  const [
+    form,
+    setForm,
+  ] =
     useState({
       employeeId: "",
 
       month:
-        now.getMonth() + 1,
+        now.getMonth() +
+        1,
 
       year:
         now.getFullYear(),
 
-      basicSalary: "",
+      incentive: "0",
 
-      workingDays: "",
-      presentDays: "",
-      lateDays: "",
-      halfDays: "",
-      leaveDays: "",
-      absentDays: "",
+      bonus: "0",
 
-      grossSalary: "",
-
-      incentive: "",
-      bonus: "",
-      deduction: "",
-
-      netSalary: "",
-
-      status: "PENDING",
+      deduction: "0",
 
       remarks: "",
     });
+
+  /* ============================
+     LOAD EMPLOYEES
+  ============================ */
 
   useEffect(() => {
     const loadEmployees =
@@ -92,6 +122,10 @@ export default function PayrollCreatePage() {
         try {
           setLoadingEmployees(
             true
+          );
+
+          setError(
+            ""
           );
 
           const response =
@@ -109,7 +143,8 @@ export default function PayrollCreatePage() {
         ) {
           setError(
             error?.response
-              ?.data?.message ||
+              ?.data
+              ?.message ||
               "Failed to load employees"
           );
         } finally {
@@ -122,198 +157,129 @@ export default function PayrollCreatePage() {
     loadEmployees();
   }, []);
 
-  const loadEmployeePayrollData =
-    async (
-      employeeId: string,
-      month: number,
-      year: number
-    ) => {
-      if (!employeeId) return;
+  /* ============================
+     PREVIEW
+  ============================ */
+
+  const loadPreview =
+    async () => {
+      if (
+        !form.employeeId
+      ) {
+        setPreview(
+          null
+        );
+
+        return;
+      }
 
       try {
-        setLoadingAttendance(
+        setPreviewLoading(
           true
         );
 
-        setError("");
+        setError(
+          ""
+        );
 
-        const [
-          employeeResponse,
-          attendanceResponse,
-        ] = await Promise.all([
-          getEmployeeById(
-            employeeId
-          ),
+        const response =
+          await previewPayroll({
+            employeeId:
+              form.employeeId,
 
-          getMonthlyAttendanceReport(
-            employeeId,
-            month,
-            year
-          ),
-        ]);
+            month:
+              Number(
+                form.month
+              ),
 
-        const employee =
-          employeeResponse.employee;
+            year:
+              Number(
+                form.year
+              ),
 
-        const summary =
-          attendanceResponse.summary;
+            incentive:
+              Number(
+                form.incentive ||
+                  0
+              ),
 
-        const basicSalary =
-          Number(
-            employee.salary || 0
-          );
+            bonus:
+              Number(
+                form.bonus ||
+                  0
+              ),
 
-        const presentDays =
-          Number(
-            summary.present || 0
-          );
+            deduction:
+              Number(
+                form.deduction ||
+                  0
+              ),
+          });
 
-        const lateDays =
-          Number(
-            summary.late || 0
-          );
-
-        const halfDays =
-          Number(
-            summary.halfDay || 0
-          );
-
-        const leaveDays =
-          Number(
-            summary.leave || 0
-          );
-
-        const absentDays =
-          Number(
-            summary.absent || 0
-          );
-
-        const workingDays =
-          Number(
-            summary.totalRecords || 0
-          );
-
-        const grossSalary =
-          basicSalary;
-
-        setForm((prev) => ({
-          ...prev,
-
-          basicSalary:
-            String(
-              basicSalary
-            ),
-
-          workingDays:
-            String(
-              workingDays
-            ),
-
-          presentDays:
-            String(
-              presentDays
-            ),
-
-          lateDays:
-            String(
-              lateDays
-            ),
-
-          halfDays:
-            String(
-              halfDays
-            ),
-
-          leaveDays:
-            String(
-              leaveDays
-            ),
-
-          absentDays:
-            String(
-              absentDays
-            ),
-
-          grossSalary:
-            String(
-              grossSalary
-            ),
-        }));
+        setPreview(
+          response
+        );
       } catch (
         error: any
       ) {
+        setPreview(
+          null
+        );
+
         setError(
           error?.response
-            ?.data?.message ||
-            "Failed to load attendance data"
+            ?.data
+            ?.message ||
+            error?.message ||
+            "Failed to calculate payroll"
         );
       } finally {
-        setLoadingAttendance(
+        setPreviewLoading(
           false
         );
       }
     };
 
+  /* ============================
+     AUTO PREVIEW
+  ============================ */
+
   useEffect(() => {
     if (
-      form.employeeId
+      !form.employeeId
     ) {
-      loadEmployeePayrollData(
-        form.employeeId,
-        form.month,
-        form.year
+      setPreview(
+        null
       );
+
+      return;
     }
+
+    const timer =
+      setTimeout(
+        () => {
+          loadPreview();
+        },
+        350
+      );
+
+    return () => {
+      clearTimeout(
+        timer
+      );
+    };
   }, [
     form.employeeId,
     form.month,
     form.year,
-  ]);
-
-  useEffect(() => {
-    const grossSalary =
-      Number(
-        form.grossSalary || 0
-      );
-
-    const incentive =
-      Number(
-        form.incentive || 0
-      );
-
-    const bonus =
-      Number(
-        form.bonus || 0
-      );
-
-    const deduction =
-      Number(
-        form.deduction || 0
-      );
-
-    const netSalary =
-      grossSalary +
-      incentive +
-      bonus -
-      deduction;
-
-    setForm((prev) => ({
-      ...prev,
-
-      netSalary:
-        String(
-          Math.max(
-            netSalary,
-            0
-          )
-        ),
-    }));
-  }, [
-    form.grossSalary,
     form.incentive,
     form.bonus,
     form.deduction,
   ]);
+
+  /* ============================
+     CREATE PAYROLL
+  ============================ */
 
   const handleSubmit =
     async (
@@ -333,8 +299,31 @@ export default function PayrollCreatePage() {
         return;
       }
 
+      if (
+        !preview
+      ) {
+        setError(
+          "Payroll preview is not available"
+        );
+
+        return;
+      }
+
       try {
-        setSaving(true);
+        setSaving(
+          true
+        );
+
+        /*
+         * Backend policy engine
+         * salary aur attendance
+         * dobara calculate karega.
+         *
+         * Ye values legacy
+         * CreatePayrollPayload
+         * compatibility ke liye
+         * bhej rahe hain.
+         */
 
         await createPayroll({
           employeeId:
@@ -352,49 +341,63 @@ export default function PayrollCreatePage() {
 
           basicSalary:
             Number(
-              form.basicSalary ||
+              preview.salary
+                .basicSalary ||
                 0
             ),
 
           workingDays:
             Number(
-              form.workingDays ||
+              preview
+                .attendance
+                .scheduledWorkingDays ||
                 0
             ),
 
           presentDays:
             Number(
-              form.presentDays ||
+              preview
+                .attendance
+                .presentDays ||
                 0
             ),
 
           lateDays:
             Number(
-              form.lateDays ||
+              preview
+                .attendance
+                .lateDays ||
                 0
             ),
 
           halfDays:
             Number(
-              form.halfDays ||
+              preview
+                .attendance
+                .halfDays ||
                 0
             ),
 
           leaveDays:
             Number(
-              form.leaveDays ||
+              preview
+                .attendance
+                .approvedLeaveDays ||
                 0
             ),
 
           absentDays:
             Number(
-              form.absentDays ||
+              preview
+                .attendance
+                .absentDays ||
                 0
             ),
 
           grossSalary:
             Number(
-              form.grossSalary ||
+              preview.salary
+                .grossSalary ||
                 0
             ),
 
@@ -418,15 +421,13 @@ export default function PayrollCreatePage() {
 
           netSalary:
             Number(
-              form.netSalary ||
+              preview.salary
+                .netSalary ||
                 0
             ),
 
           status:
-            form.status as
-              | "PENDING"
-              | "PROCESSED"
-              | "PAID",
+            "PENDING",
 
           remarks:
             form.remarks.trim() ||
@@ -441,18 +442,23 @@ export default function PayrollCreatePage() {
       ) {
         setError(
           error?.response
-            ?.data?.message ||
+            ?.data
+            ?.message ||
             error?.message ||
             "Payroll creation failed"
         );
       } finally {
-        setSaving(false);
+        setSaving(
+          false
+        );
       }
     };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* ============================
+          HEADER
+      ============================ */}
 
       <div className="flex items-center gap-3">
         <button
@@ -462,7 +468,7 @@ export default function PayrollCreatePage() {
               "/payroll"
             )
           }
-          className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50"
+          className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 transition hover:bg-slate-50"
         >
           <ArrowLeft
             size={19}
@@ -475,11 +481,14 @@ export default function PayrollCreatePage() {
           </h1>
 
           <p className="text-sm text-slate-500">
-            Generate monthly
-            employee payroll
+            26th to 25th payroll cycle
           </p>
         </div>
       </div>
+
+      {/* ============================
+          ERROR
+      ============================ */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -493,27 +502,20 @@ export default function PayrollCreatePage() {
         }
         className="space-y-6"
       >
-        {/* Payroll Header */}
+        {/* ============================
+            PAYROLL INFORMATION
+        ============================ */}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="mb-6 flex items-center gap-3">
-            <div className="rounded-xl bg-blue-50 p-3 text-blue-700">
+          <SectionHeader
+            icon={
               <Banknote
                 size={20}
               />
-            </div>
-
-            <div>
-              <h2 className="font-semibold text-slate-900">
-                Payroll Information
-              </h2>
-
-              <p className="text-sm text-slate-500">
-                Select employee and
-                payroll month
-              </p>
-            </div>
-          </div>
+            }
+            title="Payroll Information"
+            description="Select employee and payroll cycle"
+          />
 
           <div className="grid gap-5 md:grid-cols-3">
             <Field
@@ -524,22 +526,23 @@ export default function PayrollCreatePage() {
                 value={
                   form.employeeId
                 }
+                disabled={
+                  loadingEmployees
+                }
                 onChange={(
                   e
                 ) =>
                   setForm(
                     (
-                      prev
+                      previous
                     ) => ({
-                      ...prev,
+                      ...previous,
+
                       employeeId:
                         e.target
                           .value,
                     })
                   )
-                }
-                disabled={
-                  loadingEmployees
                 }
                 className={
                   inputClass
@@ -547,7 +550,7 @@ export default function PayrollCreatePage() {
               >
                 <option value="">
                   {loadingEmployees
-                    ? "Loading employees..."
+                    ? "Loading Employees..."
                     : "Select Employee"}
                 </option>
 
@@ -577,7 +580,7 @@ export default function PayrollCreatePage() {
             </Field>
 
             <Field
-              label="Month"
+              label="Payroll Month"
               required
             >
               <select
@@ -589,9 +592,10 @@ export default function PayrollCreatePage() {
                 ) =>
                   setForm(
                     (
-                      prev
+                      previous
                     ) => ({
-                      ...prev,
+                      ...previous,
+
                       month:
                         Number(
                           e.target
@@ -604,20 +608,7 @@ export default function PayrollCreatePage() {
                   inputClass
                 }
               >
-                {[
-                  "January",
-                  "February",
-                  "March",
-                  "April",
-                  "May",
-                  "June",
-                  "July",
-                  "August",
-                  "September",
-                  "October",
-                  "November",
-                  "December",
-                ].map(
+                {monthNames.map(
                   (
                     name,
                     index
@@ -642,7 +633,10 @@ export default function PayrollCreatePage() {
               label="Year"
               required
             >
-              <select
+              <input
+                type="number"
+                min={2020}
+                max={2100}
                 value={
                   form.year
                 }
@@ -651,9 +645,10 @@ export default function PayrollCreatePage() {
                 ) =>
                   setForm(
                     (
-                      prev
+                      previous
                     ) => ({
-                      ...prev,
+                      ...previous,
+
                       year:
                         Number(
                           e.target
@@ -665,332 +660,555 @@ export default function PayrollCreatePage() {
                 className={
                   inputClass
                 }
-              >
-                {[
-                  now.getFullYear() -
-                    1,
-                  now.getFullYear(),
-                  now.getFullYear() +
-                    1,
-                ].map(
-                  (year) => (
-                    <option
-                      key={
-                        year
-                      }
-                      value={
-                        year
-                      }
-                    >
-                      {year}
-                    </option>
-                  )
-                )}
-              </select>
+              />
             </Field>
           </div>
 
-          {loadingAttendance && (
-            <p className="mt-4 text-sm text-blue-600">
-              Loading attendance
-              summary...
-            </p>
+          {/* ============================
+              PAYROLL PERIOD
+          ============================ */}
+
+          {preview && (
+            <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <div className="flex items-center gap-2 text-blue-800">
+                <CalendarDays
+                  size={18}
+                />
+
+                <span className="font-semibold">
+                  Payroll Period
+                </span>
+              </div>
+
+              <p className="mt-2 text-sm text-blue-700">
+                {formatDate(
+                  preview.period
+                    .start
+                )}
+                {" → "}
+                {formatDate(
+                  preview.period
+                    .end
+                )}
+              </p>
+            </div>
           )}
         </section>
 
-        {/* Attendance */}
+        {/* ============================
+            ADJUSTMENTS
+        ============================ */}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="font-semibold text-slate-900">
-            Attendance Summary
-          </h2>
+          <SectionHeader
+            icon={
+              <WalletCards
+                size={20}
+              />
+            }
+            title="Salary Adjustments"
+            description="Add monthly incentive, bonus or other deduction"
+          />
 
-          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <NumberField
-              label="Working Days"
-              value={
-                form.workingDays
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    workingDays:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <NumberField
-              label="Present Days"
-              value={
-                form.presentDays
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    presentDays:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <NumberField
-              label="Late Days"
-              value={
-                form.lateDays
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    lateDays:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <NumberField
-              label="Half Days"
-              value={
-                form.halfDays
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    halfDays:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <NumberField
-              label="Leave Days"
-              value={
-                form.leaveDays
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    leaveDays:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <NumberField
-              label="Absent Days"
-              value={
-                form.absentDays
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    absentDays:
-                      value,
-                  })
-                )
-              }
-            />
-          </div>
-        </section>
-
-        {/* Salary */}
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="font-semibold text-slate-900">
-            Salary Breakdown
-          </h2>
-
-          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <MoneyField
-              label="Basic Salary"
-              value={
-                form.basicSalary
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    basicSalary:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <MoneyField
-              label="Gross Salary"
-              value={
-                form.grossSalary
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    grossSalary:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <MoneyField
-              label="Incentive"
-              value={
-                form.incentive
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    incentive:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <MoneyField
-              label="Bonus"
-              value={
-                form.bonus
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    bonus:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <MoneyField
-              label="Deduction"
-              value={
-                form.deduction
-              }
-              onChange={(
-                value
-              ) =>
-                setForm(
-                  (prev) => ({
-                    ...prev,
-                    deduction:
-                      value,
-                  })
-                )
-              }
-            />
-
-            <MoneyField
-              label="Net Salary"
-              value={
-                form.netSalary
-              }
-              readOnly
-            />
-          </div>
-
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <Field label="Status">
-              <select
+          <div className="grid gap-5 md:grid-cols-3">
+            <Field label="Incentive">
+              <MoneyInput
                 value={
-                  form.status
+                  form.incentive
                 }
                 onChange={(
-                  e
+                  value
                 ) =>
                   setForm(
                     (
-                      prev
+                      previous
                     ) => ({
-                      ...prev,
-                      status:
-                        e.target
-                          .value,
+                      ...previous,
+                      incentive:
+                        value,
                     })
                   )
                 }
-                className={
-                  inputClass
-                }
-              >
-                <option value="PENDING">
-                  Pending
-                </option>
-
-                <option value="PROCESSED">
-                  Processed
-                </option>
-
-                <option value="PAID">
-                  Paid
-                </option>
-              </select>
+              />
             </Field>
 
-            <Field label="Remarks">
-              <textarea
-                rows={3}
+            <Field label="Bonus">
+              <MoneyInput
                 value={
-                  form.remarks
+                  form.bonus
                 }
                 onChange={(
-                  e
+                  value
                 ) =>
                   setForm(
                     (
-                      prev
+                      previous
                     ) => ({
-                      ...prev,
-                      remarks:
-                        e.target
-                          .value,
+                      ...previous,
+                      bonus:
+                        value,
                     })
                   )
                 }
-                className={
-                  inputClass
+              />
+            </Field>
+
+            <Field label="Other Deduction">
+              <MoneyInput
+                value={
+                  form.deduction
                 }
-                placeholder="Payroll remarks..."
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      deduction:
+                        value,
+                    })
+                  )
+                }
               />
             </Field>
           </div>
         </section>
 
-        {/* Buttons */}
+        {/* ============================
+            PREVIEW
+        ============================ */}
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <SectionHeader
+            icon={
+              <Calculator
+                size={20}
+              />
+            }
+            title="Payroll Preview"
+            description="Salary automatically calculated from attendance and office policy"
+          />
+
+          {!form.employeeId && (
+            <EmptyPreview />
+          )}
+
+          {previewLoading && (
+            <div className="rounded-xl bg-slate-50 p-8 text-center">
+              <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" />
+
+              <p className="mt-3 text-sm text-slate-500">
+                Calculating payroll...
+              </p>
+            </div>
+          )}
+
+          {!previewLoading &&
+            preview && (
+              <div className="space-y-6">
+                {/* ============================
+                    MAIN SALARY
+                ============================ */}
+
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <MoneyCard
+                    label="Basic Salary"
+                    value={
+                      preview.salary
+                        .basicSalary
+                    }
+                  />
+
+                  <MoneyCard
+                    label="Per Day Salary"
+                    value={
+                      preview.salary
+                        .perDaySalary
+                    }
+                  />
+
+                  <NumberCard
+                    label="Payable Days"
+                    value={
+                      preview.salary
+                        .payableDays
+                    }
+                  />
+
+                  <MoneyCard
+                    label="Gross Salary"
+                    value={
+                      preview.salary
+                        .grossSalary
+                    }
+                  />
+                </div>
+
+                {/* ============================
+                    ATTENDANCE
+                ============================ */}
+
+                <div>
+                  <SubHeading
+                    icon={
+                      <UserCheck
+                        size={18}
+                      />
+                    }
+                    title="Attendance Calculation"
+                  />
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+                    <NumberCard
+                      label="Working Days"
+                      value={
+                        preview
+                          .attendance
+                          .scheduledWorkingDays
+                      }
+                    />
+
+                    <NumberCard
+                      label="Present"
+                      value={
+                        preview
+                          .attendance
+                          .presentDays
+                      }
+                    />
+
+                    <NumberCard
+                      label="Late"
+                      value={
+                        preview
+                          .attendance
+                          .lateDays
+                      }
+                    />
+
+                    <NumberCard
+                      label="Half Day"
+                      value={
+                        preview
+                          .attendance
+                          .halfDays
+                      }
+                    />
+
+                    <NumberCard
+                      label="Absent"
+                      value={
+                        preview
+                          .attendance
+                          .absentDays
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* ============================
+                    LEAVE
+                ============================ */}
+
+                <div>
+                  <SubHeading
+                    icon={
+                      <Umbrella
+                        size={18}
+                      />
+                    }
+                    title="Paid Leave"
+                  />
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <NumberCard
+                      label="Opening Balance"
+                      value={
+                        preview
+                          .leaveBalance
+                          .openingBalance
+                      }
+                    />
+
+                    <NumberCard
+                      label="Monthly Credit"
+                      value={
+                        preview
+                          .leaveBalance
+                          .creditedLeave
+                      }
+                    />
+
+                    <NumberCard
+                      label="Paid Leave Used"
+                      value={
+                        preview
+                          .leaveBalance
+                          .usedPaidLeave
+                      }
+                    />
+
+                    <NumberCard
+                      label="Closing Balance"
+                      value={
+                        preview
+                          .leaveBalance
+                          .closingBalance
+                      }
+                    />
+
+                    <NumberCard
+                      label="Total Leave"
+                      value={
+                        preview
+                          .attendance
+                          .approvedLeaveDays
+                      }
+                    />
+
+                    <NumberCard
+                      label="Paid Leave"
+                      value={
+                        preview
+                          .attendance
+                          .paidLeaveDays
+                      }
+                    />
+
+                    <NumberCard
+                      label="Unpaid Leave"
+                      value={
+                        preview
+                          .attendance
+                          .unpaidLeaveDays
+                      }
+                    />
+
+                    <NumberCard
+                      label="Available Leave"
+                      value={
+                        preview
+                          .leaveBalance
+                          .availablePaidLeave
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* ============================
+                    LATE POLICY
+                ============================ */}
+
+                <div>
+                  <SubHeading
+                    icon={
+                      <Clock3
+                        size={18}
+                      />
+                    }
+                    title="Late Coming"
+                  />
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <NumberCard
+                      label="Total Late"
+                      value={
+                        preview
+                          .attendance
+                          .actualLateCount
+                      }
+                    />
+
+                    <NumberCard
+                      label="Allowed Late"
+                      value={
+                        preview
+                          .attendance
+                          .allowedLateCount
+                      }
+                    />
+
+                    <NumberCard
+                      label="Excess Late"
+                      value={
+                        preview
+                          .attendance
+                          .excessLateCount
+                      }
+                    />
+
+                    <MoneyCard
+                      label="Late Deduction"
+                      value={
+                        preview.salary
+                          .lateDeduction
+                      }
+                    />
+                  </div>
+
+                  <p className="mt-3 text-xs text-slate-500">
+                    First 3 late
+                    arrivals are
+                    allowed. ₹100 is
+                    deducted for each
+                    additional late.
+                  </p>
+                </div>
+
+                {/* ============================
+                    EARLY GOING
+                ============================ */}
+
+                <div>
+                  <SubHeading
+                    icon={
+                      <UserX
+                        size={18}
+                      />
+                    }
+                    title="Early Going"
+                  />
+
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <NumberCard
+                      label="Early Going"
+                      value={
+                        preview
+                          .attendance
+                          .earlyGoingCount
+                      }
+                    />
+
+                    <NumberCard
+                      label="Allowed"
+                      value={
+                        preview
+                          .attendance
+                          .allowedEarlyGoingCount
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* ============================
+                    FINAL SALARY
+                ============================ */}
+
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+                  <h3 className="font-semibold text-blue-950">
+                    Final Salary Calculation
+                  </h3>
+
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <SalaryRow
+                      label="Gross Salary"
+                      amount={
+                        preview.salary
+                          .grossSalary
+                      }
+                    />
+
+                    <SalaryRow
+                      label="+ Incentive"
+                      amount={
+                        preview.salary
+                          .incentive
+                      }
+                    />
+
+                    <SalaryRow
+                      label="+ Bonus"
+                      amount={
+                        preview.salary
+                          .bonus
+                      }
+                    />
+
+                    <SalaryRow
+                      label="- Other Deduction"
+                      amount={
+                        preview.salary
+                          .otherDeduction
+                      }
+                    />
+
+                    <SalaryRow
+                      label="- Late Deduction"
+                      amount={
+                        preview.salary
+                          .lateDeduction
+                      }
+                    />
+
+                    <div className="rounded-xl bg-blue-700 p-4 text-white">
+                      <p className="text-xs font-medium uppercase tracking-wide text-blue-100">
+                        Net Salary
+                      </p>
+
+                      <p className="mt-2 text-2xl font-bold">
+                        ₹
+                        {formatMoney(
+                          preview.salary
+                            .netSalary
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+        </section>
+
+        {/* ============================
+            REMARKS
+        ============================ */}
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+          <Field label="Remarks">
+            <textarea
+              rows={4}
+              maxLength={
+                500
+              }
+              value={
+                form.remarks
+              }
+              onChange={(
+                e
+              ) =>
+                setForm(
+                  (
+                    previous
+                  ) => ({
+                    ...previous,
+
+                    remarks:
+                      e.target
+                        .value,
+                  })
+                )
+              }
+              placeholder="Enter payroll remarks..."
+              className={
+                inputClass
+              }
+            />
+
+            <p className="mt-2 text-right text-xs text-slate-400">
+              {
+                form.remarks
+                  .length
+              }
+              /500
+            </p>
+          </Field>
+        </section>
+
+        {/* ============================
+            ACTIONS
+        ============================ */}
 
         <div className="flex justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
           <button
@@ -1003,7 +1221,7 @@ export default function PayrollCreatePage() {
                 "/payroll"
               )
             }
-            className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700"
+            className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -1011,16 +1229,18 @@ export default function PayrollCreatePage() {
           <button
             type="submit"
             disabled={
-              saving
+              saving ||
+              previewLoading ||
+              !preview
             }
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Save
               size={17}
             />
 
             {saving
-              ? "Creating..."
+              ? "Creating Payroll..."
               : "Create Payroll"}
           </button>
         </div>
@@ -1029,8 +1249,16 @@ export default function PayrollCreatePage() {
   );
 }
 
+/* ============================
+   INPUT STYLE
+============================ */
+
 const inputClass =
-  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+
+/* ============================
+   FIELD
+============================ */
 
 function Field({
   label,
@@ -1038,8 +1266,11 @@ function Field({
   children,
 }: {
   label: string;
+
   required?: boolean;
-  children: React.ReactNode;
+
+  children:
+    ReactNode;
 }) {
   return (
     <label className="block">
@@ -1058,75 +1289,275 @@ function Field({
   );
 }
 
-function NumberField({
-  label,
+/* ============================
+   SECTION HEADER
+============================ */
+
+function SectionHeader({
+  icon,
+  title,
+  description,
+}: {
+  icon:
+    ReactNode;
+
+  title: string;
+
+  description: string;
+}) {
+  return (
+    <div className="mb-6 flex items-center gap-3">
+      <div className="rounded-xl bg-blue-50 p-3 text-blue-700">
+        {icon}
+      </div>
+
+      <div>
+        <h2 className="font-semibold text-slate-900">
+          {title}
+        </h2>
+
+        <p className="text-sm text-slate-500">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================
+   SUB HEADING
+============================ */
+
+function SubHeading({
+  icon,
+  title,
+}: {
+  icon:
+    ReactNode;
+
+  title: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-slate-800">
+      <span className="text-blue-700">
+        {icon}
+      </span>
+
+      <h3 className="font-semibold">
+        {title}
+      </h3>
+    </div>
+  );
+}
+
+/* ============================
+   MONEY INPUT
+============================ */
+
+function MoneyInput({
   value,
   onChange,
 }: {
-  label: string;
   value: string;
+
   onChange: (
     value: string
   ) => void;
 }) {
   return (
-    <Field label={label}>
+    <div className="relative">
+      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+        ₹
+      </span>
+
       <input
         type="number"
         min="0"
-        value={value}
-        onChange={(e) =>
+        step="0.01"
+        value={
+          value
+        }
+        onChange={(
+          e
+        ) =>
           onChange(
-            e.target.value
+            e.target
+              .value
           )
         }
-        className={
-          inputClass
-        }
+        className={`${inputClass} pl-8`}
       />
-    </Field>
+    </div>
   );
 }
 
-function MoneyField({
+/* ============================
+   NUMBER CARD
+============================ */
+
+function NumberCard({
   label,
   value,
-  onChange,
-  readOnly = false,
 }: {
   label: string;
-  value: string;
-  onChange?: (
-    value: string
-  ) => void;
-  readOnly?: boolean;
+
+  value:
+    | number
+    | string;
 }) {
   return (
-    <Field label={label}>
-      <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-          ₹
-        </span>
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
 
-        <input
-          type="number"
-          min="0"
-          value={value}
-          readOnly={
-            readOnly
-          }
-          onChange={(e) =>
-            onChange?.(
-              e.target.value
-            )
-          }
-          className={`${inputClass} pl-8 ${
-            readOnly
-              ? "bg-slate-50"
-              : ""
-          }`}
-        />
-      </div>
-    </Field>
+      <p className="mt-2 text-xl font-bold text-slate-900">
+        {value}
+      </p>
+    </div>
   );
 }
+
+/* ============================
+   MONEY CARD
+============================ */
+
+function MoneyCard({
+  label,
+  value,
+}: {
+  label: string;
+
+  value:
+    | number
+    | string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-xl font-bold text-slate-900">
+        ₹
+        {formatMoney(
+          value
+        )}
+      </p>
+    </div>
+  );
+}
+
+/* ============================
+   SALARY ROW
+============================ */
+
+function SalaryRow({
+  label,
+  amount,
+}: {
+  label: string;
+
+  amount:
+    | number
+    | string;
+}) {
+  return (
+    <div className="rounded-xl bg-white p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-lg font-bold text-slate-900">
+        ₹
+        {formatMoney(
+          amount
+        )}
+      </p>
+    </div>
+  );
+}
+
+/* ============================
+   EMPTY PREVIEW
+============================ */
+
+function EmptyPreview() {
+  return (
+    <div className="rounded-xl bg-slate-50 p-8 text-center">
+      <Calculator
+        size={34}
+        className="mx-auto text-slate-300"
+      />
+
+      <p className="mt-3 font-medium text-slate-700">
+        Select Employee
+      </p>
+
+      <p className="mt-1 text-sm text-slate-500">
+        Payroll calculation will appear automatically.
+      </p>
+    </div>
+  );
+}
+
+/* ============================
+   MONEY FORMAT
+============================ */
+
+function formatMoney(
+  value:
+    | number
+    | string
+) {
+  return Number(
+    value || 0
+  ).toLocaleString(
+    "en-IN",
+    {
+      minimumFractionDigits:
+        0,
+
+      maximumFractionDigits:
+        2,
+    }
+  );
+}
+
+/* ============================
+   DATE FORMAT
+============================ */
+
+function formatDate(
+  value: string
+) {
+  return new Date(
+    value
+  ).toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
+}
+
+/* ============================
+   MONTHS
+============================ */
+
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];

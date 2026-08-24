@@ -232,6 +232,8 @@ model Employee {
 
   payrolls Payroll[]
 
+  leaveBalances EmployeeLeaveBalance[]
+
   targets EmployeeTarget[]
 
   trials Trial[]
@@ -280,7 +282,8 @@ model Product {
 
   serviceActivations ServiceActivation[]
 
-  trials    Trial[]
+  trials Trial[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -735,6 +738,38 @@ model Leave {
   @@map("leaves")
 }
 
+model EmployeeLeaveBalance {
+  id String @id @default(cuid())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Payroll cycle label:
+  // month = 8, year = 2026 means 26 Jul 2026 to 25 Aug 2026
+  month Int
+  year  Int
+
+  // Previous cycle closing balance
+  openingBalance Decimal @default(0) @db.Decimal(5, 2)
+
+  // Every payroll cycle employee gets 1 paid leave
+  creditedLeave Decimal @default(1) @db.Decimal(5, 2)
+
+  // Paid leave consumed in this cycle
+  usedPaidLeave Decimal @default(0) @db.Decimal(5, 2)
+
+  // Carry-forward balance for next cycle
+  closingBalance Decimal @default(0) @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, month, year])
+  @@index([employeeId])
+  @@index([month, year])
+  @@map("employee_leave_balances")
+}
+
 model Holiday {
   id String @id @default(cuid())
 
@@ -779,17 +814,39 @@ model Payroll {
   employeeId String
   employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
+  // Payroll label:
+  // August 2026 = 26 Jul 2026 to 25 Aug 2026
   month Int
   year  Int
 
+  // Nullable for safe migration of existing payroll rows.
+  // New payroll records will populate both fields from the policy engine.
+  periodStart DateTime?
+  periodEnd   DateTime?
+
   basicSalary Decimal @db.Decimal(12, 2)
 
+  // Existing field kept for compatibility.
   workingDays Int
+
+  // Total cycle days minus Sundays, first Saturday and company holidays.
+  scheduledWorkingDays Int @default(0)
+
   presentDays Int
   lateDays    Int
   halfDays    Int
   leaveDays   Int
   absentDays  Int
+
+  paidLeaveDays   Decimal @default(0) @db.Decimal(5, 2)
+  unpaidLeaveDays Decimal @default(0) @db.Decimal(5, 2)
+
+  actualLateCount  Int @default(0)
+  allowedLateCount Int @default(3)
+  excessLateCount  Int @default(0)
+
+  earlyGoingCount        Int @default(0)
+  allowedEarlyGoingCount Int @default(1)
 
   grossSalary Decimal @db.Decimal(12, 2)
 
@@ -797,7 +854,11 @@ model Payroll {
 
   bonus Decimal @default(0) @db.Decimal(12, 2)
 
+  // Other/manual deduction
   deduction Decimal @default(0) @db.Decimal(12, 2)
+
+  // Rs. 100 for every late after the first 3 allowed late arrivals.
+  lateDeduction Decimal @default(0) @db.Decimal(12, 2)
 
   netSalary Decimal @db.Decimal(12, 2)
 

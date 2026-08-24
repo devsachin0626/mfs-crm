@@ -1,6 +1,7 @@
 export type PayrollStatus =
   | "PENDING"
-  | "PROCESSED"
+  | "GENERATED"
+  | "APPROVED"
   | "PAID";
 
 export interface PayrollEmployee {
@@ -19,20 +20,37 @@ export interface Payroll {
   month: number;
   year: number;
 
+  periodStart?: string | null;
+  periodEnd?: string | null;
+
   basicSalary: string | number;
 
   workingDays: number;
+  scheduledWorkingDays?: number;
+
   presentDays: number;
   lateDays: number;
   halfDays: number;
   leaveDays: number;
   absentDays: number;
 
+  paidLeaveDays?: string | number;
+  unpaidLeaveDays?: string | number;
+
+  actualLateCount?: number;
+  allowedLateCount?: number;
+  excessLateCount?: number;
+
+  earlyGoingCount?: number;
+  allowedEarlyGoingCount?: number;
+
   grossSalary: string | number;
 
   incentive: string | number;
   bonus: string | number;
   deduction: string | number;
+
+  lateDeduction?: string | number;
 
   netSalary: string | number;
 
@@ -44,6 +62,77 @@ export interface Payroll {
 
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface PayrollPreviewResponse {
+  success: boolean;
+
+  employee: {
+    id: string;
+    employeeCode: string;
+    name: string;
+    salary?: string | number | null;
+
+    role?: {
+      name: string;
+    };
+
+    branch?: {
+      name: string;
+    };
+  };
+
+  month: number;
+  year: number;
+
+  period: {
+    start: string;
+    end: string;
+  };
+
+  attendance: {
+    scheduledWorkingDays: number;
+
+    presentDays: number;
+    lateDays: number;
+    halfDays: number;
+
+    approvedLeaveDays: number;
+    paidLeaveDays: number;
+    unpaidLeaveDays: number;
+
+    absentDays: number;
+
+    actualLateCount: number;
+    allowedLateCount: number;
+    excessLateCount: number;
+
+    earlyGoingCount: number;
+    allowedEarlyGoingCount: number;
+  };
+
+  leaveBalance: {
+    openingBalance: number;
+    creditedLeave: number;
+    availablePaidLeave: number;
+    usedPaidLeave: number;
+    closingBalance: number;
+  };
+
+  salary: {
+    basicSalary: number;
+    perDaySalary: number;
+    payableDays: number;
+    grossSalary: number;
+
+    incentive: number;
+    bonus: number;
+
+    otherDeduction: number;
+    lateDeduction: number;
+
+    netSalary: number;
+  };
 }
 
 export interface PayrollListResponse {

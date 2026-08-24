@@ -1,130 +1,328 @@
-import { Request, Response } from "express";
+import {
+  Response,
+} from "express";
+
+import {
+  AuthRequest,
+} from "../../middleware/auth.middleware";
+
+import {
+  PayrollStatus,
+} from "@prisma/client";
 
 import {
   createPayroll,
   getPayrolls,
   getPayrollById,
   updatePayroll,
+  previewPayroll
 } from "../../services/payroll/payroll.service";
 
-import { PayrollStatus } from "@prisma/client";
+/* ============================
+   CREATE PAYROLL
+============================ */
 
-/**
- * Create Payroll
- */
-export const createPayrollController = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const payroll = await createPayroll(req.body);
+export const createPayrollController =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
 
-    return res.status(201).json(payroll);
-  } catch (error: any) {
-    console.error("Create Payroll Error:", error);
+        return;
+      }
 
-    return res.status(400).json({
-      success: false,
-      message: error.message || "Failed to create payroll",
-    });
-  }
-};
+      const result =
+        await createPayroll(
+          req.body,
+          req.employee
+        );
 
-/**
- * Get All Payrolls
- */
-export const getPayrollsController = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
+      res.status(201).json(
+        result
+      );
+    } catch (error: any) {
+      console.error(
+        "Create Payroll Error:",
+        error
+      );
 
-    const search = req.query.search
-      ? String(req.query.search)
-      : undefined;
+      res.status(400).json({
+        success: false,
+
+        message:
+          error.message ||
+          "Failed to create payroll",
+      });
+    }
+  };
+
+/* ============================
+   GET PAYROLLS
+============================ */
+
+export const getPayrollsController =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
+
+        return;
+      }
+
+      const page =
+        Number(
+          req.query.page
+        ) || 1;
+
+      const limit =
+        Number(
+          req.query.limit
+        ) || 10;
+
+      const search =
+        typeof req.query
+          .search === "string"
+          ? req.query.search
+          : undefined;
 
       const employeeId =
-  typeof req.query.employeeId === "string"
-    ? req.query.employeeId
-    : undefined;
+        typeof req.query
+          .employeeId ===
+        "string"
+          ? req.query
+              .employeeId
+          : undefined;
 
-    const month = req.query.month
-      ? Number(req.query.month)
-      : undefined;
+      const month =
+        req.query.month
+          ? Number(
+              req.query.month
+            )
+          : undefined;
 
-    const year = req.query.year
-      ? Number(req.query.year)
-      : undefined;
+      const year =
+        req.query.year
+          ? Number(
+              req.query.year
+            )
+          : undefined;
 
-    const status = req.query.status
-      ? (String(req.query.status) as PayrollStatus)
-      : undefined;
+      const status =
+        typeof req.query
+          .status === "string"
+          ? (req.query
+              .status as PayrollStatus)
+          : undefined;
 
-    const result = await getPayrolls(
-      page,
-      limit,
-      search,
-      month,
-      year,
-      status,
-      employeeId
-    );
+      const result =
+        await getPayrolls(
+          page,
+          limit,
+          search,
+          month,
+          year,
+          status,
+          employeeId,
+          req.employee
+        );
 
-    return res.status(200).json(result);
-  } catch (error: any) {
-    console.error("Get Payrolls Error:", error);
+      res.status(200).json(
+        result
+      );
+    } catch (error: any) {
+      console.error(
+        "Get Payrolls Error:",
+        error
+      );
 
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Failed to fetch payrolls",
-    });
-  }
-};
+      res.status(400).json({
+        success: false,
 
-/**
- * Get Payroll By ID
- */
-export const getPayrollByIdController = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const { id } = req.params;
+        message:
+          error.message ||
+          "Failed to fetch payrolls",
+      });
+    }
+  };
 
-    const result = await getPayrollById(id as string);
+/* ============================
+   GET PAYROLL BY ID
+============================ */
 
-    return res.status(200).json(result);
-  } catch (error: any) {
-    console.error("Get Payroll By ID Error:", error);
+export const getPayrollByIdController =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
 
-    return res.status(404).json({
-      success: false,
-      message: error.message || "Payroll Not Found",
-    });
-  }
-};
+        return;
+      }
 
-/**
- * Update Payroll
- */
-export const updatePayrollController = async (
-  req: Request,
-  res: Response
-) => {
-  try {
-    const { id } = req.params;
+      const id =
+        req.params.id as string;
 
-    const result = await updatePayroll(id as string, req.body);
+      const result =
+        await getPayrollById(
+          id,
+          req.employee
+        );
 
-    return res.status(200).json(result);
-  } catch (error: any) {
-    console.error("Update Payroll Error:", error);
+      res.status(200).json(
+        result
+      );
+    } catch (error: any) {
+      console.error(
+        "Get Payroll By ID Error:",
+        error
+      );
 
-    return res.status(400).json({
-      success: false,
-      message: error.message || "Failed to update payroll",
-    });
-  }
-};
+      res.status(404).json({
+        success: false,
+
+        message:
+          error.message ||
+          "Payroll Not Found",
+      });
+    }
+  };
+
+/* ============================
+   UPDATE PAYROLL
+============================ */
+
+export const updatePayrollController =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
+
+        return;
+      }
+
+      const id =
+        req.params.id as string;
+
+      const result =
+        await updatePayroll(
+          id,
+          req.body,
+          req.employee
+        );
+
+      res.status(200).json(
+        result
+      );
+    } catch (error: any) {
+      console.error(
+        "Update Payroll Error:",
+        error
+      );
+
+      res.status(400).json({
+        success: false,
+
+        message:
+          error.message ||
+          "Failed to update payroll",
+      });
+    }
+  };
+
+
+  /* ============================
+   PAYROLL PREVIEW
+============================ */
+
+export const previewPayrollController =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
+
+        return;
+      }
+
+      const {
+        employeeId,
+        month,
+        year,
+        incentive,
+        bonus,
+        deduction,
+      } = req.body;
+
+      if (!employeeId) {
+        res.status(400).json({
+          success: false,
+          message:
+            "Employee is required",
+        });
+
+        return;
+      }
+
+      const result =
+        await previewPayroll(
+          employeeId,
+          Number(month),
+          Number(year),
+          Number(
+            incentive || 0
+          ),
+          Number(
+            bonus || 0
+          ),
+          Number(
+            deduction || 0
+          ),
+          req.employee
+        );
+
+      res.status(200).json(
+        result
+      );
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+
+        message:
+          error.message ||
+          "Payroll Preview Failed",
+      });
+    }
+  };

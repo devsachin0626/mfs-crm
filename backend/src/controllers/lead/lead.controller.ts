@@ -9,7 +9,6 @@ import * as leadService from "../../services/lead/lead.service";
 /* ============================
    CREATE LEAD
 ============================ */
-
 export const createLead = async (
   req: AuthRequest,
   res: Response
@@ -28,7 +27,7 @@ export const createLead = async (
     const result =
       await leadService.createLead(
         req.body,
-        req.employee.id
+        req.employee
       );
 
     res
@@ -39,6 +38,7 @@ export const createLead = async (
       .status(400)
       .json({
         success: false,
+
         message:
           error.message ||
           "Lead Creation Failed",
@@ -135,13 +135,24 @@ export const updateLead = async (
   res: Response
 ): Promise<void> => {
   try {
+    if (!req.employee) {
+      res.status(401).json({
+        success: false,
+        message:
+          "Authenticated Employee Not Found",
+      });
+
+      return;
+    }
+
     const id =
       req.params.id as string;
 
     const result =
       await leadService.updateLead(
         id,
-        req.body
+        req.body,
+        req.employee
       );
 
     res
@@ -168,13 +179,24 @@ export const assignLead = async (
   res: Response
 ): Promise<void> => {
   try {
+    if (!req.employee) {
+      res.status(401).json({
+        success: false,
+        message:
+          "Authenticated Employee Not Found",
+      });
+
+      return;
+    }
+
     const leadId =
       req.params.id as string;
 
     const result =
       await leadService.assignLead(
         leadId,
-        req.body
+        req.body,
+        req.employee
       );
 
     res
@@ -853,6 +875,58 @@ export const getCallingQueue =
           message:
             error.message ||
             "Failed To Load Calling Queue",
+        });
+    }
+  };
+
+  /* ============================
+   LEAD SUMMARY
+============================ */
+
+export const getLeadSummary =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (
+        !req.employee
+      ) {
+        res
+          .status(401)
+          .json({
+            success:
+              false,
+
+            message:
+              "Authenticated Employee Not Found",
+          });
+
+        return;
+      }
+
+      const result =
+        await leadService.getLeadSummary(
+          req.employee
+        );
+
+      res
+        .status(200)
+        .json(
+          result
+        );
+    } catch (
+      error: any
+    ) {
+      res
+        .status(500)
+        .json({
+          success:
+            false,
+
+          message:
+            error.message ||
+            "Failed To Load Lead Summary",
         });
     }
   };

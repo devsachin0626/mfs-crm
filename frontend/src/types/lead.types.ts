@@ -235,3 +235,32 @@ export interface LeadAgingInfo {
 
   reason: string;
 }
+
+export interface LeadSummary {
+  total: number;
+
+  new: number;
+
+  working: number;
+
+  followUp: number;
+
+  converted: number;
+
+  lost: number;
+
+  todayFollowUps: number;
+
+  overdueFollowUps: number;
+
+  myLeads: number;
+
+  unassigned: number;
+}
+
+export interface LeadSummaryResponse {
+  success: boolean;
+
+  summary:
+    LeadSummary;
+}

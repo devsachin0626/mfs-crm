@@ -26,6 +26,77 @@ import {
 
 
 /* ============================
+   ROLE HELPER
+============================ */
+
+const getLeadRoleName = (
+  employee: any
+): string => {
+  if (
+    typeof employee?.role ===
+    "string"
+  ) {
+    return employee.role;
+  }
+
+  return (
+    employee?.role?.name ||
+    ""
+  );
+};
+
+/* ============================
+   MOBILE NORMALIZATION
+============================ */
+
+const normalizeLeadMobile = (
+  value: string
+) => {
+  const digits =
+    String(value || "")
+      .replace(/\D/g, "");
+
+  let mobile =
+    digits;
+
+  /*
+   * India:
+   * +91XXXXXXXXXX
+   * 91XXXXXXXXXX
+   * -> XXXXXXXXXX
+   */
+
+  if (
+    mobile.length === 12 &&
+    mobile.startsWith("91")
+  ) {
+    mobile =
+      mobile.slice(2);
+  }
+
+  if (
+    mobile.length === 11 &&
+    mobile.startsWith("0")
+  ) {
+    mobile =
+      mobile.slice(1);
+  }
+
+  if (
+    !/^[6-9]\d{9}$/.test(
+      mobile
+    )
+  ) {
+    throw new Error(
+      "Enter a valid 10 digit mobile number"
+    );
+  }
+
+  return mobile;
+};
+
+
+/* ============================
    CALLING HELPERS
 ============================ */
 
@@ -177,129 +248,336 @@ const getDailyCallingTarget =
 
 export const createLead = async (
   data: CreateLeadRequest,
-  createdById: string
+  currentEmployee: any
 ) => {
-  const {
-    name,
-    mobile,
-    email,
-    city,
-    state,
-    address,
-    sourceId,
-    remarks,
-    assignedEmployeeId,
-  } = data;
 
-  // Required Validation
-  if (!mobile) {
-    throw new Error("Mobile Number is required");
-  }
+  const roleName =
+  getRoleName(
+    currentEmployee
+  );
 
-  // Duplicate Mobile Check
-  const mobileExists = await prisma.lead.findFirst({
-    where: {
-      mobile,
-    },
-  });
+const isEmployee =
+  roleName === "EMPLOYEE";
 
-  if (mobileExists) {
-    throw new Error("Lead already exists with this Mobile Number");
-  }
+const canAssign =
+  roleName === "ADMIN" ||
+  roleName === "HR" ||
+  roleName === "TEAM_LEADER";
 
-  // Duplicate Email Check
-  if (email) {
-    const emailExists = await prisma.lead.findFirst({
-      where: {
-        email,
-      },
-    });
+if (
+  !isEmployee &&
+  !canAssign
+) {
+  throw new Error(
+    "Lead creation access denied"
+  );
+}
 
-    if (emailExists) {
-      throw new Error("Lead already exists with this Email");
-    }
-  }
+  const name =
+    data.name?.trim() ||
+    undefined;
 
-  // Default Status = NEW
-  const defaultStatus = await prisma.leadStatus.findFirst({
-    where: {
-      name: "NEW",
-      isActive: true,
-    },
-  });
-
-  if (!defaultStatus) {
-    throw new Error("Default Lead Status (NEW) not found");
-  }
-
-  // Source Validation
-  if (sourceId) {
-    const source = await prisma.leadSource.findUnique({
-      where: {
-        id: sourceId,
-      },
-    });
-
-    if (!source) {
-      throw new Error("Invalid Lead Source");
-    }
-  }
-
-  // Employee Validation
-  if (assignedEmployeeId) {
-    const employee = await prisma.employee.findUnique({
-      where: {
-        id: assignedEmployeeId,
-      },
-    });
-
-    if (!employee) {
-      throw new Error("Assigned Employee not found");
-    }
-  }
-
-  // Generate Lead Code
-  const lastLead = await prisma.lead.findFirst({
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-
-  let leadCode = "LD00001";
-
-  if (lastLead) {
-    const lastNumber = Number(
-      lastLead.leadCode.replace("LD", "")
+  const mobile =
+    normalizeLeadMobile(
+      data.mobile
     );
 
-    leadCode = `LD${String(lastNumber + 1).padStart(5, "0")}`;
+  const email =
+    data.email
+      ?.trim()
+      .toLowerCase() ||
+    undefined;
+
+  const city =
+    data.city?.trim() ||
+    undefined;
+
+  const state =
+    data.state?.trim() ||
+    undefined;
+
+  const address =
+    data.address?.trim() ||
+    undefined;
+
+  const remarks =
+    data.remarks?.trim() ||
+    undefined;
+
+  /* ============================
+     DUPLICATE MOBILE
+  ============================ */
+
+  const mobileExists =
+    await prisma.lead.findFirst({
+      where: {
+        mobile,
+      },
+
+      select: {
+        id: true,
+        leadCode: true,
+      },
+    });
+
+  if (mobileExists) {
+    throw new Error(
+      `Lead already exists with this mobile number (${mobileExists.leadCode})`
+    );
   }
 
-  // Create Lead
-  const lead = await prisma.lead.create({
-    data: {
-      leadCode,
-      name,
-      mobile,
-      email,
-      city,
-      state,
-      address,
-      sourceId,
-      remarks,
-      assignedEmployeeId,
-      statusId: defaultStatus.id,
-    },
-    include: {
-      status: true,
-      source: true,
-      assignedEmployee: true,
-    },
-  });
+  /* ============================
+     DUPLICATE EMAIL
+  ============================ */
+
+  if (email) {
+    const emailExists =
+      await prisma.lead.findFirst({
+        where: {
+          email: {
+            equals:
+              email,
+
+            mode:
+              "insensitive",
+          },
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (emailExists) {
+      throw new Error(
+        "Lead already exists with this Email"
+      );
+    }
+  }
+
+  /* ============================
+     DEFAULT STATUS
+  ============================ */
+
+  const defaultStatus =
+    await prisma.leadStatus.findFirst({
+      where: {
+        name: "NEW",
+        isActive: true,
+      },
+    });
+
+  if (!defaultStatus) {
+    throw new Error(
+      "Default Lead Status (NEW) not found"
+    );
+  }
+
+  /* ============================
+     SOURCE
+  ============================ */
+
+  if (data.sourceId) {
+    const source =
+      await prisma.leadSource.findUnique({
+        where: {
+          id:
+            data.sourceId,
+        },
+      });
+
+    if (
+      !source ||
+      !source.isActive
+    ) {
+      throw new Error(
+        "Invalid Lead Source"
+      );
+    }
+  }
+
+  /* ============================
+     ASSIGNMENT RULE
+
+     EMPLOYEE:
+     always self assigned.
+
+     ADMIN / HR / TL:
+     requested employee allowed.
+  ============================ */
+
+  let assignedEmployeeId:
+    | string
+    | undefined;
+
+  if (
+    roleName ===
+    "EMPLOYEE"
+  ) {
+    assignedEmployeeId =
+      currentEmployee.id;
+  } else {
+    assignedEmployeeId =
+      data.assignedEmployeeId ||
+      undefined;
+  }
+
+  if (
+    assignedEmployeeId
+  ) {
+    const employee =
+      await prisma.employee.findUnique({
+        where: {
+          id:
+            assignedEmployeeId,
+        },
+
+        select: {
+          id: true,
+          isActive: true,
+        },
+      });
+
+    if (
+      !employee ||
+      !employee.isActive
+    ) {
+      throw new Error(
+        "Assigned Employee not found or inactive"
+      );
+    }
+
+    /*
+     * TL can assign only
+     * self or own team.
+     */
+
+    if (
+      roleName ===
+      "TEAM_LEADER" &&
+      assignedEmployeeId !==
+        currentEmployee.id
+    ) {
+      const teamMember =
+        await prisma.employee.findFirst({
+          where: {
+            id:
+              assignedEmployeeId,
+
+            reportingManagerId:
+              currentEmployee.id,
+
+            isActive:
+              true,
+          },
+
+          select: {
+            id: true,
+          },
+        });
+
+      if (!teamMember) {
+        throw new Error(
+          "You can assign leads only to your team"
+        );
+      }
+    }
+  }
+
+  /* ============================
+     LEAD CODE
+  ============================ */
+
+  const lastLead =
+    await prisma.lead.findFirst({
+      orderBy: {
+        createdAt:
+          "desc",
+      },
+
+      select: {
+        leadCode: true,
+      },
+    });
+
+  let leadCode =
+    "LD00001";
+
+  if (lastLead) {
+    const lastNumber =
+      Number(
+        lastLead.leadCode.replace(
+          "LD",
+          ""
+        )
+      );
+
+    leadCode =
+      `LD${String(
+        lastNumber + 1
+      ).padStart(
+        5,
+        "0"
+      )}`;
+  }
+
+  /* ============================
+     CREATE
+  ============================ */
+
+  const lead =
+    await prisma.lead.create({
+      data: {
+        leadCode,
+
+        name,
+
+        mobile,
+
+        email,
+
+        city,
+
+        state,
+
+        address,
+
+        sourceId:
+          data.sourceId ||
+          undefined,
+
+        remarks,
+
+        assignedEmployeeId,
+
+        statusId:
+          defaultStatus.id,
+      },
+
+      include: {
+        status: true,
+
+        source: true,
+
+        assignedEmployee: {
+          select: {
+            id: true,
+
+            employeeCode:
+              true,
+
+            name: true,
+          },
+        },
+      },
+    });
 
   return {
     success: true,
-    message: "Lead Created Successfully",
+
+    message:
+      "Lead Created Successfully",
+
     lead,
   };
 };
@@ -824,187 +1102,405 @@ export const getLeadById = async (
 
 export const updateLead = async (
   id: string,
-  data: UpdateLeadRequest
+  data: UpdateLeadRequest,
+  currentEmployee: any
 ) => {
-  // Check Lead
-  const lead = await prisma.lead.findUnique({
-    where: { id },
-  });
+  /* ============================
+     ACCESS CHECK
+  ============================ */
+
+  await checkLeadAccess(
+    id,
+    currentEmployee
+  );
+
+  const lead =
+    await prisma.lead.findUnique({
+      where: { id },
+    });
 
   if (!lead) {
-    throw new Error("Lead Not Found");
+    throw new Error(
+      "Lead Not Found"
+    );
   }
 
-  // Mobile Duplicate Check
-  if (data.mobile) {
-    const mobileExists = await prisma.lead.findFirst({
-      where: {
-        mobile: data.mobile,
-        NOT: {
-          id,
-        },
-      },
-    });
+  const roleName =
+    getRoleName(
+      currentEmployee
+    );
 
-    if (mobileExists) {
-      throw new Error("Mobile Number already exists");
-    }
+  const isEmployee =
+    roleName === "EMPLOYEE";
+
+  /* ============================
+     EMPLOYEE RESTRICTIONS
+  ============================ */
+
+  if (
+    isEmployee &&
+    data.mobile !== undefined &&
+    data.mobile !== lead.mobile
+  ) {
+    throw new Error(
+      "Employee cannot change lead mobile number"
+    );
   }
 
-  // Status Validation
-  if (data.statusId) {
-    const status = await prisma.leadStatus.findUnique({
-      where: {
-        id: data.statusId,
-      },
-    });
-
-    if (!status) {
-      throw new Error("Invalid Lead Status");
-    }
+  if (
+    isEmployee &&
+    data.assignedEmployeeId !==
+      undefined &&
+    data.assignedEmployeeId !==
+      lead.assignedEmployeeId
+  ) {
+    throw new Error(
+      "Employee cannot change lead assignment"
+    );
   }
 
-  // Source Validation
+  /* ============================
+     SOURCE VALIDATION
+  ============================ */
+
   if (data.sourceId) {
-    const source = await prisma.leadSource.findUnique({
-      where: {
-        id: data.sourceId,
-      },
-    });
-
-    if (!source) {
-      throw new Error("Invalid Lead Source");
-    }
-  }
-
-  // Employee Validation
-  if (data.assignedEmployeeId) {
-    const employee = await prisma.employee.findUnique({
-      where: {
-        id: data.assignedEmployeeId,
-      },
-    });
-
-    if (!employee) {
-      throw new Error("Invalid Employee");
-    }
-  }
-
-  const updatedLead = await prisma.lead.update({
-  where: {
-    id,
-  },
-  data: {
-    name: data.name,
-    mobile: data.mobile,
-    email: data.email,
-    city: data.city,
-    state: data.state,
-    address: data.address,
-    stage: data.stage,
-    nextFollowUp: data.nextFollowUp,
-    remarks: data.remarks,
-
-    ...(data.sourceId && {
-      source: {
-        connect: {
+    const source =
+      await prisma.leadSource.findUnique({
+        where: {
           id: data.sourceId,
         },
-      },
-    }),
+      });
 
-    ...(data.statusId && {
-      status: {
-        connect: {
+    if (!source) {
+      throw new Error(
+        "Invalid Lead Source"
+      );
+    }
+  }
+
+  /* ============================
+     STATUS VALIDATION
+  ============================ */
+
+  if (data.statusId) {
+    const status =
+      await prisma.leadStatus.findUnique({
+        where: {
           id: data.statusId,
         },
-      },
-    }),
+      });
 
-    ...(data.assignedEmployeeId && {
-      assignedEmployee: {
-        connect: {
-          id: data.assignedEmployeeId,
+    if (!status) {
+      throw new Error(
+        "Invalid Lead Status"
+      );
+    }
+  }
+
+  /* ============================
+     ASSIGNMENT VALIDATION
+  ============================ */
+
+  if (
+    !isEmployee &&
+    data.assignedEmployeeId
+  ) {
+    const employee =
+      await prisma.employee.findUnique({
+        where: {
+          id:
+            data.assignedEmployeeId,
         },
+      });
+
+    if (!employee) {
+      throw new Error(
+        "Invalid Employee"
+      );
+    }
+  }
+
+  /* ============================
+     UPDATE
+  ============================ */
+
+  const updatedLead =
+    await prisma.lead.update({
+      where: {
+        id,
       },
-    }),
-  },
-  include: {
-    status: true,
-    source: true,
-    assignedEmployee: true,
-  },
-});
+
+      data: {
+        name:
+          data.name,
+
+        /*
+         Employee mobile cannot change.
+         For employee preserve DB value.
+        */
+        mobile:
+          isEmployee
+            ? lead.mobile
+            : data.mobile,
+
+        email:
+          data.email,
+
+        city:
+          data.city,
+
+        state:
+          data.state,
+
+        address:
+          data.address,
+
+        stage:
+          data.stage,
+
+        nextFollowUp:
+          data.nextFollowUp,
+
+        remarks:
+          data.remarks,
+
+        ...(data.sourceId && {
+          source: {
+            connect: {
+              id:
+                data.sourceId,
+            },
+          },
+        }),
+
+        ...(data.statusId && {
+          status: {
+            connect: {
+              id:
+                data.statusId,
+            },
+          },
+        }),
+
+        ...(
+          !isEmployee &&
+          data.assignedEmployeeId
+            ? {
+                assignedEmployee: {
+                  connect: {
+                    id:
+                      data.assignedEmployeeId,
+                  },
+                },
+              }
+            : {}
+        ),
+      },
+
+      include: {
+        status: true,
+        source: true,
+        assignedEmployee:
+          true,
+      },
+    });
 
   return {
     success: true,
-    message: "Lead Updated Successfully",
-    lead: updatedLead,
+    message:
+      "Lead Updated Successfully",
+    lead:
+      updatedLead,
   };
 };
 
 export const assignLead = async (
   leadId: string,
-  data: AssignLeadRequest
-
+  data: AssignLeadRequest,
+  currentEmployee: any
 ) => {
-  // Check Lead
-  const lead = await prisma.lead.findUnique({
-    where: {
-      id: leadId,
-    },
-  });
+  const roleName =
+    getRoleName(
+      currentEmployee
+    );
 
-  if (!lead) {
-    throw new Error("Lead Not Found");
+  /* ============================
+     ROLE PERMISSION
+  ============================ */
+
+  if (
+    roleName === "EMPLOYEE"
+  ) {
+    throw new Error(
+      "Employee cannot assign or transfer leads"
+    );
   }
 
-  // Check Employee
-  const employee = await prisma.employee.findUnique({
-    where: {
-      id: data.employeeId,
-    },
-  });
-
-  if (!employee) {
-    throw new Error("Employee Not Found");
+  if (
+    roleName !== "ADMIN" &&
+    roleName !== "HR" &&
+    roleName !== "TEAM_LEADER"
+  ) {
+    throw new Error(
+      "Lead assignment access denied"
+    );
   }
 
-  // Already Assigned
-  if (lead.assignedEmployeeId === data.employeeId) {
-    throw new Error("Lead Already Assigned To This Employee");
-  }
+  /* ============================
+     LEAD ACCESS
+  ============================ */
 
-  const result = await prisma.$transaction(async (tx) => {
-    // Update Lead
-    const updatedLead = await tx.lead.update({
+  await checkLeadAccess(
+    leadId,
+    currentEmployee
+  );
+
+  const lead =
+    await prisma.lead.findUnique({
       where: {
         id: leadId,
       },
-      data: {
-        assignedEmployee: {
-          connect: {
-            id: data.employeeId,
+    });
+
+  if (!lead) {
+    throw new Error(
+      "Lead Not Found"
+    );
+  }
+
+  /* ============================
+     TARGET EMPLOYEE
+  ============================ */
+
+  const employee =
+    await prisma.employee.findUnique({
+      where: {
+        id: data.employeeId,
+      },
+
+      select: {
+        id: true,
+        name: true,
+        employeeCode: true,
+        isActive: true,
+        reportingManagerId: true,
+      },
+    });
+
+  if (!employee) {
+    throw new Error(
+      "Employee Not Found"
+    );
+  }
+
+  if (!employee.isActive) {
+    throw new Error(
+      "Cannot assign lead to inactive employee"
+    );
+  }
+
+  /* ============================
+     TEAM LEADER RESTRICTION
+  ============================ */
+
+  if (
+    roleName ===
+    "TEAM_LEADER"
+  ) {
+    const isSelf =
+      employee.id ===
+      currentEmployee.id;
+
+    const isTeamMember =
+      employee.reportingManagerId ===
+      currentEmployee.id;
+
+    if (
+      !isSelf &&
+      !isTeamMember
+    ) {
+      throw new Error(
+        "Team Leader can assign leads only to self or own team"
+      );
+    }
+  }
+
+  /* ============================
+     SAME EMPLOYEE CHECK
+  ============================ */
+
+  if (
+    lead.assignedEmployeeId ===
+    data.employeeId
+  ) {
+    throw new Error(
+      "Lead Already Assigned To This Employee"
+    );
+  }
+
+  /* ============================
+     ASSIGN + HISTORY
+  ============================ */
+
+  const result =
+    await prisma.$transaction(
+      async (tx) => {
+        const updatedLead =
+          await tx.lead.update({
+            where: {
+              id:
+                leadId,
+            },
+
+            data: {
+              assignedEmployee: {
+                connect: {
+                  id:
+                    data.employeeId,
+                },
+              },
+            },
+
+            include: {
+              assignedEmployee: {
+                select: {
+                  id: true,
+                  name: true,
+                  employeeCode:
+                    true,
+                },
+              },
+            },
+          });
+
+        await tx.leadAssignmentHistory.create({
+          data: {
+            leadId,
+
+            fromEmployeeId:
+              lead.assignedEmployeeId,
+
+            toEmployeeId:
+              data.employeeId,
+
+            reason:
+              data.reason?.trim() ||
+              undefined,
           },
-        },
-      },
-    });
+        });
 
-    // Save Assignment History
-    await tx.leadAssignmentHistory.create({
-      data: {
-        leadId,
-        fromEmployeeId: lead.assignedEmployeeId,
-        toEmployeeId: data.employeeId,
-      },
-    });
-
-    return updatedLead;
-  });
+        return updatedLead;
+      }
+    );
 
   return {
     success: true,
-    message: "Lead Assigned Successfully",
+
+    message:
+      lead.assignedEmployeeId
+        ? "Lead Transferred Successfully"
+        : "Lead Assigned Successfully",
+
     lead: result,
   };
 };
@@ -3628,5 +4124,240 @@ export const getCallingQueue =
         ),
 
       queue,
+    };
+  };
+
+
+  /* ============================
+   LEAD SUMMARY
+============================ */
+
+export const getLeadSummary =
+  async (
+    currentEmployee: any
+  ) => {
+    const accessWhere =
+      await getLeadAccessWhere(
+        currentEmployee
+      );
+
+    const startOfToday =
+      new Date();
+
+    startOfToday.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    const endOfToday =
+      new Date(
+        startOfToday
+      );
+
+    endOfToday.setDate(
+      endOfToday.getDate() +
+        1
+    );
+
+    const now =
+      new Date();
+
+    const [
+      total,
+      newLeads,
+      working,
+      followUp,
+      converted,
+      lost,
+      todayFollowUps,
+      overdueFollowUps,
+      myLeads,
+      unassigned,
+    ] =
+      await Promise.all([
+        /* TOTAL */
+
+        prisma.lead.count({
+          where:
+            accessWhere,
+        }),
+
+        /* NEW */
+
+        prisma.lead.count({
+          where: {
+            AND: [
+              accessWhere,
+              {
+                stage:
+                  "NEW",
+              },
+            ],
+          },
+        }),
+
+        /* WORKING */
+
+        prisma.lead.count({
+          where: {
+            AND: [
+              accessWhere,
+              {
+                stage:
+                  "WORKING",
+              },
+            ],
+          },
+        }),
+
+        /* FOLLOW UP STAGE */
+
+        prisma.lead.count({
+          where: {
+            AND: [
+              accessWhere,
+              {
+                stage:
+                  "FOLLOW_UP",
+              },
+            ],
+          },
+        }),
+
+        /* CONVERTED */
+
+        prisma.lead.count({
+          where: {
+            AND: [
+              accessWhere,
+              {
+                stage:
+                  "CONVERTED",
+              },
+            ],
+          },
+        }),
+
+        /* LOST */
+
+        prisma.lead.count({
+          where: {
+            AND: [
+              accessWhere,
+              {
+                stage:
+                  "LOST",
+              },
+            ],
+          },
+        }),
+
+        /* TODAY FOLLOW UPS */
+
+        prisma.lead.count({
+          where: {
+            AND: [
+              accessWhere,
+              {
+                nextFollowUp: {
+                  gte:
+                    startOfToday,
+
+                  lt:
+                    endOfToday,
+                },
+              },
+              {
+                stage: {
+                  notIn: [
+                    "CONVERTED",
+                    "LOST",
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+
+        /* OVERDUE FOLLOW UPS */
+
+        prisma.lead.count({
+          where: {
+            AND: [
+              accessWhere,
+              {
+                nextFollowUp: {
+                  lt:
+                    now,
+                },
+              },
+              {
+                stage: {
+                  notIn: [
+                    "CONVERTED",
+                    "LOST",
+                  ],
+                },
+              },
+            ],
+          },
+        }),
+
+        /* MY LEADS */
+
+        prisma.lead.count({
+          where: {
+            AND: [
+              accessWhere,
+              {
+                assignedEmployeeId:
+                  currentEmployee.id,
+              },
+            ],
+          },
+        }),
+
+        /* UNASSIGNED */
+
+        prisma.lead.count({
+          where: {
+            AND: [
+              accessWhere,
+              {
+                assignedEmployeeId:
+                  null,
+              },
+            ],
+          },
+        }),
+      ]);
+
+    return {
+      success: true,
+
+      summary: {
+        total,
+
+        new:
+          newLeads,
+
+        working,
+
+        followUp,
+
+        converted,
+
+        lost,
+
+        todayFollowUps,
+
+        overdueFollowUps,
+
+        myLeads,
+
+        unassigned,
+      },
     };
   };

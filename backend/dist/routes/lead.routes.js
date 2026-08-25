@@ -42,11 +42,15 @@ const router = (0, express_1.Router)();
 /* ============================
    CREATE LEAD
 ============================ */
-router.post("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), leadController.createLead);
+router.post("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leadController.createLead);
 /* ============================
    GET ALL LEADS
 ============================ */
 router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leadController.getLeads);
+/* ============================
+   LEAD SUMMARY
+============================ */
+router.get("/summary", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leadController.getLeadSummary);
 /* ============================
    FOLLOW UPS
 ============================ */
@@ -103,7 +107,7 @@ router.patch("/:id/assign", auth_middleware_1.authenticate, (0, role_middleware_
 /* ============================
    UPDATE LEAD
 ============================ */
-router.put("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), leadController.updateLead);
+router.put("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), leadController.updateLead);
 /* ============================
    GET LEAD BY ID
    KEEP THIS NEAR THE END

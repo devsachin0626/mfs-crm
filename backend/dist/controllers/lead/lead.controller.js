@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getCallingQueue = exports.bulkChangeLeadStatus = exports.bulkChangeLeadStage = exports.bulkAssignLeads = exports.changeLeadStatus = exports.getLeadPipeline = exports.getLeadTimeline = exports.getDailyCallingSummary = exports.saveCallOutcome = exports.completeFollowUp = exports.getFollowUps = exports.createFollowUp = exports.changeLeadStage = exports.assignLead = exports.updateLead = exports.getLeadById = exports.getLeads = exports.createLead = void 0;
+exports.getLeadSummary = exports.getCallingQueue = exports.bulkChangeLeadStatus = exports.bulkChangeLeadStage = exports.bulkAssignLeads = exports.changeLeadStatus = exports.getLeadPipeline = exports.getLeadTimeline = exports.getDailyCallingSummary = exports.saveCallOutcome = exports.completeFollowUp = exports.getFollowUps = exports.createFollowUp = exports.changeLeadStage = exports.assignLead = exports.updateLead = exports.getLeadById = exports.getLeads = exports.createLead = void 0;
 const leadService = __importStar(require("../../services/lead/lead.service"));
 /* ============================
    CREATE LEAD
@@ -47,7 +47,7 @@ const createLead = async (req, res) => {
             });
             return;
         }
-        const result = await leadService.createLead(req.body, req.employee.id);
+        const result = await leadService.createLead(req.body, req.employee);
         res
             .status(201)
             .json(result);
@@ -124,8 +124,15 @@ exports.getLeadById = getLeadById;
 ============================ */
 const updateLead = async (req, res) => {
     try {
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
         const id = req.params.id;
-        const result = await leadService.updateLead(id, req.body);
+        const result = await leadService.updateLead(id, req.body, req.employee);
         res
             .status(200)
             .json(result);
@@ -146,8 +153,15 @@ exports.updateLead = updateLead;
 ============================ */
 const assignLead = async (req, res) => {
     try {
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
         const leadId = req.params.id;
-        const result = await leadService.assignLead(leadId, req.body);
+        const result = await leadService.assignLead(leadId, req.body, req.employee);
         res
             .status(200)
             .json(result);
@@ -603,3 +617,33 @@ const getCallingQueue = async (req, res) => {
     }
 };
 exports.getCallingQueue = getCallingQueue;
+/* ============================
+ LEAD SUMMARY
+============================ */
+const getLeadSummary = async (req, res) => {
+    try {
+        if (!req.employee) {
+            res
+                .status(401)
+                .json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const result = await leadService.getLeadSummary(req.employee);
+        res
+            .status(200)
+            .json(result);
+    }
+    catch (error) {
+        res
+            .status(500)
+            .json({
+            success: false,
+            message: error.message ||
+                "Failed To Load Lead Summary",
+        });
+    }
+};
+exports.getLeadSummary = getLeadSummary;

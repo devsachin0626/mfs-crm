@@ -80,6 +80,34 @@ export default function LeadDetailsPage() {
         state.auth.employee
     );
 
+    const roleName = (() => {
+  const role =
+    loggedInEmployee?.role as unknown;
+
+  if (typeof role === "string") {
+    return role;
+  }
+
+  if (
+    role &&
+    typeof role === "object" &&
+    "name" in role
+  ) {
+    return String(
+      (role as { name: string }).name
+    );
+  }
+
+  return "";
+})();
+
+
+
+const canAssign =
+  roleName === "ADMIN" ||
+  roleName === "HR" ||
+  roleName === "TEAM_LEADER";
+
   const {
     lead,
     loading,
@@ -361,6 +389,16 @@ const handleConvertLead =
 
   const handleAssignLead =
   async () => {
+
+    if (!canAssign) {
+  setActionError(
+    "You do not have permission to assign or transfer leads."
+  );
+
+  return;
+}
+
+
     if (
       !lead ||
       !selectedEmployee
@@ -690,93 +728,97 @@ const handleConvertLead =
           </div>
         </div>
 
-        {/* Assignment */}
+    
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h3 className="font-semibold text-slate-900">
-            Lead Assignment
-          </h3>
+      {/* Assignment */}
 
-          <div className="mt-5">
-            <SummaryItem
-              icon={
-                <UserRound
-                  size={18}
-                />
-              }
-              label="Assigned To"
-              value={
-                lead.assignedEmployee
-                  ?.name ||
-                "Unassigned"
-              }
-            />
+<div className="rounded-2xl border border-slate-200 bg-white p-6">
+  <h3 className="font-semibold text-slate-900">
+    Lead Assignment
+  </h3>
 
-            <div className="mt-5">
-              <select
-                value={
-                  selectedEmployee
-                }
-                onChange={(e) =>
-                  setSelectedEmployee(
-                    e.target.value
-                  )
-                }
-                className={inputClass}
+  <div className="mt-5">
+    <SummaryItem
+      icon={
+        <UserRound size={18} />
+      }
+      label="Assigned To"
+      value={
+        lead.assignedEmployee?.name ||
+        "Unassigned"
+      }
+    />
+
+    {canAssign ? (
+      <div className="mt-5">
+        <select
+          value={selectedEmployee}
+          onChange={(e) =>
+            setSelectedEmployee(
+              e.target.value
+            )
+          }
+          className={inputClass}
+        >
+          <option value="">
+            Select Employee
+          </option>
+
+          {employees.map(
+            (employee) => (
+              <option
+                key={employee.id}
+                value={employee.id}
               >
-                <option value="">
-                  Select Employee
-                </option>
+                {employee.name}
+                {" - "}
+                {employee.employeeCode}
+              </option>
+            )
+          )}
+        </select>
 
-                {employees.map(
-                  (employee) => (
-                    <option
-                      key={
-                        employee.id
-                      }
-                      value={
-                        employee.id
-                      }
-                    >
-                      {employee.name}
-                      {" - "}
-                      {
-                        employee.employeeCode
-                      }
-                    </option>
-                  )
-                )}
-              </select>
-              <textarea
-  rows={3}
-  value={assignmentReason}
-  onChange={(e) =>
-    setAssignmentReason(
-      e.target.value
-    )
-  }
-  placeholder="Assignment / transfer reason..."
-  className={`${inputClass} mt-3`}
-/>
+        <textarea
+          rows={3}
+          value={assignmentReason}
+          onChange={(e) =>
+            setAssignmentReason(
+              e.target.value
+            )
+          }
+          placeholder="Assignment / transfer reason..."
+          className={`${inputClass} mt-3`}
+        />
 
-              <button
-                type="button"
-                onClick={
-                  handleAssignLead
-                }
-                disabled={
-                  !selectedEmployee ||
-                  assigning
-                }
-                className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
-              >
-                {assigning
-                  ? "Assigning..."
-                  : "Assign / Transfer Lead"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={handleAssignLead}
+          disabled={
+            !selectedEmployee ||
+            assigning
+          }
+          className="mt-3 w-full rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+        >
+          {assigning
+            ? "Assigning..."
+            : "Assign / Transfer Lead"}
+        </button>
+      </div>
+    ) : (
+      <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4">
+        <p className="text-sm font-medium text-blue-800">
+          Lead assigned to you
+        </p>
+
+        <p className="mt-1 text-xs text-blue-600">
+          You can update the lead details,
+          status and follow-ups, but you
+          cannot transfer this lead.
+        </p>
+      </div>
+    )}
+  </div>
+</div>
       </div>
 
       {/* Main */}

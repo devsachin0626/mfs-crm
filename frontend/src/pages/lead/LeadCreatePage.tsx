@@ -8,6 +8,10 @@ import type {
 } from "react";
 
 import {
+  useAppSelector,
+} from "../../hooks/redux";
+
+import {
   useNavigate,
 } from "react-router-dom";
 
@@ -40,6 +44,39 @@ import type {
 export default function LeadCreatePage() {
   const navigate = useNavigate();
 
+  const loggedInEmployee =
+  useAppSelector(
+    (state) =>
+      state.auth.employee
+  );
+
+const roleName = (() => {
+  const role = loggedInEmployee?.role as unknown;
+
+  if (typeof role === "string") {
+    return role;
+  }
+
+  if (
+    role &&
+    typeof role === "object" &&
+    "name" in role
+  ) {
+    return String(
+      (role as { name: string }).name
+    );
+  }
+
+  return "";
+})();
+const isEmployee =
+  roleName === "EMPLOYEE";
+
+const canAssign =
+  roleName === "ADMIN" ||
+  roleName === "HR" ||
+  roleName === "TEAM_LEADER";
+
   const [employees, setEmployees] =
     useState<Employee[]>([]);
 
@@ -68,47 +105,48 @@ export default function LeadCreatePage() {
       remarks: "",
     });
 
-  useEffect(() => {
-    const loadOptions =
-      async () => {
-        try {
-          setLoadingOptions(true);
-          setError("");
+ useEffect(() => {
+  const loadOptions =
+    async () => {
+      try {
+        setLoadingOptions(true);
+        setError("");
 
-          const [
-            employeeResponse,
-            sourceResponse,
-          ] = await Promise.all([
-            getEmployees({
+        const sourceResponse =
+          await getLeadSources();
+
+        setSources(
+          sourceResponse.leadSources ||
+            []
+        );
+
+        if (canAssign) {
+          const employeeResponse =
+            await getEmployees({
               page: 1,
               limit: 100,
-            }),
-
-            getLeadSources(),
-          ]);
+            });
 
           setEmployees(
             employeeResponse.employees ||
               []
           );
-
-          setSources(
-            sourceResponse.leadSources ||
-              []
-          );
-        } catch (error: any) {
-          setError(
-            error?.response?.data
-              ?.message ||
-              "Failed to load lead form options"
-          );
-        } finally {
-          setLoadingOptions(false);
+        } else {
+          setEmployees([]);
         }
-      };
+      } catch (error: any) {
+        setError(
+          error?.response?.data
+            ?.message ||
+            "Failed to load lead form options"
+        );
+      } finally {
+        setLoadingOptions(false);
+      }
+    };
 
-    loadOptions();
-  }, []);
+  loadOptions();
+}, [canAssign]);
 
   const handleSubmit = async (
     e: FormEvent
@@ -154,10 +192,11 @@ export default function LeadCreatePage() {
         sourceId:
           form.sourceId ||
           undefined,
-
-        assignedEmployeeId:
-          form.assignedEmployeeId ||
-          undefined,
+assignedEmployeeId:
+  canAssign
+    ? form.assignedEmployeeId ||
+      undefined
+    : undefined,
 
         remarks:
           form.remarks.trim() ||
@@ -256,24 +295,40 @@ export default function LeadCreatePage() {
                   className={inputClass}
                 />
               </Field>
+<Field
+  label="Mobile"
+  required
+>
+  <input
+    value={form.mobile}
+    readOnly={
+      isEmployee
+    }
+    onChange={(e) => {
+      if (isEmployee) {
+        return;
+      }
 
-              <Field
-                label="Mobile"
-                required
-              >
-                <input
-                  value={form.mobile}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      mobile:
-                        e.target.value,
-                    }))
-                  }
-                  placeholder="Mobile number"
-                  className={inputClass}
-                />
-              </Field>
+      setForm((prev) => ({
+        ...prev,
+        mobile:
+          e.target.value,
+      }));
+    }}
+    className={
+      isEmployee
+        ? `${inputClass} cursor-not-allowed bg-slate-100 text-slate-500`
+        : inputClass
+    }
+    placeholder="Mobile number"
+  />
+
+  {isEmployee && (
+    <p className="mt-1.5 text-xs text-slate-500">
+      Mobile number cannot be changed.
+    </p>
+  )}
+</Field>
 
               <Field label="Email">
                 <input
@@ -350,40 +405,52 @@ export default function LeadCreatePage() {
                 </select>
               </Field>
 
-              <Field label="Assigned Employee">
-                <select
-                  value={
-                    form.assignedEmployeeId
-                  }
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      assignedEmployeeId:
-                        e.target.value,
-                    }))
-                  }
-                  className={inputClass}
-                >
-                  <option value="">
-                    Unassigned
-                  </option>
+              {canAssign ? (
+  <Field label="Assigned Employee">
+    <select
+      value={
+        form.assignedEmployeeId
+      }
+      onChange={(e) =>
+        setForm((prev) => ({
+          ...prev,
+          assignedEmployeeId:
+            e.target.value,
+        }))
+      }
+      className={inputClass}
+    >
+      <option value="">
+        Unassigned
+      </option>
 
-                  {employees.map(
-                    (employee) => (
-                      <option
-                        key={employee.id}
-                        value={employee.id}
-                      >
-                        {employee.name}
-                        {" - "}
-                        {
-                          employee.employeeCode
-                        }
-                      </option>
-                    )
-                  )}
-                </select>
-              </Field>
+      {employees.map(
+        (employee) => (
+          <option
+            key={employee.id}
+            value={employee.id}
+          >
+            {employee.name}
+            {" - "}
+            {
+              employee.employeeCode
+            }
+          </option>
+        )
+      )}
+    </select>
+  </Field>
+) : (
+  <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+    <p className="text-sm font-medium text-blue-800">
+      Lead Assignment
+    </p>
+
+    <p className="mt-1 text-xs text-blue-600">
+      This lead will automatically be assigned to you.
+    </p>
+  </div>
+)}
             </div>
 
             <div className="mt-5">

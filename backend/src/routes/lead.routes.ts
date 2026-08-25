@@ -24,7 +24,8 @@ router.post(
   authorize(
     "ADMIN",
     "HR",
-    "TEAM_LEADER"
+    "TEAM_LEADER",
+    "EMPLOYEE"
   ),
   leadController.createLead
 );
@@ -43,6 +44,22 @@ router.get(
     "EMPLOYEE"
   ),
   leadController.getLeads
+);
+
+/* ============================
+   LEAD SUMMARY
+============================ */
+
+router.get(
+  "/summary",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  leadController.getLeadSummary
 );
 
 /* ============================
@@ -303,7 +320,8 @@ router.put(
   authorize(
     "ADMIN",
     "HR",
-    "TEAM_LEADER"
+    "TEAM_LEADER",
+    "EMPLOYEE"
   ),
   leadController.updateLead
 );

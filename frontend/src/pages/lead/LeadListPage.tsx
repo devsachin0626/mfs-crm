@@ -1,6 +1,6 @@
 import {
   useEffect,
-  useMemo,
+  
   useState,
 } from "react";
 
@@ -39,6 +39,14 @@ import {
   getLeadStatuses,
 } from "../../services/leadStatus.service";
 
+import {
+  getLeadSummary,
+} from "../../services/lead.service";
+
+import type {
+  LeadSummary,
+} from "../../types/lead.types";
+
 
 
 import {
@@ -67,6 +75,37 @@ export default function LeadListPage() {
         state.auth.employee
     );
 
+    const roleName = (() => {
+  const role =
+    loggedInEmployee?.role as unknown;
+
+  if (typeof role === "string") {
+    return role;
+  }
+
+  if (
+    role &&
+    typeof role === "object" &&
+    "name" in role
+  ) {
+    return String(
+      (role as { name: string }).name
+    );
+  }
+
+  return "";
+})();
+
+const isEmployee =
+  roleName === "EMPLOYEE";
+
+const canFilterEmployee =
+  roleName === "ADMIN" ||
+  roleName === "HR" ||
+  roleName === "TEAM_LEADER";
+
+
+
   const {
     leads,
     loading,
@@ -76,6 +115,14 @@ export default function LeadListPage() {
   } = useAppSelector(
     (state) =>
       state.lead
+  );
+
+  const [
+  leadSummary,
+  setLeadSummary,
+] =
+  useState<LeadSummary | null>(
+    null
   );
 
   
@@ -96,6 +143,11 @@ const [
   bulkMessage,
   setBulkMessage,
 ] = useState("");
+
+const [
+  refreshKey,
+  setRefreshKey,
+] = useState(0);
 
 const toggleLead = (
   id: string
@@ -132,6 +184,27 @@ const selectAllCurrentPage =
     );
   };
 
+  const loadLeadSummary =
+  async () => {
+    try {
+      const response =
+        await getLeadSummary();
+
+      setLeadSummary(
+        response.summary
+      );
+    } catch (
+      error
+    ) {
+      console.error(
+        "Lead summary error",
+        error
+      );
+    }
+  };
+
+  
+
 const handleBulkSuccess = (
   message: string
 ) => {
@@ -139,46 +212,9 @@ const handleBulkSuccess = (
 
   setSelectedIds([]);
 
-  dispatch(
-    fetchLeads({
-      page,
-
-      limit: 10,
-
-      search:
-        search || undefined,
-
-      status:
-        status || undefined,
-
-      source:
-        source || undefined,
-
-      stage:
-        stage || undefined,
-
-      employeeId:
-        employeeId || undefined,
-
-      followUp:
-        followUp
-          ? (followUp as
-              | "TODAY"
-              | "OVERDUE")
-          : undefined,
-
-      smartView:
-        smartView
-          ? (smartView as
-              | "MY_NEW"
-              | "HOT"
-              | "OVERDUE"
-              | "UNASSIGNED"
-              | "NO_FOLLOW_UP"
-              | "CONVERTED"
-              | "LOST")
-          : undefined,
-    })
+  setRefreshKey(
+    (current) =>
+      current + 1
   );
 };
 
@@ -308,6 +344,13 @@ useEffect(() => {
   loadFilters();
 }, []);
 
+
+useEffect(() => {
+  loadLeadSummary();
+}, [
+  refreshKey,
+]);
+
   /* =========================
       FETCH LEADS
   ========================= */
@@ -332,7 +375,7 @@ useEffect(() => {
         stage || undefined,
 
       employeeId:
-        employeeId || undefined,
+        canFilterEmployee && employeeId || undefined,
 
       followUp:
         followUp
@@ -370,31 +413,7 @@ useEffect(() => {
       PAGE SUMMARY
   ========================= */
 
-  const stats =
-    useMemo(() => {
-      return {
-        newLeads:
-          leads.filter(
-            (item) =>
-              item.stage ===
-              "NEW"
-          ).length,
-
-        converted:
-          leads.filter(
-            (item) =>
-              item.stage ===
-              "CONVERTED"
-          ).length,
-
-        lost:
-          leads.filter(
-            (item) =>
-              item.stage ===
-              "LOST"
-          ).length,
-      };
-    }, [leads]);
+  
 
   const resetFilters =
     () => {
@@ -523,122 +542,71 @@ useEffect(() => {
           QUICK CARDS
       ====================== */}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <QuickCard
-          title="Total Leads"
-          value={total}
-          icon={
-            <Users
-              size={18}
-            />
-          }
-        />
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+  <QuickCard
+    title="Total Leads"
+    value={leadSummary?.total ?? 0}
+    icon={<Users size={18} />}
+  />
 
-        <QuickCard
-          title="New"
-          value={
-            stats.newLeads
-          }
-          icon={
-            <UserPlus
-              size={18}
-            />
-          }
-        />
+  <QuickCard
+    title="New"
+    value={leadSummary?.new ?? 0}
+    icon={<UserPlus size={18} />}
+  />
 
-        <button
-          type="button"
-          onClick={
-            showMyLeads
-          }
-          className="text-left"
-        >
-          <QuickCard
-            title="My Leads"
-            value={
-              employeeId ===
-              loggedInEmployee
-                ?.id
-                ? total
-                : "-"
-            }
-            icon={
-              <UserCheck
-                size={18}
-              />
-            }
-            active={
-              employeeId ===
-              loggedInEmployee
-                ?.id
-            }
-          />
-        </button>
+  <button
+    type="button"
+    onClick={showMyLeads}
+    className="text-left"
+  >
+    <QuickCard
+      title="My Leads"
+      value={leadSummary?.myLeads ?? 0}
+      icon={<UserCheck size={18} />}
+      active={
+        isEmployee ||
+        employeeId === loggedInEmployee?.id
+      }
+    />
+  </button>
 
-        <button
-          type="button"
-          onClick={showToday}
-          className="text-left"
-        >
-          <QuickCard
-            title="Today Follow-ups"
-            value={
-              followUp ===
-              "TODAY"
-                ? total
-                : "-"
-            }
-            icon={
-              <CalendarClock
-                size={18}
-              />
-            }
-            active={
-              followUp ===
-              "TODAY"
-            }
-          />
-        </button>
+  <button
+    type="button"
+    onClick={showToday}
+    className="text-left"
+  >
+    <QuickCard
+      title="Today Follow-ups"
+      value={
+        leadSummary?.todayFollowUps ?? 0
+      }
+      icon={<CalendarClock size={18} />}
+      active={followUp === "TODAY"}
+    />
+  </button>
 
-        <button
-          type="button"
-          onClick={
-            showOverdue
-          }
-          className="text-left"
-        >
-          <QuickCard
-            title="Overdue"
-            value={
-              followUp ===
-              "OVERDUE"
-                ? total
-                : "-"
-            }
-            icon={
-              <XCircle
-                size={18}
-              />
-            }
-            active={
-              followUp ===
-              "OVERDUE"
-            }
-          />
-        </button>
+  <button
+    type="button"
+    onClick={showOverdue}
+    className="text-left"
+  >
+    <QuickCard
+      title="Overdue"
+      value={
+        leadSummary?.overdueFollowUps ?? 0
+      }
+      icon={<XCircle size={18} />}
+      active={followUp === "OVERDUE"}
+    />
+  </button>
 
-        <QuickCard
-          title="Converted"
-          value={
-            stats.converted
-          }
-          icon={
-            <UserCheck
-              size={18}
-            />
-          }
-        />
-      </div>
+  <QuickCard
+    title="Converted"
+    value={leadSummary?.converted ?? 0}
+    icon={<UserCheck size={18} />}
+  />
+</div>
 
 
       {/* Smart Views */}
@@ -842,40 +810,36 @@ useEffect(() => {
 
           {/* Employee */}
 
-          <select
-            value={
-              employeeId
-            }
-            onChange={(e) => {
-              setPage(1);
+      {canFilterEmployee && (
+  <select
+    value={employeeId}
+    onChange={(e) => {
+      setPage(1);
 
-              setEmployeeId(
-                e.target.value
-              );
-            }}
-            className={
-              inputClass
-            }
-          >
-            <option value="">
-              All Employees
-            </option>
+      setEmployeeId(
+        e.target.value
+      );
+    }}
+    className={inputClass}
+  >
+    <option value="">
+      All Accessible Employees
+    </option>
 
-            {employees.map(
-              (item) => (
-                <option
-                  key={
-                    item.id
-                  }
-                  value={
-                    item.id
-                  }
-                >
-                  {item.name}
-                </option>
-              )
-            )}
-          </select>
+    {employees.map(
+      (item) => (
+        <option
+          key={item.id}
+          value={item.id}
+        >
+          {item.name}
+          {" - "}
+          {item.employeeCode}
+        </option>
+      )
+    )}
+  </select>
+)}
         </div>
       </div>
 

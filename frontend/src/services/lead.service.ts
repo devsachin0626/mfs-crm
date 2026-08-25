@@ -5,6 +5,7 @@ import type {
   LeadDetailsResponse,
   LeadListResponse,
   LeadQuery,
+  LeadSummaryResponse,
   UpdateLeadRequest,
 } from "../types/lead.types";
 
@@ -77,3 +78,17 @@ export const assignLead = async (
 
   return response.data;
 };
+
+/* ============================
+   GET LEAD SUMMARY
+============================ */
+
+export const getLeadSummary =
+  async (): Promise<LeadSummaryResponse> => {
+    const response =
+      await api.get<LeadSummaryResponse>(
+        "/leads/summary"
+      );
+
+    return response.data;
+  };

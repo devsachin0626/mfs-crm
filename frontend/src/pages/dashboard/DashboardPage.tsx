@@ -2,14 +2,21 @@ import {
   useEffect,
 } from "react";
 
+import type {
+  ReactNode,
+} from "react";
+
 import {
   ArrowRight,
   CalendarClock,
   CheckCircle2,
   Clock3,
+  IndianRupee,
   Phone,
   RefreshCw,
+  Target,
   TrendingUp,
+  Trophy,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -26,6 +33,39 @@ import {
 import {
   fetchDashboard,
 } from "../../store/slices/dashboardSlice";
+
+/* ============================
+   TYPES
+============================ */
+
+type DashboardLead = {
+  id: string;
+  leadCode?: string;
+  name?: string | null;
+  mobile?: string;
+  stage?: string;
+  nextFollowUp?: string | null;
+
+  assignedEmployee?: {
+    id?: string;
+    name?: string;
+    employeeCode?: string;
+  } | null;
+};
+
+type LeaderboardItem = {
+  employeeId: string;
+  employeeCode?: string;
+  name: string;
+  role?: string;
+
+  brokerageTarget?: number;
+  achievedAmount?: number;
+  revenueTarget?: number;
+  dematTarget?: number;
+
+  progress?: number;
+};
 
 export default function DashboardPage() {
   const dispatch =
@@ -50,22 +90,44 @@ export default function DashboardPage() {
         state.auth.employee
     );
 
+  /* ============================
+     LOAD DASHBOARD
+  ============================ */
+
   useEffect(() => {
     dispatch(
       fetchDashboard()
     );
   }, [dispatch]);
 
+  /* ============================
+     DATA
+  ============================ */
+
   const stats =
     data?.stats;
 
-  const recentLeads =
+  const targets =
+    data?.targets;
+
+  const recentLeads:
+    DashboardLead[] =
     data?.recentLeads ||
     [];
 
-  const hotLeads =
+  const hotLeads:
+    DashboardLead[] =
     data?.hotLeads ||
     [];
+
+  const leaderboard:
+    LeaderboardItem[] =
+    data?.leaderboard ||
+    [];
+
+  /* ============================
+     ROLE
+  ============================ */
 
   const roleName = (() => {
     const role =
@@ -96,6 +158,70 @@ export default function DashboardPage() {
     return "";
   })();
 
+  const isAdmin =
+    roleName ===
+    "ADMIN";
+
+  const isHR =
+    roleName ===
+    "HR";
+
+  const isTeamLeader =
+    roleName ===
+    "TEAM_LEADER";
+
+  const isEmployee =
+    roleName ===
+    "EMPLOYEE";
+
+  const isManagement =
+    isAdmin ||
+    isHR ||
+    isTeamLeader;
+
+  /* ============================
+     ROLE LABELS
+  ============================ */
+
+  const dashboardScopeTitle =
+    isAdmin || isHR
+      ? "Company Overview"
+      : isTeamLeader
+        ? "Team Overview"
+        : "My Performance";
+
+  const leadCardTitle =
+    isAdmin || isHR
+      ? "Company Leads"
+      : isTeamLeader
+        ? "Team Leads"
+        : "My Leads";
+
+  const pipelineTitle =
+    isAdmin || isHR
+      ? "Company Pipeline"
+      : isTeamLeader
+        ? "Team Pipeline"
+        : "My Pipeline";
+
+  const targetTitle =
+    isAdmin || isHR
+      ? "Company Target"
+      : isTeamLeader
+        ? "Team Target"
+        : "My Target";
+
+  const leaderboardTitle =
+    isAdmin || isHR
+      ? "Top Performers"
+      : isTeamLeader
+        ? "Team Leaderboard"
+        : "My Target Progress";
+
+  /* ============================
+     CALCULATED
+  ============================ */
+
   const conversionRate =
     stats?.conversionRate ??
     (
@@ -103,7 +229,11 @@ export default function DashboardPage() {
         ? Number(
             (
               (
-                stats.convertedLeads /
+                (
+                  stats
+                    .convertedLeads ??
+                  0
+                ) /
                 stats.totalLeads
               ) *
               100
@@ -113,18 +243,50 @@ export default function DashboardPage() {
     );
 
   const callProgress =
-    stats?.callProgress ??
-    0;
+    Number(
+      stats?.callProgress ??
+        0
+    );
 
   const dailyCallTarget =
-    stats?.dailyCallTarget ??
-    250;
+    Number(
+      stats?.dailyCallTarget ??
+        250
+    );
 
-  const showTeamOverview =
-    roleName === "ADMIN" ||
-    roleName === "HR" ||
-    roleName ===
-      "TEAM_LEADER";
+  const targetProgress =
+    Number(
+      targets?.progress ??
+        0
+    );
+
+  const totalBrokerageTarget =
+    Number(
+      targets
+        ?.totalBrokerageTarget ??
+        0
+    );
+
+  const totalAchievement =
+    Number(
+      targets
+        ?.totalAchievement ??
+        0
+    );
+
+  const totalRevenueTarget =
+    Number(
+      targets
+        ?.totalRevenueTarget ??
+        0
+    );
+
+  const totalDematTarget =
+    Number(
+      targets
+        ?.totalDematTarget ??
+        0
+    );
 
   return (
     <div className="space-y-5">
@@ -135,7 +297,7 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500">
-            CRM Overview
+            {dashboardScopeTitle}
           </p>
 
           <h1 className="mt-1 text-2xl font-bold text-slate-900">
@@ -147,7 +309,7 @@ export default function DashboardPage() {
 
           <p className="mt-1 text-sm text-slate-500">
             Track leads, calls,
-            follow-ups and
+            follow-ups, targets and
             performance from one
             place.
           </p>
@@ -221,12 +383,14 @@ export default function DashboardPage() {
       )}
 
       {/* ============================
-          KPI CARDS
+          MAIN KPI
       ============================ */}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
-          title="Total Leads"
+          title={
+            leadCardTitle
+          }
           value={
             loading
               ? "-"
@@ -234,7 +398,11 @@ export default function DashboardPage() {
                   ?.totalLeads ??
                 0
           }
-          description="Accessible CRM leads"
+          description={
+            isEmployee
+              ? "Assigned to you"
+              : "Accessible CRM leads"
+          }
           icon={
             <Users
               size={19}
@@ -300,7 +468,7 @@ export default function DashboardPage() {
               ? "-"
               : `${conversionRate}%`
           }
-          description="Overall conversion"
+          description="Lead conversion"
           icon={
             <TrendingUp
               size={19}
@@ -310,14 +478,14 @@ export default function DashboardPage() {
       </div>
 
       {/* ============================
-          MAIN GRID
+          PIPELINE + TODAY
       ============================ */}
 
       <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
-        {/* PIPELINE */}
-
         <DashboardCard
-          title="Lead Pipeline"
+          title={
+            pipelineTitle
+          }
           subtitle="Current sales pipeline overview"
           action={
             <button
@@ -396,13 +564,13 @@ export default function DashboardPage() {
           </div>
         </DashboardCard>
 
-        {/* TODAY */}
-
         <DashboardCard
           title="Today"
           subtitle="Daily activity"
         >
           <div className="space-y-3">
+            {/* CALLING */}
+
             <div className="rounded-xl border border-slate-100 p-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -413,12 +581,12 @@ export default function DashboardPage() {
                   <p className="mt-1 text-xs text-slate-500">
                     {stats
                       ?.callsToday ??
-                      0}{" "}
-                    /{" "}
+                      0}
+                    {" / "}
                     {
                       dailyCallTarget
-                    }{" "}
-                    calls
+                    }
+                    {" calls"}
                   </p>
                 </div>
 
@@ -430,55 +598,35 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-blue-600"
-                  style={{
-                    width: `${Math.min(
-                      callProgress,
-                      100
-                    )}%`,
-                  }}
-                />
-              </div>
+              <ProgressBar
+                value={
+                  callProgress
+                }
+              />
 
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-lg bg-slate-50 p-2.5">
-                  <p className="text-lg font-bold text-slate-900">
-                    {stats
+                <MiniMetric
+                  label="Connected"
+                  value={
+                    stats
                       ?.connectedCallsToday ??
-                      0}
-                  </p>
+                    0
+                  }
+                />
 
-                  <p className="text-xs text-slate-500">
-                    Connected
-                  </p>
-                </div>
-
-                <div className="rounded-lg bg-slate-50 p-2.5">
-                  <p className="text-lg font-bold text-slate-900">
-                    {stats
+                <MiniMetric
+                  label="Interested"
+                  value={
+                    stats
                       ?.interestedCallsToday ??
-                      0}
-                  </p>
+                    0
+                  }
+                />
 
-                  <p className="text-xs text-slate-500">
-                    Interested
-                  </p>
-                </div>
-
-                <div className="rounded-lg bg-slate-50 p-2.5">
-                  <p className="text-lg font-bold text-slate-900">
-                    {stats
-                      ?.connectRate ??
-                      0}
-                    %
-                  </p>
-
-                  <p className="text-xs text-slate-500">
-                    Connect Rate
-                  </p>
-                </div>
+                <MiniMetric
+                  label="Connect Rate"
+                  value={`${stats?.connectRate ?? 0}%`}
+                />
               </div>
             </div>
 
@@ -539,7 +687,141 @@ export default function DashboardPage() {
       </div>
 
       {/* ============================
-          RECENT + HOT
+          TARGET + LEADERBOARD
+      ============================ */}
+
+      <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+        <DashboardCard
+          title={
+            targetTitle
+          }
+          subtitle="Current monthly performance target"
+          action={
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/targets"
+                )
+              }
+              className="inline-flex items-center gap-1 text-sm font-medium text-blue-700"
+            >
+              View Targets
+
+              <ArrowRight
+                size={15}
+              />
+            </button>
+          }
+        >
+          {!targets ? (
+            <EmptyState
+              text="No target data available for this month."
+            />
+          ) : (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-slate-500">
+                    Target Achievement
+                  </p>
+
+                  <p className="mt-1 text-3xl font-bold text-slate-900">
+                    {
+                      targetProgress
+                    }
+                    %
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-blue-50 p-3 text-blue-700">
+                  <Target
+                    size={24}
+                  />
+                </div>
+              </div>
+
+              <ProgressBar
+                value={
+                  targetProgress
+                }
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <MoneyMetric
+                  label="Brokerage Target"
+                  value={
+                    totalBrokerageTarget
+                  }
+                />
+
+                <MoneyMetric
+                  label="Achieved"
+                  value={
+                    totalAchievement
+                  }
+                />
+
+                <MoneyMetric
+                  label="Revenue Target"
+                  value={
+                    totalRevenueTarget
+                  }
+                />
+
+                <MiniMetric
+                  label="Demat Target"
+                  value={
+                    totalDematTarget
+                  }
+                />
+              </div>
+            </div>
+          )}
+        </DashboardCard>
+
+        <DashboardCard
+          title={
+            leaderboardTitle
+          }
+          subtitle={
+            isEmployee
+              ? "Current monthly target"
+              : "Top target performers this month"
+          }
+        >
+          {leaderboard.length ===
+          0 ? (
+            <EmptyState
+              text="No leaderboard data available."
+            />
+          ) : (
+            <div className="space-y-2">
+              {leaderboard.map(
+                (
+                  item,
+                  index
+                ) => (
+                  <LeaderboardRow
+                    key={
+                      item.employeeId
+                    }
+                    item={
+                      item
+                    }
+                    rank={
+                      index + 1
+                    }
+                  />
+                )
+              )}
+            </div>
+          )}
+        </DashboardCard>
+      </div>
+
+      {/* ============================
+          RECENT + HOT LEADS
       ============================ */}
 
       <div className="grid gap-5 xl:grid-cols-2">
@@ -574,9 +856,7 @@ export default function DashboardPage() {
               />
             ) : (
               recentLeads.map(
-                (
-                  lead: any
-                ) => (
+                (lead) => (
                   <LeadRow
                     key={
                       lead.id
@@ -627,9 +907,7 @@ export default function DashboardPage() {
               />
             ) : (
               hotLeads.map(
-                (
-                  lead: any
-                ) => (
+                (lead) => (
                   <LeadRow
                     key={
                       lead.id
@@ -652,12 +930,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ============================
-          THIRD GRID
+          QUICK / PERFORMANCE / TEAM
       ============================ */}
 
       <div className="grid gap-5 xl:grid-cols-3">
-        {/* QUICK ACTIONS */}
-
         <DashboardCard
           title="Quick Actions"
           subtitle="Common CRM tasks"
@@ -665,7 +941,7 @@ export default function DashboardPage() {
           <div className="space-y-3">
             <QuickAction
               title="Create New Lead"
-              description="Add a new client prospect"
+              description="Add a new prospect"
               onClick={() =>
                 navigate(
                   "/leads/create"
@@ -705,14 +981,12 @@ export default function DashboardPage() {
           </div>
         </DashboardCard>
 
-        {/* PERFORMANCE */}
-
         <DashboardCard
           title="Performance"
           subtitle="Lead conversion overview"
         >
           <div className="flex min-h-64 flex-col items-center justify-center">
-            <div className="relative flex h-40 w-40 items-center justify-center rounded-full border-14 border-slate-100">
+            <div className="flex h-40 w-40 items-center justify-center rounded-full border-14 border-slate-100">
               <div className="text-center">
                 <p className="text-3xl font-bold text-slate-900">
                   {
@@ -749,16 +1023,14 @@ export default function DashboardPage() {
           </div>
         </DashboardCard>
 
-        {/* TEAM / PERSONAL */}
-
         <DashboardCard
           title={
-            showTeamOverview
+            isManagement
               ? "Team Overview"
               : "My Overview"
           }
           subtitle={
-            showTeamOverview
+            isManagement
               ? "Employee activity"
               : "Your CRM activity"
           }
@@ -768,13 +1040,13 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    {showTeamOverview
+                    {isManagement
                       ? "Active Employees"
-                      : "Accessible Leads"}
+                      : "My Leads"}
                   </p>
 
                   <p className="mt-2 text-3xl font-bold text-slate-900">
-                    {showTeamOverview
+                    {isManagement
                       ? stats
                           ?.totalEmployees ??
                         0
@@ -802,7 +1074,7 @@ export default function DashboardPage() {
 
                 <div>
                   <p className="text-sm font-semibold text-slate-800">
-                    CRM Activity
+                    Pending Work
                   </p>
 
                   <p className="text-xs text-slate-500">
@@ -818,7 +1090,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {showTeamOverview ? (
+            {isManagement ? (
               <button
                 type="button"
                 onClick={() =>
@@ -848,7 +1120,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ============================
-          BOTTOM STATS
+          BOTTOM SUMMARY
       ============================ */}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -916,8 +1188,7 @@ function StatCard({
     | string
     | number;
   description: string;
-  icon:
-    React.ReactNode;
+  icon: ReactNode;
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300">
@@ -956,10 +1227,8 @@ function DashboardCard({
 }: {
   title: string;
   subtitle?: string;
-  action?:
-    React.ReactNode;
-  children:
-    React.ReactNode;
+  action?: ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -1023,13 +1292,156 @@ function PipelineRow({
         </span>
       </div>
 
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-        <div
-          className="h-full rounded-full bg-blue-600"
-          style={{
-            width: `${percentage}%`,
-          }}
+      <ProgressBar
+        value={
+          percentage
+        }
+      />
+    </div>
+  );
+}
+
+/* ============================
+   PROGRESS
+============================ */
+
+function ProgressBar({
+  value,
+}: {
+  value: number;
+}) {
+  const safeValue =
+    Math.max(
+      0,
+      Math.min(
+        Number(value) ||
+          0,
+        100
+      )
+    );
+
+  return (
+    <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+      <div
+        className="h-full rounded-full bg-blue-600"
+        style={{
+          width: `${safeValue}%`,
+        }}
+      />
+    </div>
+  );
+}
+
+/* ============================
+   TARGET MONEY
+============================ */
+
+function MoneyMetric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <div className="flex items-center gap-1 text-slate-400">
+        <IndianRupee
+          size={13}
         />
+
+        <p className="text-xs">
+          {label}
+        </p>
+      </div>
+
+      <p className="mt-1 text-lg font-bold text-slate-900">
+        {formatCurrency(
+          value
+        )}
+      </p>
+    </div>
+  );
+}
+
+/* ============================
+   LEADERBOARD
+============================ */
+
+function LeaderboardRow({
+  item,
+  rank,
+}: {
+  item: LeaderboardItem;
+  rank: number;
+}) {
+  const progress =
+    Number(
+      item.progress ??
+        0
+    );
+
+  return (
+    <div className="rounded-xl border border-slate-100 p-3.5">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+          {rank <= 3 ? (
+            <Trophy
+              size={16}
+            />
+          ) : (
+            rank
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-800">
+                {item.name}
+              </p>
+
+              <p className="text-xs text-slate-500">
+                {item.employeeCode ||
+                  "-"}
+              </p>
+            </div>
+
+            <span className="text-sm font-bold text-slate-900">
+              {progress}%
+            </span>
+          </div>
+
+          <ProgressBar
+            value={
+              progress
+            }
+          />
+
+          <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+            <span>
+              Achieved{" "}
+              {formatCurrency(
+                Number(
+                  item
+                    .achievedAmount ??
+                    0
+                )
+              )}
+            </span>
+
+            <span>
+              Target{" "}
+              {formatCurrency(
+                Number(
+                  item
+                    .brokerageTarget ??
+                    0
+                )
+              )}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1049,8 +1461,7 @@ function ActionMetric({
   value:
     | number
     | string;
-  icon:
-    React.ReactNode;
+  icon: ReactNode;
   onClick: () => void;
 }) {
   return (
@@ -1122,7 +1533,7 @@ function LeadRow({
   onClick,
   showFollowUp = false,
 }: {
-  lead: any;
+  lead: DashboardLead;
   onClick: () => void;
   showFollowUp?: boolean;
 }) {
@@ -1139,9 +1550,11 @@ function LeadRow({
         </p>
 
         <p className="mt-1 truncate text-xs text-slate-500">
-          {lead.leadCode}
+          {lead.leadCode ||
+            "-"}
           {" · "}
-          {lead.mobile}
+          {lead.mobile ||
+            "-"}
         </p>
 
         {showFollowUp &&
@@ -1166,7 +1579,8 @@ function LeadRow({
           )}
         </span>
 
-        {lead.assignedEmployee
+        {lead
+          .assignedEmployee
           ?.name && (
           <p className="mt-1 max-w-28 truncate text-xs text-slate-400">
             {
@@ -1283,8 +1697,23 @@ function LoadingRows() {
 }
 
 /* ============================
-   DATE
+   FORMATTERS
 ============================ */
+
+function formatCurrency(
+  value: number
+) {
+  return new Intl.NumberFormat(
+    "en-IN",
+    {
+      maximumFractionDigits:
+        0,
+    }
+  ).format(
+    Number(value) ||
+      0
+  );
+}
 
 function formatDateTime(
   value: string

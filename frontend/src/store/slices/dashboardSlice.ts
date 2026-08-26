@@ -55,10 +55,14 @@ const dashboardSlice = createSlice({
   extraReducers: (builder) => {
     builder
 
-      .addCase(fetchDashboard.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+  .addCase(
+  fetchDashboard.pending,
+  (state) => {
+    state.loading = true;
+    state.error = null;
+    state.data = null;
+  }
+)
 
       .addCase(fetchDashboard.fulfilled, (state, action) => {
         state.loading = false;
@@ -66,12 +70,18 @@ const dashboardSlice = createSlice({
         state.error = null;
       })
 
-      .addCase(fetchDashboard.rejected, (state, action) => {
-        state.loading = false;
-        state.error =
-          (action.payload as string) ||
-          "Failed to load dashboard";
-      });
+  .addCase(
+  fetchDashboard.rejected,
+  (state, action) => {
+    state.loading = false;
+
+    state.data = null;
+
+    state.error =
+      (action.payload as string) ||
+      "Failed to load dashboard";
+  }
+);
   },
 });
 

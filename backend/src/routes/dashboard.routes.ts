@@ -8,7 +8,7 @@ const router = Router();
 router.get(
   "/stats",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize("ADMIN", "HR", "TEAM_LEADER","EMPLOYEE"),
   dashboardController.getDashboardStats
 );
 

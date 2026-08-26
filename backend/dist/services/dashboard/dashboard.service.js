@@ -346,6 +346,110 @@ const getDashboardStats = async (currentEmployee) => {
             100).toFixed(1))
         : 0;
     /* ============================
+TARGET / LEADERBOARD
+============================ */
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    let targetEmployeeIds = null;
+    if (roleName === "EMPLOYEE") {
+        targetEmployeeIds = [
+            currentEmployee.id,
+        ];
+    }
+    if (roleName ===
+        "TEAM_LEADER") {
+        const teamMembers = await prisma_1.default.employee.findMany({
+            where: {
+                reportingManagerId: currentEmployee.id,
+                isActive: true,
+            },
+            select: {
+                id: true,
+            },
+        });
+        targetEmployeeIds = [
+            currentEmployee.id,
+            ...teamMembers.map((item) => item.id),
+        ];
+    }
+    /* ============================
+       CURRENT TARGETS
+    ============================ */
+    const targetWhere = {
+        month: currentMonth,
+        year: currentYear,
+    };
+    if (targetEmployeeIds !==
+        null) {
+        targetWhere.employeeId = {
+            in: targetEmployeeIds,
+        };
+    }
+    const currentTargets = await prisma_1.default.employeeTarget.findMany({
+        where: targetWhere,
+        include: {
+            employee: {
+                select: {
+                    id: true,
+                    employeeCode: true,
+                    name: true,
+                    role: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
+    /* ============================
+       TARGET TOTALS
+    ============================ */
+    const totalBrokerageTarget = currentTargets.reduce((total, target) => total +
+        Number(target.brokerageTarget), 0);
+    const totalRevenueTarget = currentTargets.reduce((total, target) => total +
+        Number(target.revenueTarget), 0);
+    const totalDematTarget = currentTargets.reduce((total, target) => total +
+        Number(target.dematTarget), 0);
+    const totalAchievement = currentTargets.reduce((total, target) => total +
+        Number(target.achievedAmount), 0);
+    const targetProgress = totalBrokerageTarget >
+        0
+        ? Number(((totalAchievement /
+            totalBrokerageTarget) *
+            100).toFixed(1))
+        : 0;
+    /* ============================
+       LEADERBOARD
+    ============================ */
+    const leaderboard = currentTargets
+        .map((target) => {
+        const targetAmount = Number(target.brokerageTarget);
+        const achievedAmount = Number(target.achievedAmount);
+        const progress = targetAmount > 0
+            ? Number(((achievedAmount /
+                targetAmount) *
+                100).toFixed(1))
+            : 0;
+        return {
+            employeeId: target.employee.id,
+            employeeCode: target.employee
+                .employeeCode,
+            name: target.employee.name,
+            role: target.employee
+                .role?.name ||
+                "",
+            brokerageTarget: targetAmount,
+            achievedAmount,
+            revenueTarget: Number(target.revenueTarget),
+            dematTarget: target.dematTarget,
+            progress,
+        };
+    })
+        .sort((a, b) => b.progress -
+        a.progress)
+        .slice(0, 5);
+    /* ============================
        RESPONSE
     ============================ */
     return {
@@ -371,6 +475,16 @@ const getDashboardStats = async (currentEmployee) => {
             callProgress,
             connectRate,
         },
+        targets: {
+            month: currentMonth,
+            year: currentYear,
+            totalBrokerageTarget,
+            totalAchievement,
+            totalRevenueTarget,
+            totalDematTarget,
+            progress: targetProgress,
+        },
+        leaderboard,
         recentLeads,
         hotLeads,
     };

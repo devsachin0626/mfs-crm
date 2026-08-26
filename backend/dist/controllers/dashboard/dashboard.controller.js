@@ -37,13 +37,27 @@ exports.getDashboardStats = void 0;
 const dashboardService = __importStar(require("../../services/dashboard/dashboard.service"));
 const getDashboardStats = async (req, res) => {
     try {
-        const result = await dashboardService.getDashboardStats();
-        res.status(200).json(result);
+        const currentEmployee = req
+            .employee;
+        if (!currentEmployee) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+            return;
+        }
+        const result = await dashboardService.getDashboardStats(currentEmployee);
+        res
+            .status(200)
+            .json(result);
     }
     catch (error) {
-        res.status(500).json({
+        res
+            .status(500)
+            .json({
             success: false,
-            message: error.message || "Dashboard Error",
+            message: error.message ||
+                "Dashboard Error",
         });
     }
 };

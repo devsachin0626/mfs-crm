@@ -5,200 +5,387 @@ import {
   Navigate,
 } from "react-router-dom";
 
+/* ============================
+   AUTH
+============================ */
+
 import LoginPage from "../pages/auth/LoginPage";
+
+/* ============================
+   DASHBOARD
+============================ */
+
 import DashboardPage from "../pages/dashboard/DashboardPage";
-import LeadDetailsPage from "../pages/lead/LeadDetailsPage";
+
+/* ============================
+   EMPLOYEE
+============================ */
+
 import EmployeeListPage from "../pages/employee/EmployeeListPage";
 import EmployeeDetailsPage from "../pages/employee/EmployeeDetailsPage";
 import EmployeeCreatePage from "../pages/employee/EmployeeCreatePage";
 import EmployeeEditPage from "../pages/employee/EmployeeEditPage";
+
+/* ============================
+   ATTENDANCE
+============================ */
+
 import AttendanceListPage from "../pages/attendance/AttendanceListPage";
 import AttendanceDetailsPage from "../pages/attendance/AttendanceDetailsPage";
 import AttendanceEditPage from "../pages/attendance/AttendanceEditPage";
+
+/* ============================
+   LEAVE
+============================ */
+
 import LeaveListPage from "../pages/leave/LeaveListPage";
 import LeaveCreatePage from "../pages/leave/LeaveCreatePage";
 import LeaveDetailsPage from "../pages/leave/LeaveDetailsPage";
+
+/* ============================
+   TARGET
+============================ */
+
 import TargetListPage from "../pages/target/TargetListPage";
 import TargetCreatePage from "../pages/target/TargetCreatePage";
 import TargetDetailsPage from "../pages/target/TargetDetailsPage";
 import TargetEditPage from "../pages/target/TargetEditPage";
+
+/* ============================
+   PAYROLL
+============================ */
+
 import PayrollListPage from "../pages/payroll/PayrollListPage";
 import PayrollCreatePage from "../pages/payroll/PayrollCreatePage";
 import PayrollDetailsPage from "../pages/payroll/PayrollDetailsPage";
 import PayrollEditPage from "../pages/payroll/PayrollEditPage";
+
+/* ============================
+   LEAD
+============================ */
+
 import LeadListPage from "../pages/lead/LeadListPage";
 import LeadCreatePage from "../pages/lead/LeadCreatePage";
+import LeadDetailsPage from "../pages/lead/LeadDetailsPage";
 import LeadEditPage from "../pages/lead/LeadEditPage";
-import FollowUpListPage from "../pages/followup/FollowUpListPage";
-import CallingWorkspacePage from "../pages/calling/CallingWorkspacePage";
 import LeadPipelinePage from "../pages/lead/LeadPipelinePage";
 import LeadImportPage from "../pages/lead/LeadImportPage";
 
-import ProtectedRoute from "./ProtectedRoute";
+/* ============================
+   FOLLOW-UP / CALLING
+============================ */
 
+import FollowUpListPage from "../pages/followup/FollowUpListPage";
+import CallingWorkspacePage from "../pages/calling/CallingWorkspacePage";
+
+/* ============================
+   ROUTE / LAYOUT
+============================ */
+
+import ProtectedRoute from "./ProtectedRoute";
 import DashboardLayout from "../layouts/DashboardLayout";
 
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
+        {/* ============================
+            PUBLIC
+        ============================ */}
+
         <Route
           path="/login"
           element={<LoginPage />}
         />
 
-        {/* Protected Routes */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<DashboardLayout />}>
+        {/* ============================
+            AUTHENTICATED USERS
+        ============================ */}
+
+        <Route
+          element={
+            <ProtectedRoute />
+          }
+        >
+          <Route
+            element={
+              <DashboardLayout />
+            }
+          >
+            {/* ============================
+                DASHBOARD
+            ============================ */}
+
             <Route
               path="/dashboard"
-              element={<DashboardPage />}
+              element={
+                <DashboardPage />
+              }
             />
 
-          <Route
-  path="/leads"
-  element={<LeadListPage />}
-/>
+            {/* ============================
+                LEADS
+                ALL LOGGED-IN ROLES
+            ============================ */}
 
             <Route
-  path="/employees"
-  element={<EmployeeListPage />}
-/>
+              path="/leads"
+              element={
+                <LeadListPage />
+              }
+            />
 
-<Route
-  path="/employees/create"
-  element={<EmployeeCreatePage />}
-/>
+            <Route
+              path="/leads/create"
+              element={
+                <LeadCreatePage />
+              }
+            />
 
-<Route
-  path="/employees/edit/:id"
-  element={<EmployeeEditPage />}
-/>
+            <Route
+              path="/leads/pipeline"
+              element={
+                <LeadPipelinePage />
+              }
+            />
 
-<Route
-  path="/employees/:id"
-  element={<EmployeeDetailsPage />}
-/>
+            <Route
+              path="/leads/:id/edit"
+              element={
+                <LeadEditPage />
+              }
+            />
 
-<Route
-  path="/attendance"
-  element={<AttendanceListPage />}
+            <Route
+              path="/leads/:id"
+              element={
+                <LeadDetailsPage />
+              }
+            />
 
+            {/* ============================
+                FOLLOW UPS
+            ============================ */}
 
-/>
+            <Route
+              path="/follow-ups"
+              element={
+                <FollowUpListPage />
+              }
+            />
 
-<Route
-  path="/attendance/:id/edit"
-  element={<AttendanceEditPage />}
-/>
+            {/* ============================
+                CALLING
+            ============================ */}
 
-<Route
-  path="/attendance/:id"
-  element={<AttendanceDetailsPage />}
-/>
+            <Route
+              path="/calling"
+              element={
+                <CallingWorkspacePage />
+              }
+            />
 
-<Route
-  path="/leaves"
-  element={<LeaveListPage />}
-/>
+            {/* ============================
+                EMPLOYEE
+                VIEW ROUTES
+            ============================ */}
 
-<Route
-  path="/leaves/create"
-  element={<LeaveCreatePage />}
-/>
+            <Route
+              path="/employees"
+              element={
+                <EmployeeListPage />
+              }
+            />
 
-<Route
-  path="/leaves/:id"
-  element={<LeaveDetailsPage />}
+            <Route
+              path="/employees/:id"
+              element={
+                <EmployeeDetailsPage />
+              }
+            />
 
+            {/* ============================
+                ATTENDANCE
+            ============================ */}
 
-/>
-<Route
-  path="/targets"
-  element={<TargetListPage />}
-/>
+            <Route
+              path="/attendance"
+              element={
+                <AttendanceListPage />
+              }
+            />
 
-<Route
-  path="/targets/create"
-  element={<TargetCreatePage />}
-/>
+            <Route
+              path="/attendance/:id"
+              element={
+                <AttendanceDetailsPage />
+              }
+            />
 
-<Route
-  path="/targets/:id/edit"
-  element={<TargetEditPage />}
-/>
+            {/* ============================
+                LEAVE
+            ============================ */}
 
-<Route
-  path="/targets/:id"
-  element={<TargetDetailsPage />}
-/>
-<Route
-  path="/payroll"
-  element={<PayrollListPage />}
-/>
+            <Route
+              path="/leaves"
+              element={
+                <LeaveListPage />
+              }
+            />
 
-<Route
-  path="/payroll/create"
-  element={<PayrollCreatePage />}
-/>
+            <Route
+              path="/leaves/create"
+              element={
+                <LeaveCreatePage />
+              }
+            />
 
-<Route
-  path="/payroll/:id/edit"
-  element={<PayrollEditPage />}
-/>
+            <Route
+              path="/leaves/:id"
+              element={
+                <LeaveDetailsPage />
+              }
+            />
 
-<Route
-  path="/payroll/:id"
-  element={<PayrollDetailsPage />}
-/>
+            {/* ============================
+                TARGET VIEW
+            ============================ */}
 
-<Route
-  path="/leads/create"
-  element={<LeadCreatePage />}
+            <Route
+              path="/targets"
+              element={
+                <TargetListPage />
+              }
+            />
 
+            <Route
+              path="/targets/:id"
+              element={
+                <TargetDetailsPage />
+              }
+            />
 
-/>
+            {/* ============================
+                PAYROLL VIEW
+            ============================ */}
 
-<Route
-  path="/leads/pipeline"
-  element={<LeadPipelinePage />}
-/>
+            <Route
+              path="/payroll"
+              element={
+                <PayrollListPage />
+              }
+            />
 
+            <Route
+              path="/payroll/:id"
+              element={
+                <PayrollDetailsPage />
+              }
+            />
 
-<Route
-  path="/leads/:id/edit"
-  element={<LeadEditPage />}
-/>
+            {/* ============================
+                ADMIN / HR
+            ============================ */}
 
-<Route
-  path="/leads/:id"
-  element={<LeadDetailsPage />}
-/>
+            <Route
+              element={
+                <ProtectedRoute
+                  allowedRoles={[
+                    "ADMIN",
+                    "HR",
+                  ]}
+                />
+              }
+            >
+              {/* EMPLOYEE MANAGEMENT */}
 
-<Route
-  path="/leads/import"
-  element={<LeadImportPage />}
-/>
+              <Route
+                path="/employees/create"
+                element={
+                  <EmployeeCreatePage />
+                }
+              />
 
-<Route
-  path="/follow-ups"
-  element={<FollowUpListPage />}
-/>
+              <Route
+                path="/employees/edit/:id"
+                element={
+                  <EmployeeEditPage />
+                }
+              />
 
-<Route
-  path="/calling"
-  element={<CallingWorkspacePage />}
-/>
+              {/* ATTENDANCE EDIT */}
 
+              <Route
+                path="/attendance/:id/edit"
+                element={
+                  <AttendanceEditPage />
+                }
+              />
 
+              {/* PAYROLL MANAGEMENT */}
 
+              <Route
+                path="/payroll/create"
+                element={
+                  <PayrollCreatePage />
+                }
+              />
 
+              <Route
+                path="/payroll/:id/edit"
+                element={
+                  <PayrollEditPage />
+                }
+              />
+            </Route>
 
+            {/* ============================
+                ADMIN / HR / TEAM LEADER
+            ============================ */}
+
+            <Route
+              element={
+                <ProtectedRoute
+                  allowedRoles={[
+                    "ADMIN",
+                    "HR",
+                    "TEAM_LEADER",
+                  ]}
+                />
+              }
+            >
+              {/* TARGET MANAGEMENT */}
+
+              <Route
+                path="/targets/create"
+                element={
+                  <TargetCreatePage />
+                }
+              />
+
+              <Route
+                path="/targets/:id/edit"
+                element={
+                  <TargetEditPage />
+                }
+              />
+
+              {/* LEAD IMPORT */}
+
+              <Route
+                path="/leads/import"
+                element={
+                  <LeadImportPage />
+                }
+              />
+            </Route>
           </Route>
         </Route>
 
-        {/* Default Route */}
+        {/* ============================
+            DEFAULT
+        ============================ */}
+
         <Route
           path="/"
           element={
@@ -209,13 +396,16 @@ export default function AppRoutes() {
           }
         />
 
-        {/* 404 */}
+        {/* ============================
+            404
+        ============================ */}
+
         <Route
           path="*"
           element={
-            <div className="flex min-h-screen items-center justify-center">
+            <div className="flex min-h-screen items-center justify-center bg-slate-50">
               <div className="text-center">
-                <h1 className="text-4xl font-bold">
+                <h1 className="text-4xl font-bold text-slate-900">
                   404
                 </h1>
 

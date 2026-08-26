@@ -402,7 +402,7 @@ const getLeads = async (query, currentEmployee) => {
         roleName === "TEAM_LEADER";
     if (canFilterEmployee &&
         query.employeeId) {
-        where.employeeId =
+        where.assignedEmployeeId =
             query.employeeId;
     }
     /* ============================
@@ -452,6 +452,8 @@ const getLeads = async (query, currentEmployee) => {
             "MY_NEW") {
             where.stage =
                 "NEW";
+            where.assignedEmployeeId =
+                currentEmployee.id;
             /*
              Role access already makes
              EMPLOYEE see only own leads.

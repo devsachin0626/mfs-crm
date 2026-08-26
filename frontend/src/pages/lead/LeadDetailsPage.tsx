@@ -262,30 +262,36 @@ useEffect(() => {
     loadStatuses();
   }, []);
 
-  useEffect(() => {
-    const loadEmployees =
-      async () => {
-        try {
-          const response =
-            await getEmployees({
-              page: 1,
-              limit: 100,
-            });
+useEffect(() => {
+  if (!canAssign) {
+    setEmployees([]);
+    return;
+  }
 
-          setEmployees(
-            response.employees ||
-              []
-          );
-        } catch (error) {
-          console.error(
-            "Employee Error",
-            error
-          );
-        }
-      };
+  const loadEmployees =
+    async () => {
+      try {
+        const response =
+          await getEmployees({
+            page: 1,
+            limit: 100,
+          });
 
-    loadEmployees();
-  }, []);
+        setEmployees(
+          response.employees || []
+        );
+      } catch (error) {
+        console.error(
+          "Employee Error",
+          error
+        );
+
+        setEmployees([]);
+      }
+    };
+
+  loadEmployees();
+}, [canAssign]);
 
 const refreshLead = () => {
   if (!lead?.id) return;

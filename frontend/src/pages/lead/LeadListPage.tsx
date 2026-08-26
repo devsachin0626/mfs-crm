@@ -407,6 +407,8 @@ useEffect(() => {
   employeeId,
   followUp,
   smartView,
+  refreshKey,
+canFilterEmployee,
 ]);
 
   /* =========================
@@ -497,9 +499,12 @@ useEffect(() => {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => {
-              setPage(1);
-            }}
+           onClick={() => {
+  setRefreshKey(
+    (current) =>
+      current + 1
+  );
+}}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
             <RefreshCw
@@ -749,13 +754,8 @@ useEffect(() => {
               New
             </option>
 
-            <option value="CONTACTED">
-              Contacted
-            </option>
 
-            <option value="INTERESTED">
-              Interested
-            </option>
+           
 
             <option value="FOLLOW_UP">
               Follow Up
@@ -1315,17 +1315,14 @@ function StageBadge({
     NEW:
       "bg-blue-50 text-blue-700",
 
-    CONTACTED:
-      "bg-cyan-50 text-cyan-700",
+   WORKING:
+  "bg-cyan-50 text-cyan-700",
 
-    INTERESTED:
-      "bg-purple-50 text-purple-700",
+   
 
     FOLLOW_UP:
       "bg-amber-50 text-amber-700",
 
-    CONVERTED:
-      "bg-emerald-50 text-emerald-700",
 
     LOST:
       "bg-red-50 text-red-700",

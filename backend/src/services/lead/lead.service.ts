@@ -711,8 +711,8 @@ if (
   canFilterEmployee &&
   query.employeeId
 ) {
-  where.employeeId =
-    query.employeeId;
+ where.assignedEmployeeId =
+  query.employeeId;
 }
   /* ============================
      SOURCE FILTER
@@ -791,6 +791,10 @@ if (
     ) {
       where.stage =
         "NEW";
+
+
+         where.assignedEmployeeId =
+    currentEmployee.id;
 
       /*
        Role access already makes

@@ -138,7 +138,7 @@ const convertLeadToClient = async (req, res) => {
             });
             return;
         }
-        const result = await clientService.convertLeadToClient(leadId, employeeId, req.body);
+        const result = await clientService.convertLeadToClient(leadId, employeeId, req.body, req.employee);
         res
             .status(201)
             .json(result);

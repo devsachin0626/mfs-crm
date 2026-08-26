@@ -702,9 +702,20 @@ export const bulkAssignLeads =
     res: Response
   ): Promise<void> => {
     try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
+
+        return;
+      }
+
       const result =
         await leadService.bulkAssignLeads(
-          req.body
+          req.body,
+          req.employee
         );
 
       res
@@ -716,7 +727,8 @@ export const bulkAssignLeads =
         .json({
           success: false,
           message:
-            error.message,
+            error.message ||
+            "Bulk Lead Assignment Failed",
         });
     }
   };
@@ -744,7 +756,8 @@ export const bulkChangeLeadStage =
       const result =
         await leadService.bulkChangeLeadStage(
           req.body,
-          req.employee.id
+  req.employee.id,
+  req.employee
         );
 
       res
@@ -784,7 +797,8 @@ export const bulkChangeLeadStatus =
       const result =
         await leadService.bulkChangeLeadStatus(
           req.body,
-          req.employee.id
+  req.employee.id,
+  req.employee
         );
 
       res

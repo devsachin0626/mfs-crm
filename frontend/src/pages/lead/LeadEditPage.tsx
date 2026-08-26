@@ -1,45 +1,22 @@
 import {
   useEffect,
-  useMemo,
   useState,
 } from "react";
 
-import type {
-  ReactNode,
-} from "react";
-
 import {
-  CalendarClock,
-  ChevronDown,
-  Eye,
-  Filter,
-  Phone,
-  Plus,
-  RefreshCw,
-  Search,
-  UserCheck,
-  UserPlus,
-  Users,
-  Upload,
-  XCircle,
+  ArrowLeft,
+  Save,
 } from "lucide-react";
 
 import {
   useNavigate,
+  useParams,
 } from "react-router-dom";
 
 import {
-  useAppDispatch,
-  useAppSelector,
-} from "../../hooks/redux";
-
-import {
-  fetchLeads,
-} from "../../store/slices/leadSlice";
-
-import {
-  getLeadStatuses,
-} from "../../services/leadStatus.service";
+  getLeadById,
+  updateLead,
+} from "../../services/lead.service";
 
 import {
   getLeadSources,
@@ -49,69 +26,18 @@ import {
   getEmployees,
 } from "../../services/employee.service";
 
-import LeadAgingBadge from "../../features/lead/LeadAgingBadge";
+import {
+  useAppSelector,
+} from "../../hooks/redux";
 
-import LeadBulkActionBar from "../../features/lead/LeadBulkActionBar";
+import type {
+  LeadStage,
+  UpdateLeadRequest,
+} from "../../types/lead.types";
 
-/* ============================
-   SMART VIEW TYPE
-============================ */
-
-type SmartView =
-  | ""
-  | "MY_NEW"
-  | "HOT"
-  | "OVERDUE"
-  | "UNASSIGNED"
-  | "NO_FOLLOW_UP"
-  | "CONVERTED"
-  | "LOST";
-
-/* ============================
-   ROLE HELPER
-============================ */
-
-function getRoleName(
-  role: unknown
-): string {
-  if (
-    typeof role ===
-    "string"
-  ) {
-    return role;
-  }
-
-  if (
-    role &&
-    typeof role ===
-      "object" &&
-    "name" in role
-  ) {
-    const name =
-      (
-        role as {
-          name?: unknown;
-        }
-      ).name;
-
-    if (
-      typeof name ===
-      "string"
-    ) {
-      return name;
-    }
-  }
-
-  return "";
-}
-
-/* ============================
-   PAGE
-============================ */
-
-export default function LeadListPage() {
-  const dispatch =
-    useAppDispatch();
+export default function LeadEditPage() {
+  const { id } =
+    useParams();
 
   const navigate =
     useNavigate();
@@ -122,120 +48,69 @@ export default function LeadListPage() {
         state.auth.employee
     );
 
-  const roleName =
-    getRoleName(
-      loggedInEmployee?.role
-    );
+  const roleName = (() => {
+    const role =
+      loggedInEmployee?.role as unknown;
+
+    if (
+      typeof role === "string"
+    ) {
+      return role;
+    }
+
+    if (
+      role &&
+      typeof role ===
+        "object" &&
+      "name" in role
+    ) {
+      return String(
+        (
+          role as {
+            name: string;
+          }
+        ).name
+      );
+    }
+
+    return "";
+  })();
 
   const isEmployee =
     roleName ===
     "EMPLOYEE";
 
-  const canFilterEmployee =
-    roleName === "ADMIN" ||
-    roleName === "HR" ||
+  const canAssign =
+    roleName ===
+      "ADMIN" ||
+    roleName ===
+      "HR" ||
     roleName ===
       "TEAM_LEADER";
 
-  const canBulkManage =
-    roleName === "ADMIN" ||
-    roleName === "HR" ||
-    roleName ===
-      "TEAM_LEADER";
-
-  const canImport =
-    roleName === "ADMIN" ||
-    roleName === "HR" ||
-    roleName ===
-      "TEAM_LEADER";
-
-  const {
-    leads,
+  const [
     loading,
+    setLoading,
+  ] =
+    useState(true);
+
+  const [
+    saving,
+    setSaving,
+  ] =
+    useState(false);
+
+  const [
     error,
-    total,
-    totalPages,
-  } =
-    useAppSelector(
-      (state) =>
-        state.lead
-    );
-
-  /* ============================
-     FILTER STATE
-  ============================ */
-
-  const [
-    page,
-    setPage,
-  ] =
-    useState(1);
-
-  const [
-    searchInput,
-    setSearchInput,
+    setError,
   ] =
     useState("");
 
   const [
-    search,
-    setSearch,
+    successMessage,
+    setSuccessMessage,
   ] =
     useState("");
-
-  const [
-    status,
-    setStatus,
-  ] =
-    useState("");
-
-  const [
-    source,
-    setSource,
-  ] =
-    useState("");
-
-  const [
-    stage,
-    setStage,
-  ] =
-    useState("");
-
-  const [
-    employeeId,
-    setEmployeeId,
-  ] =
-    useState("");
-
-  const [
-    followUp,
-    setFollowUp,
-  ] =
-    useState("");
-
-  const [
-    smartView,
-    setSmartView,
-  ] =
-    useState<SmartView>(
-      ""
-    );
-
-  const [
-    refreshKey,
-    setRefreshKey,
-  ] =
-    useState(0);
-
-  /* ============================
-     OPTION STATE
-  ============================ */
-
-  const [
-    statuses,
-    setStatuses,
-  ] =
-    useState<any[]>([]);
 
   const [
     sources,
@@ -249,1673 +124,767 @@ export default function LeadListPage() {
   ] =
     useState<any[]>([]);
 
-  /* ============================
-     BULK STATE
-  ============================ */
-
   const [
-    selectedIds,
-    setSelectedIds,
+    form,
+    setForm,
   ] =
-    useState<string[]>(
-      []
-    );
-
-  const [
-    bulkMessage,
-    setBulkMessage,
-  ] =
-    useState("");
+    useState({
+      name: "",
+      mobile: "",
+      email: "",
+      city: "",
+      state: "",
+      address: "",
+      sourceId: "",
+      assignedEmployeeId:
+        "",
+      stage:
+        "NEW" as LeadStage,
+      nextFollowUp: "",
+      remarks: "",
+    });
 
   /* ============================
-     SEARCH DEBOUNCE
+     LOAD DATA
   ============================ */
 
   useEffect(() => {
-    const timer =
-      window.setTimeout(
-        () => {
-          setPage(1);
-
-          setSearch(
-            searchInput.trim()
-          );
-        },
-        400
-      );
-
-    return () => {
-      window.clearTimeout(
-        timer
-      );
-    };
-  }, [
-    searchInput,
-  ]);
-
-  /* ============================
-     LOAD FILTER OPTIONS
-  ============================ */
-
-  useEffect(() => {
-    const loadFilters =
+    const loadData =
       async () => {
-        /* STATUS */
-
-        try {
-          const response =
-            await getLeadStatuses();
-
-          setStatuses(
-            response.leadStatuses ||
-              []
-          );
-        } catch (
-          error
-        ) {
-          console.error(
-            "Lead status error",
-            error
-          );
-
-          setStatuses([]);
-        }
-
-        /* SOURCE */
-
-        try {
-          const response =
-            await getLeadSources();
-
-          setSources(
-            response.leadSources ||
-              []
-          );
-        } catch (
-          error
-        ) {
-          console.error(
-            "Lead source error",
-            error
-          );
-
-          setSources([]);
-        }
-
-        /* EMPLOYEES */
-
-        if (
-          !canFilterEmployee
-        ) {
-          setEmployees([]);
+        if (!id) {
           return;
         }
 
         try {
-          const response =
-            await getEmployees({
-              page: 1,
-              limit: 100,
-            });
+          setLoading(true);
+          setError("");
 
-          setEmployees(
-            response.employees ||
+          const [
+            leadResponse,
+            sourceResponse,
+          ] =
+            await Promise.all([
+              getLeadById(
+                id
+              ),
+
+              getLeadSources(),
+            ]);
+
+          const employeeResponse =
+            canAssign
+              ? await getEmployees({
+                  page: 1,
+                  limit: 100,
+                })
+              : null;
+
+          const lead =
+            leadResponse.lead;
+
+          setSources(
+            sourceResponse
+              .leadSources ||
               []
           );
-        } catch (
-          error
-        ) {
-          console.error(
-            "Employee filter error",
-            error
+
+          setEmployees(
+            employeeResponse
+              ?.employees ||
+              []
           );
 
-          setEmployees([]);
+          setForm({
+            name:
+              lead.name ||
+              "",
+
+            mobile:
+              lead.mobile ||
+              "",
+
+            email:
+              lead.email ||
+              "",
+
+            city:
+              lead.city ||
+              "",
+
+            state:
+              lead.state ||
+              "",
+
+            address:
+              lead.address ||
+              "",
+
+            sourceId:
+              lead.sourceId ||
+              "",
+
+            assignedEmployeeId:
+              lead.assignedEmployeeId ||
+              "",
+
+            stage:
+              lead.stage ||
+              "NEW",
+
+            nextFollowUp:
+              toDateTimeLocal(
+                lead.nextFollowUp
+              ),
+
+            remarks:
+              lead.remarks ||
+              "",
+          });
+        } catch (
+          error: any
+        ) {
+          setError(
+            error?.response
+              ?.data
+              ?.message ||
+              "Failed to load lead"
+          );
+        } finally {
+          setLoading(false);
         }
       };
 
-    loadFilters();
+    loadData();
   }, [
-    canFilterEmployee,
+    id,
+    canAssign,
   ]);
 
   /* ============================
-     FETCH LEADS
+     CHANGE
   ============================ */
 
-  useEffect(() => {
-    dispatch(
-      fetchLeads({
-        page,
-
-        limit: 10,
-
-        search:
-          search ||
-          undefined,
-
-        status:
-          status ||
-          undefined,
-
-        source:
-          source ||
-          undefined,
-
-        stage:
-          stage ||
-          undefined,
-
-        /*
-         * Employee role backend
-         * already restricts own leads.
-         */
-
-        employeeId:
-          canFilterEmployee &&
-          employeeId
-            ? employeeId
-            : undefined,
-
-        followUp:
-          followUp
-            ? (
-                followUp as
-                  | "TODAY"
-                  | "OVERDUE"
-              )
-            : undefined,
-
-        smartView:
-          smartView
-            ? smartView
-            : undefined,
-      })
-    );
-  }, [
-    dispatch,
-    page,
-    search,
-    status,
-    source,
-    stage,
-    employeeId,
-    followUp,
-    smartView,
-    refreshKey,
-    canFilterEmployee,
-  ]);
-
-  /* ============================
-     CLEAR PAGE SELECTION
-  ============================ */
-
-  useEffect(() => {
-    setSelectedIds([]);
-  }, [
-    page,
-    search,
-    status,
-    source,
-    stage,
-    employeeId,
-    followUp,
-    smartView,
-  ]);
-
-  /* ============================
-     CURRENT PAGE STATS
-  ============================ */
-
-  const stats =
-    useMemo(() => {
-      return {
-        newLeads:
-          leads.filter(
-            (lead) =>
-              lead.stage ===
-              "NEW"
-          ).length,
-
-        converted:
-          leads.filter(
-            (lead) =>
-              lead.stage ===
-              "CONVERTED"
-          ).length,
-
-        lost:
-          leads.filter(
-            (lead) =>
-              lead.stage ===
-              "LOST"
-          ).length,
-      };
-    }, [
-      leads,
-    ]);
-
-  /* ============================
-     BULK SELECT
-  ============================ */
-
-  const toggleLead = (
-    id: string
+  const handleChange = (
+    field: keyof typeof form,
+    value: string
   ) => {
-    if (
-      !canBulkManage
-    ) {
-      return;
-    }
-
-    setSelectedIds(
-      (current) =>
-        current.includes(
-          id
-        )
-          ? current.filter(
-              (item) =>
-                item !==
-                id
-            )
-          : [
-              ...current,
-              id,
-            ]
+    setForm(
+      (current) => ({
+        ...current,
+        [field]:
+          value,
+      })
     );
   };
 
-  const selectAllCurrentPage =
-    () => {
-      if (
-        !canBulkManage
-      ) {
-        return;
-      }
-
-      const allSelected =
-        leads.length > 0 &&
-        leads.every(
-          (lead) =>
-            selectedIds.includes(
-              lead.id
-            )
-        );
-
-      if (
-        allSelected
-      ) {
-        setSelectedIds(
-          []
-        );
-
-        return;
-      }
-
-      setSelectedIds(
-        leads.map(
-          (lead) =>
-            lead.id
-        )
-      );
-    };
-
   /* ============================
-     BULK SUCCESS
+     SUBMIT
   ============================ */
 
-  const handleBulkSuccess =
-    (
-      message: string
+  const handleSubmit =
+    async (
+      event:
+        React.FormEvent
     ) => {
-      setBulkMessage(
-        message
-      );
+      event.preventDefault();
 
-      setSelectedIds(
-        []
-      );
+      if (!id) {
+        return;
+      }
 
-      setRefreshKey(
-        (current) =>
-          current + 1
-      );
-    };
-
-  /* ============================
-     RESET FILTERS
-  ============================ */
-
-  const resetFilters =
-    () => {
-      setPage(1);
-
-      setSearchInput(
-        ""
-      );
-
-      setSearch(
-        ""
-      );
-
-      setStatus(
-        ""
-      );
-
-      setSource(
-        ""
-      );
-
-      setStage(
-        ""
-      );
-
-      setEmployeeId(
-        ""
-      );
-
-      setFollowUp(
-        ""
-      );
-
-      setSmartView(
-        ""
-      );
-
-      setSelectedIds(
-        []
-      );
-
-      setBulkMessage(
-        ""
-      );
-    };
-
-  /* ============================
-     QUICK FILTERS
-  ============================ */
-
-  const showMyLeads =
-    () => {
-      setPage(1);
-
-      setFollowUp(
-        ""
-      );
-
-      setSmartView(
-        ""
-      );
-
-      /*
-       * Employee is already scoped
-       * to own leads by backend.
-       */
-
-      if (
-        isEmployee
-      ) {
-        setEmployeeId(
+      try {
+        setSaving(true);
+        setError("");
+        setSuccessMessage(
           ""
         );
 
-        return;
-      }
+        const payload:
+          UpdateLeadRequest =
+          {
+            name:
+              form.name.trim() ||
+              undefined,
 
-      if (
-        loggedInEmployee?.id
-      ) {
-        setEmployeeId(
-          loggedInEmployee.id
+            /*
+             Employee mobile
+             backend + frontend
+             locked.
+            */
+            mobile:
+              isEmployee
+                ? undefined
+                : form.mobile.trim(),
+
+            email:
+              form.email.trim() ||
+              undefined,
+
+            city:
+              form.city.trim() ||
+              undefined,
+
+            state:
+              form.state.trim() ||
+              undefined,
+
+            address:
+              form.address.trim() ||
+              undefined,
+
+            sourceId:
+              form.sourceId ||
+              undefined,
+
+            assignedEmployeeId:
+              canAssign
+                ? form
+                    .assignedEmployeeId ||
+                  undefined
+                : undefined,
+
+            stage:
+              form.stage,
+
+            nextFollowUp:
+              form.nextFollowUp ||
+              undefined,
+
+            remarks:
+              form.remarks.trim() ||
+              undefined,
+          };
+
+        await updateLead(
+          id,
+          payload
         );
+
+        setSuccessMessage(
+          "Lead updated successfully"
+        );
+
+        window.setTimeout(
+          () => {
+            navigate(
+              `/leads/${id}`
+            );
+          },
+          700
+        );
+      } catch (
+        error: any
+      ) {
+        setError(
+          error?.response
+            ?.data
+            ?.message ||
+            "Failed to update lead"
+        );
+      } finally {
+        setSaving(false);
       }
     };
 
-  const showToday =
-    () => {
-      setPage(1);
-
-      setSmartView(
-        ""
-      );
-
-      setFollowUp(
-        "TODAY"
-      );
-    };
-
-  const showOverdue =
-    () => {
-      setPage(1);
-
-      setFollowUp(
-        "OVERDUE"
-      );
-
-      setSmartView(
-        ""
-      );
-    };
-
   /* ============================
-     REFRESH
+     LOADING
   ============================ */
 
-  const handleRefresh =
-    () => {
-      setBulkMessage(
-        ""
-      );
+  if (loading) {
+    return (
+      <div className="flex min-h-100 items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" />
 
-      setRefreshKey(
-        (current) =>
-          current + 1
-      );
-    };
-
-  /* ============================
-     SMART VIEWS
-  ============================ */
-
-  const smartViews: Array<{
-    value: SmartView;
-    label: string;
-  }> = [
-    {
-      value: "",
-      label:
-        "All Leads",
-    },
-
-    {
-      value:
-        "MY_NEW",
-      label:
-        "My New Leads",
-    },
-
-    {
-      value:
-        "HOT",
-      label:
-        "Hot Leads",
-    },
-
-    {
-      value:
-        "OVERDUE",
-      label:
-        "Overdue",
-    },
-
-    ...(
-      !isEmployee
-        ? [
-            {
-              value:
-                "UNASSIGNED" as SmartView,
-
-              label:
-                "Unassigned",
-            },
-          ]
-        : []
-    ),
-
-    {
-      value:
-        "NO_FOLLOW_UP",
-      label:
-        "No Follow-up",
-    },
-
-    {
-      value:
-        "CONVERTED",
-      label:
-        "Converted",
-    },
-
-    {
-      value:
-        "LOST",
-      label:
-        "Lost",
-    },
-  ];
-
-  return (
-    <div className="space-y-5">
-      {/* ============================
-          HEADER
-      ============================ */}
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900">
-              Leads
-            </h1>
-
-            <ChevronDown
-              size={18}
-              className="text-slate-400"
-            />
-          </div>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Manage leads, calling and follow-ups
+          <p className="mt-3 text-sm text-slate-500">
+            Loading lead...
           </p>
         </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={
-              loading
-            }
-            onClick={
-              handleRefresh
-            }
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            <RefreshCw
-              size={16}
-              className={
-                loading
-                  ? "animate-spin"
-                  : ""
-              }
-            />
-
-            Refresh
-          </button>
-
-          {/* Employee can also create lead */}
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                "/leads/create"
-              )
-            }
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            <Plus
-              size={17}
-            />
-
-            New Lead
-          </button>
-
-          {/* Employee cannot import */}
-
-          {canImport && (
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  "/leads/import"
-                )
-              }
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              <Upload
-                size={17}
-              />
-
-              Import
-            </button>
-          )}
-        </div>
       </div>
+    );
+  }
 
-      {/* ============================
-          QUICK CARDS
-      ============================ */}
+  return (
+    <div className="mx-auto max-w-5xl space-y-6">
+      {/* HEADER */}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <QuickCard
-          title="Total Leads"
-          value={
-            total
-          }
-          icon={
-            <Users
-              size={18}
-            />
-          }
-        />
-
-        <QuickCard
-          title="New (This Page)"
-          value={
-            stats.newLeads
-          }
-          icon={
-            <UserPlus
-              size={18}
-            />
-          }
-        />
-
+      <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={
-            showMyLeads
-          }
-          className="text-left"
-        >
-          <QuickCard
-            title="My Leads"
-            value={
-              isEmployee
-                ? total
-                : employeeId ===
-                    loggedInEmployee
-                      ?.id
-                  ? total
-                  : "-"
-            }
-            icon={
-              <UserCheck
-                size={18}
-              />
-            }
-            active={
-              isEmployee ||
-              employeeId ===
-                loggedInEmployee
-                  ?.id
-            }
-          />
-        </button>
-
-        <button
-          type="button"
-          onClick={
-            showToday
-          }
-          className="text-left"
-        >
-          <QuickCard
-            title="Today Follow-ups"
-            value={
-              followUp ===
-              "TODAY"
-                ? total
-                : "-"
-            }
-            icon={
-              <CalendarClock
-                size={18}
-              />
-            }
-            active={
-              followUp ===
-              "TODAY"
-            }
-          />
-        </button>
-
-        <button
-          type="button"
-          onClick={
-            showOverdue
-          }
-          className="text-left"
-        >
-          <QuickCard
-            title="Overdue"
-            value={
-              followUp ===
-              "OVERDUE"
-                ? total
-                : "-"
-            }
-            icon={
-              <XCircle
-                size={18}
-              />
-            }
-            active={
-              followUp ===
-              "OVERDUE"
-            }
-          />
-        </button>
-
-        <QuickCard
-          title="Converted (This Page)"
-          value={
-            stats.converted
-          }
-          icon={
-            <UserCheck
-              size={18}
-            />
-          }
-        />
-      </div>
-
-      {/* ============================
-          SMART VIEWS
-      ============================ */}
-
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex flex-wrap gap-2">
-          {smartViews.map(
-            ({
-              value,
-              label,
-            }) => (
-              <button
-                key={
-                  value ||
-                  "ALL"
-                }
-                type="button"
-                onClick={() => {
-                  setPage(
-                    1
-                  );
-
-                  setSmartView(
-                    value
-                  );
-
-                  setFollowUp(
-                    ""
-                  );
-                }}
-                className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition ${
-                  smartView ===
-                  value
-                    ? "border-blue-600 bg-blue-600 text-white"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                {label}
-              </button>
+          onClick={() =>
+            navigate(
+              id
+                ? `/leads/${id}`
+                : "/leads"
             )
-          )}
-        </div>
-      </section>
-
-      {/* ============================
-          FILTER TOOLBAR
-      ============================ */}
-
-      <section className="rounded-xl border border-slate-200 bg-white">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-          <Filter
-            size={17}
-            className="text-slate-500"
-          />
-
-          <span className="text-sm font-semibold text-slate-700">
-            Filters
-          </span>
-
-          <button
-            type="button"
-            onClick={
-              resetFilters
-            }
-            className="ml-auto text-xs font-medium text-blue-600 hover:text-blue-700"
-          >
-            Clear All
-          </button>
-        </div>
-
-        <div
-          className={`grid gap-3 p-4 md:grid-cols-2 ${
-            canFilterEmployee
-              ? "xl:grid-cols-6"
-              : "xl:grid-cols-5"
-          }`}
+          }
+          className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50"
         >
-          {/* SEARCH */}
+          <ArrowLeft
+            size={19}
+          />
+        </button>
 
-          <div className="relative xl:col-span-2">
-            <Search
-              size={17}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">
+            Edit Lead
+          </h1>
 
+          <p className="mt-1 text-sm text-slate-500">
+            Update lead information
+          </p>
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          {
+            successMessage
+          }
+        </div>
+      )}
+
+      <form
+        onSubmit={
+          handleSubmit
+        }
+        className="rounded-2xl border border-slate-200 bg-white p-6"
+      >
+        <div className="grid gap-5 md:grid-cols-2">
+          <Field label="Name">
             <input
               value={
-                searchInput
+                form.name
               }
-              onChange={(
-                event
-              ) =>
-                setSearchInput(
-                  event.target
+              onChange={(e) =>
+                handleChange(
+                  "name",
+                  e.target
                     .value
                 )
               }
-              placeholder="Search lead, mobile, email..."
-              className={`${inputClass} pl-9`}
-            />
-          </div>
-
-          {/* STATUS */}
-
-          <select
-            value={
-              status
-            }
-            onChange={(
-              event
-            ) => {
-              setPage(
-                1
-              );
-
-              setStatus(
-                event.target
-                  .value
-              );
-            }}
-            className={
-              inputClass
-            }
-          >
-            <option value="">
-              All Status
-            </option>
-
-            {statuses.map(
-              (
-                item
-              ) => (
-                <option
-                  key={
-                    item.id
-                  }
-                  value={
-                    item.name
-                  }
-                >
-                  {
-                    item.name
-                  }
-                </option>
-              )
-            )}
-          </select>
-
-          {/* STAGE */}
-
-          <select
-            value={
-              stage
-            }
-            onChange={(
-              event
-            ) => {
-              setPage(
-                1
-              );
-
-              setStage(
-                event.target
-                  .value
-              );
-            }}
-            className={
-              inputClass
-            }
-          >
-            <option value="">
-              All Stage
-            </option>
-
-            <option value="NEW">
-              New
-            </option>
-
-            <option value="WORKING">
-              Working
-            </option>
-
-            <option value="FOLLOW_UP">
-              Follow Up
-            </option>
-
-            <option value="CONVERTED">
-              Converted
-            </option>
-
-            <option value="LOST">
-              Lost
-            </option>
-          </select>
-
-          {/* SOURCE */}
-
-          <select
-            value={
-              source
-            }
-            onChange={(
-              event
-            ) => {
-              setPage(
-                1
-              );
-
-              setSource(
-                event.target
-                  .value
-              );
-            }}
-            className={
-              inputClass
-            }
-          >
-            <option value="">
-              All Sources
-            </option>
-
-            {sources.map(
-              (
-                item
-              ) => (
-                <option
-                  key={
-                    item.id
-                  }
-                  value={
-                    item.name
-                  }
-                >
-                  {
-                    item.name
-                  }
-                </option>
-              )
-            )}
-          </select>
-
-          {/* EMPLOYEE */}
-
-          {canFilterEmployee && (
-            <select
-              value={
-                employeeId
+              className={
+                inputClass
               }
-              onChange={(
-                event
-              ) => {
-                setPage(
-                  1
-                );
+              placeholder="Client name"
+            />
+          </Field>
 
-                setEmployeeId(
-                  event.target
+          <Field
+            label="Mobile"
+            required
+          >
+            <input
+              value={
+                form.mobile
+              }
+              readOnly={
+                isEmployee
+              }
+              onChange={(e) => {
+                if (
+                  isEmployee
+                ) {
+                  return;
+                }
+
+                handleChange(
+                  "mobile",
+                  e.target
                     .value
                 );
               }}
+              className={
+                isEmployee
+                  ? `${inputClass} cursor-not-allowed bg-slate-100 text-slate-500`
+                  : inputClass
+              }
+              placeholder="Mobile number"
+            />
+
+            {isEmployee && (
+              <p className="mt-1.5 text-xs text-slate-500">
+                Mobile number cannot be changed.
+              </p>
+            )}
+          </Field>
+
+          <Field label="Email">
+            <input
+              type="email"
+              value={
+                form.email
+              }
+              onChange={(e) =>
+                handleChange(
+                  "email",
+                  e.target
+                    .value
+                )
+              }
+              className={
+                inputClass
+              }
+              placeholder="Email"
+            />
+          </Field>
+
+          <Field label="City">
+            <input
+              value={
+                form.city
+              }
+              onChange={(e) =>
+                handleChange(
+                  "city",
+                  e.target
+                    .value
+                )
+              }
+              className={
+                inputClass
+              }
+              placeholder="City"
+            />
+          </Field>
+
+          <Field label="State">
+            <input
+              value={
+                form.state
+              }
+              onChange={(e) =>
+                handleChange(
+                  "state",
+                  e.target
+                    .value
+                )
+              }
+              className={
+                inputClass
+              }
+              placeholder="State"
+            />
+          </Field>
+
+          <Field label="Source">
+            <select
+              value={
+                form.sourceId
+              }
+              onChange={(e) =>
+                handleChange(
+                  "sourceId",
+                  e.target
+                    .value
+                )
+              }
               className={
                 inputClass
               }
             >
               <option value="">
-                All Accessible Employees
+                Select Source
               </option>
 
-              {employees.map(
-                (
-                  item
-                ) => (
+              {sources.map(
+                (source) => (
                   <option
                     key={
-                      item.id
+                      source.id
                     }
                     value={
-                      item.id
+                      source.id
                     }
                   >
                     {
-                      item.name
-                    }
-                    {" - "}
-                    {
-                      item.employeeCode
+                      source.name
                     }
                   </option>
                 )
               )}
             </select>
-          )}
-        </div>
-      </section>
+          </Field>
 
-      {/* ============================
-          BULK MESSAGE
-      ============================ */}
+          <Field label="Stage">
+            <select
+              value={
+                form.stage
+              }
+              onChange={(e) =>
+                handleChange(
+                  "stage",
+                  e.target
+                    .value
+                )
+              }
+              className={
+                inputClass
+              }
+            >
+              <option value="NEW">
+                New
+              </option>
 
-      {bulkMessage && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-          {
-            bulkMessage
-          }
-        </div>
-      )}
+              <option value="WORKING">
+                Working
+              </option>
 
-      {/* ============================
-          BULK ACTION BAR
+              <option value="FOLLOW_UP">
+                Follow Up
+              </option>
 
-          Employee cannot use bulk
-          assignment/status/stage.
-      ============================ */}
+              <option value="CONVERTED">
+                Converted
+              </option>
 
-      {canBulkManage && (
-        <LeadBulkActionBar
-          selectedIds={
-            selectedIds
-          }
-          employees={
-            employees
-          }
-          statuses={
-            statuses
-          }
-          onClear={() =>
-            setSelectedIds(
-              []
-            )
-          }
-          onSuccess={
-            handleBulkSuccess
-          }
-        />
-      )}
+              <option value="LOST">
+                Lost
+              </option>
+            </select>
+          </Field>
 
-      {/* ============================
-          TABLE
-      ============================ */}
+          <Field label="Next Follow-up">
+            <input
+              type="datetime-local"
+              value={
+                form.nextFollowUp
+              }
+              onChange={(e) =>
+                handleChange(
+                  "nextFollowUp",
+                  e.target
+                    .value
+                )
+              }
+              className={
+                inputClass
+              }
+            />
+          </Field>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        {loading ? (
-          <div className="p-12 text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+          {canAssign ? (
+            <Field label="Assigned Employee">
+              <select
+                value={
+                  form.assignedEmployeeId
+                }
+                onChange={(e) =>
+                  handleChange(
+                    "assignedEmployeeId",
+                    e.target
+                      .value
+                  )
+                }
+                className={
+                  inputClass
+                }
+              >
+                <option value="">
+                  Unassigned
+                </option>
 
-            <p className="mt-3 text-sm text-slate-500">
-              Loading leads...
-            </p>
-          </div>
-        ) : error ? (
-          <div className="p-6 text-sm text-red-600">
-            {error}
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50">
-                  <tr>
-                    {canBulkManage && (
-                      <th className="w-12 px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={
-                            leads.length >
-                              0 &&
-                            leads.every(
-                              (
-                                lead
-                              ) =>
-                                selectedIds.includes(
-                                  lead.id
-                                )
-                            )
-                          }
-                          onChange={
-                            selectAllCurrentPage
-                          }
-                          className="h-4 w-4 rounded border-slate-300"
-                        />
-                      </th>
-                    )}
-
-                    <TableHead>
-                      Lead
-                    </TableHead>
-
-                    <TableHead>
-                      Contact
-                    </TableHead>
-
-                    <TableHead>
-                      Status
-                    </TableHead>
-
-                    <TableHead>
-                      Stage
-                    </TableHead>
-
-                    <TableHead>
-                      Priority
-                    </TableHead>
-
-                    <TableHead>
-                      Assigned To
-                    </TableHead>
-
-                    <TableHead>
-                      Source
-                    </TableHead>
-
-                    <TableHead>
-                      Next Follow-up
-                    </TableHead>
-
-                    <TableHead>
-                      Last Call
-                    </TableHead>
-
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {leads.map(
-                    (
-                      lead
-                    ) => (
-                      <tr
-                        key={
-                          lead.id
-                        }
-                        className={`border-t border-slate-100 hover:bg-blue-50/30 ${
-                          selectedIds.includes(
-                            lead.id
-                          )
-                            ? "bg-blue-50/50"
-                            : ""
-                        }`}
-                      >
-                        {/* SELECT */}
-
-                        {canBulkManage && (
-                          <td className="w-12 px-4 py-3">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.includes(
-                                lead.id
-                              )}
-                              onChange={() =>
-                                toggleLead(
-                                  lead.id
-                                )
-                              }
-                              className="h-4 w-4 rounded border-slate-300"
-                            />
-                          </td>
-                        )}
-
-                        {/* LEAD */}
-
-                        <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              navigate(
-                                `/leads/${lead.id}`
-                              )
-                            }
-                            className="text-left"
-                          >
-                            <p className="text-sm font-semibold text-blue-600 hover:underline">
-                              {lead.name ||
-                                "Unnamed Lead"}
-                            </p>
-
-                            <p className="mt-0.5 text-xs text-slate-400">
-                              {
-                                lead.leadCode
-                              }
-                            </p>
-                          </button>
-                        </td>
-
-                        {/* CONTACT */}
-
-                        <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-slate-700">
-                            {
-                              lead.mobile
-                            }
-                          </p>
-
-                          <p className="mt-0.5 max-w-45 truncate text-xs text-slate-400">
-                            {lead.email ||
-                              "-"}
-                          </p>
-                        </td>
-
-                        {/* STATUS */}
-
-                        <td className="px-4 py-3">
-                          <StatusBadge
-                            name={
-                              lead.status
-                                ?.name ||
-                              "-"
-                            }
-                            color={
-                              lead.status
-                                ?.color
-                            }
-                          />
-                        </td>
-
-                        {/* STAGE */}
-
-                        <td className="px-4 py-3">
-                          <StageBadge
-                            stage={
-                              lead.stage
-                            }
-                          />
-                        </td>
-
-                        {/* PRIORITY */}
-
-                        <td className="px-4 py-3">
-                          <LeadAgingBadge
-                            aging={
-                              lead.aging
-                            }
-                          />
-                        </td>
-
-                        {/* ASSIGNED */}
-
-                        <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-slate-700">
-                            {lead
-                              .assignedEmployee
-                              ?.name ||
-                              "Unassigned"}
-                          </p>
-
-                          <p className="text-xs text-slate-400">
-                            {lead
-                              .assignedEmployee
-                              ?.employeeCode ||
-                              ""}
-                          </p>
-                        </td>
-
-                        {/* SOURCE */}
-
-                        <td className="px-4 py-3 text-sm text-slate-600">
-                          {lead.source
-                            ?.name ||
-                            "-"}
-                        </td>
-
-                        {/* FOLLOW-UP */}
-
-                        <td className="px-4 py-3">
-                          {lead.nextFollowUp ? (
-                            <div>
-                              <p className="text-sm font-medium text-slate-700">
-                                {formatDate(
-                                  lead.nextFollowUp
-                                )}
-                              </p>
-
-                              <p className="text-xs text-slate-400">
-                                {formatTime(
-                                  lead.nextFollowUp
-                                )}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-slate-400">
-                              -
-                            </span>
-                          )}
-                        </td>
-
-                        {/* LAST CALL */}
-
-                        <td className="px-4 py-3">
-                          {lead.lastCallAt ? (
-                            <div>
-                              <p className="text-sm text-slate-700">
-                                {formatDate(
-                                  lead.lastCallAt
-                                )}
-                              </p>
-
-                              <p className="text-xs text-slate-400">
-                                {formatTime(
-                                  lead.lastCallAt
-                                )}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-slate-400">
-                              Never
-                            </span>
-                          )}
-                        </td>
-
-                        {/* ACTIONS */}
-
-                        <td className="px-4 py-3">
-                          <div className="flex justify-end gap-2">
-                            <a
-                              href={`tel:${lead.mobile}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-emerald-600 hover:bg-emerald-50"
-                              title="Call"
-                            >
-                              <Phone
-                                size={15}
-                              />
-                            </a>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                navigate(
-                                  `/leads/${lead.id}`
-                                )
-                              }
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-blue-600 hover:bg-blue-50"
-                              title="View"
-                            >
-                              <Eye
-                                size={15}
-                              />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* EMPTY */}
-
-            {leads.length ===
-              0 && (
-              <div className="p-12 text-center">
-                <Users
-                  size={36}
-                  className="mx-auto text-slate-300"
-                />
-
-                <p className="mt-3 text-sm font-medium text-slate-600">
-                  No leads found
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Change filters or create a new lead.
-                </p>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ============================
-            PAGINATION
-        ============================ */}
-
-        {!loading &&
-          !error &&
-          totalPages > 0 && (
-            <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-slate-500">
-                Showing page{" "}
-                {page} of{" "}
-                {totalPages} •{" "}
-                {total} records
+                {employees.map(
+                  (
+                    employee
+                  ) => (
+                    <option
+                      key={
+                        employee.id
+                      }
+                      value={
+                        employee.id
+                      }
+                    >
+                      {
+                        employee.name
+                      }
+                      {" - "}
+                      {
+                        employee.employeeCode
+                      }
+                    </option>
+                  )
+                )}
+              </select>
+            </Field>
+          ) : (
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-blue-600">
+                Assigned Employee
               </p>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={
-                    page <= 1
-                  }
-                  onClick={() =>
-                    setPage(
-                      (
-                        current
-                      ) =>
-                        Math.max(
-                          current -
-                            1,
-                          1
-                        )
-                    )
-                  }
-                  className="rounded-lg border border-slate-200 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  Previous
-                </button>
+              <p className="mt-2 font-semibold text-blue-900">
+                {loggedInEmployee?.name ||
+                  "Self"}
+              </p>
 
-                <button
-                  type="button"
-                  disabled={
-                    page >=
-                    totalPages
-                  }
-                  onClick={() =>
-                    setPage(
-                      (
-                        current
-                      ) =>
-                        Math.min(
-                          current +
-                            1,
-                          totalPages
-                        )
-                    )
-                  }
-                  className="rounded-lg border border-slate-200 px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                >
-                  Next
-                </button>
-              </div>
+              <p className="mt-1 text-xs text-blue-600">
+                Assignment cannot be changed.
+              </p>
             </div>
           )}
-      </div>
+
+          <div className="md:col-span-2">
+            <Field label="Address">
+              <textarea
+                rows={3}
+                value={
+                  form.address
+                }
+                onChange={(e) =>
+                  handleChange(
+                    "address",
+                    e.target
+                      .value
+                  )
+                }
+                className={
+                  inputClass
+                }
+                placeholder="Address"
+              />
+            </Field>
+          </div>
+
+          <div className="md:col-span-2">
+            <Field label="Remarks">
+              <textarea
+                rows={4}
+                value={
+                  form.remarks
+                }
+                onChange={(e) =>
+                  handleChange(
+                    "remarks",
+                    e.target
+                      .value
+                  )
+                }
+                className={
+                  inputClass
+                }
+                placeholder="Lead remarks"
+              />
+            </Field>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-5">
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                id
+                  ? `/leads/${id}`
+                  : "/leads"
+              )
+            }
+            className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            disabled={
+              saving
+            }
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+          >
+            <Save
+              size={17}
+            />
+
+            {saving
+              ? "Saving..."
+              : "Save Changes"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
 
 /* ============================
-   STYLES
+   FIELD
 ============================ */
 
-const inputClass =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100";
-
-/* ============================
-   QUICK CARD
-============================ */
-
-function QuickCard({
-  title,
-  value,
-  icon,
-  active = false,
-}: {
-  title: string;
-
-  value:
-    | number
-    | string;
-
-  icon:
-    ReactNode;
-
-  active?: boolean;
-}) {
-  return (
-    <div
-      className={`h-full rounded-xl border p-4 transition ${
-        active
-          ? "border-blue-300 bg-blue-50"
-          : "border-slate-200 bg-white hover:border-slate-300"
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-xs font-medium text-slate-500">
-            {title}
-          </p>
-
-          <p className="mt-2 text-2xl font-bold text-slate-900">
-            {value}
-          </p>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 p-2.5 text-blue-600">
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ============================
-   TABLE HEAD
-============================ */
-
-function TableHead({
+function Field({
+  label,
+  required = false,
   children,
 }: {
+  label: string;
+  required?: boolean;
   children:
-    ReactNode;
+    React.ReactNode;
 }) {
   return (
-    <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-slate-700">
+        {label}
+
+        {required && (
+          <span className="ml-1 text-red-500">
+            *
+          </span>
+        )}
+      </span>
+
       {children}
-    </th>
+    </label>
   );
 }
 
+const inputClass =
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+
 /* ============================
-   STATUS BADGE
+   DATETIME
 ============================ */
 
-function StatusBadge({
-  name,
-  color,
-}: {
-  name: string;
-
-  color?:
+function toDateTimeLocal(
+  value?:
     | string
-    | null;
-}) {
-  return (
-    <span
-      className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
-      style={{
-        backgroundColor:
-          color
-            ? `${color}18`
-            : "#f1f5f9",
-
-        color:
-          color ||
-          "#475569",
-      }}
-    >
-      {name}
-    </span>
-  );
-}
-
-/* ============================
-   STAGE BADGE
-============================ */
-
-function StageBadge({
-  stage,
-}: {
-  stage: string;
-}) {
-  const styles: Record<
-    string,
-    string
-  > = {
-    NEW:
-      "bg-blue-50 text-blue-700",
-
-    WORKING:
-      "bg-cyan-50 text-cyan-700",
-
-    FOLLOW_UP:
-      "bg-amber-50 text-amber-700",
-
-    CONVERTED:
-      "bg-emerald-50 text-emerald-700",
-
-    LOST:
-      "bg-red-50 text-red-700",
-  };
-
-  return (
-    <span
-      className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium ${
-        styles[
-          stage
-        ] ||
-        "bg-slate-100 text-slate-700"
-      }`}
-    >
-      {stage.replace(
-        /_/g,
-        " "
-      )}
-    </span>
-  );
-}
-
-/* ============================
-   DATE
-============================ */
-
-function formatDate(
-  value: string
+    | null
 ) {
-  return new Date(
-    value
-  ).toLocaleDateString(
-    "en-IN",
-    {
-      day: "2-digit",
-      month: "short",
-    }
-  );
-}
+  if (!value) {
+    return "";
+  }
 
-function formatTime(
-  value: string
-) {
-  return new Date(
-    value
-  ).toLocaleTimeString(
-    "en-IN",
-    {
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  );
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  const pad = (
+    number: number
+  ) =>
+    String(number).padStart(
+      2,
+      "0"
+    );
+
+  return `${date.getFullYear()}-${pad(
+    date.getMonth() + 1
+  )}-${pad(
+    date.getDate()
+  )}T${pad(
+    date.getHours()
+  )}:${pad(
+    date.getMinutes()
+  )}`;
 }

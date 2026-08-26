@@ -526,51 +526,85 @@ if (
   ============================ */
 
   const lead =
-    await prisma.lead.create({
-      data: {
-        leadCode,
+  await prisma.$transaction(
+    async (tx) => {
+      const createdLead =
+        await tx.lead.create({
+          data: {
+            leadCode,
 
-        name,
+            name,
 
-        mobile,
+            mobile,
 
-        email,
+            email,
 
-        city,
+            city,
 
-        state,
+            state,
 
-        address,
+            address,
 
-        sourceId:
-          data.sourceId ||
-          undefined,
+            sourceId:
+              data.sourceId ||
+              undefined,
 
-        remarks,
+            remarks,
 
-        assignedEmployeeId,
+            assignedEmployeeId,
 
-        statusId:
-          defaultStatus.id,
-      },
-
-      include: {
-        status: true,
-
-        source: true,
-
-        assignedEmployee: {
-          select: {
-            id: true,
-
-            employeeCode:
-              true,
-
-            name: true,
+            statusId:
+              defaultStatus.id,
           },
-        },
-      },
-    });
+
+          include: {
+            status: true,
+
+            source: true,
+
+            assignedEmployee: {
+              select: {
+                id: true,
+
+                employeeCode:
+                  true,
+
+                name: true,
+              },
+            },
+          },
+        });
+
+      /* ============================
+         INITIAL ASSIGNMENT HISTORY
+      ============================ */
+
+      if (
+        assignedEmployeeId
+      ) {
+        await tx.leadAssignmentHistory.create({
+          data: {
+            leadId:
+              createdLead.id,
+
+            fromEmployeeId:
+              null,
+
+            toEmployeeId:
+              assignedEmployeeId,
+
+            reason:
+              roleName ===
+              "EMPLOYEE"
+                ? "Lead created by employee"
+                : "Initial lead assignment",
+          },
+        });
+      }
+
+      return createdLead;
+    }
+  );
 
   return {
     success: true,
@@ -663,12 +697,23 @@ export const getLeads = async (
   /* ============================
      EMPLOYEE FILTER
   ============================ */
+const roleName =
+  getRoleName(
+    currentEmployee
+  );
 
-  if (query.employeeId) {
-    where.assignedEmployeeId =
-      query.employeeId;
-  }
+const canFilterEmployee =
+  roleName === "ADMIN" ||
+  roleName === "HR" ||
+  roleName === "TEAM_LEADER";
 
+if (
+  canFilterEmployee &&
+  query.employeeId
+) {
+  where.employeeId =
+    query.employeeId;
+}
   /* ============================
      SOURCE FILTER
   ============================ */
@@ -1553,7 +1598,7 @@ await checkLeadAccess(
           },
         },
         remarks: data.remarks,
-        lastCallAt: new Date(),
+        
       },
       include: {
         status: true,
@@ -3043,10 +3088,73 @@ export const getLeadPipeline = async (
      EMPLOYEE FILTER
   ============================ */
 
-  if (employeeId) {
-    where.assignedEmployeeId =
-      employeeId;
+/* ============================
+   EMPLOYEE FILTER
+============================ */
+
+if (employeeId) {
+  const roleName =
+    getRoleName(
+      currentEmployee
+    );
+
+  if (
+    roleName ===
+    "EMPLOYEE"
+  ) {
+    if (
+      employeeId !==
+      currentEmployee.id
+    ) {
+      throw new Error(
+        "Pipeline Access Denied"
+      );
+    }
   }
+
+  if (
+    roleName ===
+    "TEAM_LEADER"
+  ) {
+    const allowedEmployee =
+      await prisma.employee.findFirst({
+        where: {
+          id:
+            employeeId,
+
+          OR: [
+            {
+              id:
+                currentEmployee.id,
+            },
+
+            {
+              reportingManagerId:
+                currentEmployee.id,
+            },
+          ],
+
+          isActive:
+            true,
+        },
+
+        select: {
+          id: true,
+        },
+      });
+
+    if (
+      !allowedEmployee
+    ) {
+      throw new Error(
+        "Pipeline Access Denied"
+      );
+    }
+  }
+
+  where.assignedEmployeeId =
+    employeeId;
+}
 
   /* ============================
      SEARCH
@@ -3355,7 +3463,8 @@ export const bulkAssignLeads = async (
     leadIds: string[];
     employeeId: string;
     reason?: string;
-  }
+  },
+  currentEmployee: any
 ) => {
   if (
     !data.leadIds ||
@@ -3366,14 +3475,36 @@ export const bulkAssignLeads = async (
     );
   }
 
+  const roleName =
+    getRoleName(
+      currentEmployee
+    );
+
+  if (
+    roleName !== "ADMIN" &&
+    roleName !== "HR" &&
+    roleName !== "TEAM_LEADER"
+  ) {
+    throw new Error(
+      "Bulk lead assignment access denied"
+    );
+  }
+
   const uniqueLeadIds = [
-    ...new Set(data.leadIds),
+    ...new Set(
+      data.leadIds
+    ),
   ];
+
+  /* ============================
+     TARGET EMPLOYEE
+  ============================ */
 
   const employee =
     await prisma.employee.findUnique({
       where: {
-        id: data.employeeId,
+        id:
+          data.employeeId,
       },
 
       select: {
@@ -3381,6 +3512,8 @@ export const bulkAssignLeads = async (
         employeeCode: true,
         name: true,
         isActive: true,
+        reportingManagerId:
+          true,
       },
     });
 
@@ -3396,26 +3529,76 @@ export const bulkAssignLeads = async (
     );
   }
 
+  /* ============================
+     TL TARGET RESTRICTION
+  ============================ */
+
+  if (
+    roleName ===
+    "TEAM_LEADER"
+  ) {
+    const isSelf =
+      employee.id ===
+      currentEmployee.id;
+
+    const isTeamMember =
+      employee.reportingManagerId ===
+      currentEmployee.id;
+
+    if (
+      !isSelf &&
+      !isTeamMember
+    ) {
+      throw new Error(
+        "Team Leader can assign leads only to self or own team"
+      );
+    }
+  }
+
+  /* ============================
+     LEAD ACCESS
+  ============================ */
+
+  const accessWhere =
+    await getLeadAccessWhere(
+      currentEmployee
+    );
+
   const leads =
     await prisma.lead.findMany({
       where: {
-        id: {
-          in: uniqueLeadIds,
-        },
+        AND: [
+          accessWhere,
+
+          {
+            id: {
+              in:
+                uniqueLeadIds,
+            },
+          },
+        ],
       },
 
       select: {
         id: true,
-        assignedEmployeeId: true,
+        assignedEmployeeId:
+          true,
       },
     });
+
+  /*
+   * Important:
+   * If even one requested lead
+   * is outside current user's
+   * access, reject whole request.
+   */
 
   if (
     leads.length !==
     uniqueLeadIds.length
   ) {
     throw new Error(
-      "One or more selected leads were not found"
+      "One or more selected leads are not accessible"
     );
   }
 
@@ -3434,6 +3617,10 @@ export const bulkAssignLeads = async (
     );
   }
 
+  /* ============================
+     ASSIGN + HISTORY
+  ============================ */
+
   await prisma.$transaction(
     async (tx) => {
       for (
@@ -3442,7 +3629,8 @@ export const bulkAssignLeads = async (
       ) {
         await tx.lead.update({
           where: {
-            id: lead.id,
+            id:
+              lead.id,
           },
 
           data: {
@@ -3463,7 +3651,7 @@ export const bulkAssignLeads = async (
               data.employeeId,
 
             reason:
-              data.reason ||
+              data.reason?.trim() ||
               "Bulk assignment",
           },
         });
@@ -3474,7 +3662,8 @@ export const bulkAssignLeads = async (
   return {
     success: true,
 
-    message: `${changedLeads.length} leads assigned successfully`,
+    message:
+      `${changedLeads.length} leads assigned successfully`,
 
     updated:
       changedLeads.length,
@@ -3502,7 +3691,10 @@ export const bulkChangeLeadStage =
 
       remarks?: string;
     },
-    employeeId: string
+    employeeId: string,
+
+        currentEmployee: any
+
   ) => {
     if (
       !data.leadIds ||
@@ -3519,28 +3711,53 @@ export const bulkChangeLeadStage =
       ),
     ];
 
-    const leads =
-      await prisma.lead.findMany({
-        where: {
+    const roleName =
+  getRoleName(
+    currentEmployee
+  );
+
+if (
+  roleName !== "ADMIN" &&
+  roleName !== "HR" &&
+  roleName !== "TEAM_LEADER"
+) {
+  throw new Error(
+    "Bulk stage update access denied"
+  );
+}
+
+const accessWhere =
+  await getLeadAccessWhere(
+    currentEmployee
+  );
+ const leads =
+  await prisma.lead.findMany({
+    where: {
+      AND: [
+        accessWhere,
+
+        {
           id: {
-            in: uniqueLeadIds,
+            in:
+              uniqueLeadIds,
           },
         },
+      ],
+    },
 
-        select: {
-          id: true,
-          stage: true,
-        },
-      });
-
-    if (
-      leads.length !==
-      uniqueLeadIds.length
-    ) {
-      throw new Error(
-        "One or more selected leads were not found"
-      );
-    }
+    select: {
+      id: true,
+      stage: true,
+    },
+  });
+if (
+  leads.length !==
+  uniqueLeadIds.length
+) {
+  throw new Error(
+    "One or more selected leads are not accessible"
+  );
+}
 
     const changedLeads =
       leads.filter(
@@ -3619,7 +3836,10 @@ export const bulkChangeLeadStatus =
       statusId: string;
       remarks?: string;
     },
-    employeeId: string
+    employeeId: string,
+        currentEmployee: any
+
+
   ) => {
     if (
       !data.leadIds ||
@@ -3636,6 +3856,26 @@ export const bulkChangeLeadStatus =
       ),
     ];
 
+    const roleName =
+  getRoleName(
+    currentEmployee
+  );
+
+if (
+  roleName !== "ADMIN" &&
+  roleName !== "HR" &&
+  roleName !== "TEAM_LEADER"
+) {
+  throw new Error(
+    "Bulk status update access denied"
+  );
+}
+
+const accessWhere =
+  await getLeadAccessWhere(
+    currentEmployee
+  );
+
     const status =
       await prisma.leadStatus.findUnique({
         where: {
@@ -3649,28 +3889,35 @@ export const bulkChangeLeadStatus =
       );
     }
 
-    const leads =
-      await prisma.lead.findMany({
-        where: {
+   const leads =
+  await prisma.lead.findMany({
+    where: {
+      AND: [
+        accessWhere,
+
+        {
           id: {
-            in: uniqueLeadIds,
+            in:
+              uniqueLeadIds,
           },
         },
+      ],
+    },
 
-        select: {
-          id: true,
-          statusId: true,
-        },
-      });
+    select: {
+      id: true,
+      statusId: true,
+    },
+  });
 
-    if (
-      leads.length !==
-      uniqueLeadIds.length
-    ) {
-      throw new Error(
-        "One or more selected leads were not found"
-      );
-    }
+   if (
+  leads.length !==
+  uniqueLeadIds.length
+) {
+  throw new Error(
+    "One or more selected leads are not accessible"
+  );
+}
 
     const changedLeads =
       leads.filter(

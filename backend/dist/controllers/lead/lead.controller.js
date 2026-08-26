@@ -498,7 +498,14 @@ exports.changeLeadStatus = changeLeadStatus;
 ============================ */
 const bulkAssignLeads = async (req, res) => {
     try {
-        const result = await leadService.bulkAssignLeads(req.body);
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const result = await leadService.bulkAssignLeads(req.body, req.employee);
         res
             .status(200)
             .json(result);
@@ -508,7 +515,8 @@ const bulkAssignLeads = async (req, res) => {
             .status(400)
             .json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Bulk Lead Assignment Failed",
         });
     }
 };
@@ -525,7 +533,7 @@ const bulkChangeLeadStage = async (req, res) => {
             });
             return;
         }
-        const result = await leadService.bulkChangeLeadStage(req.body, req.employee.id);
+        const result = await leadService.bulkChangeLeadStage(req.body, req.employee.id, req.employee);
         res
             .status(200)
             .json(result);
@@ -552,7 +560,7 @@ const bulkChangeLeadStatus = async (req, res) => {
             });
             return;
         }
-        const result = await leadService.bulkChangeLeadStatus(req.body, req.employee.id);
+        const result = await leadService.bulkChangeLeadStatus(req.body, req.employee.id, req.employee);
         res
             .status(200)
             .json(result);

@@ -46,11 +46,6 @@ router.put(
   clientController.updateClient
 );
 
-router.post(
-  "/convert/:id",
-  authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
-  clientController.convertLeadToClient
-);
+
 
 export default router;

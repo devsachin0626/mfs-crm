@@ -44,5 +44,4 @@ router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)
 router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), clientController.getClientById);
 router.post("/convert/:leadId", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), clientController.convertLeadToClient);
 router.put("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), clientController.updateClient);
-router.post("/convert/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), clientController.convertLeadToClient);
 exports.default = router;

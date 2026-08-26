@@ -7,6 +7,10 @@ import type {
   ConvertLeadToClientRequest,
 } from "../../types/client.types";
 
+import {
+  checkLeadAccess,
+} from "../../utils/leadAccess";
+
 /* ============================
    CREATE CLIENT
 ============================ */
@@ -379,8 +383,19 @@ export const convertLeadToClient =
   async (
     leadId: string,
     employeeId: string,
-    data: ConvertLeadToClientRequest
+    data: ConvertLeadToClientRequest,
+    currentEmployee: any
   ) => {
+/* ============================
+   LEAD ACCESS
+============================ */
+
+await checkLeadAccess(
+  leadId,
+  currentEmployee
+);
+
+
     /* ============================
        LEAD CHECK
     ============================ */
@@ -414,6 +429,14 @@ export const convertLeadToClient =
         "Lead Already Converted"
       );
     }
+
+    if (
+  lead.stage === "LOST"
+) {
+  throw new Error(
+    "Lost lead cannot be converted to client"
+  );
+}
 
     /* ============================
        NAME VALIDATION
@@ -550,6 +573,26 @@ export const convertLeadToClient =
                   true,
               },
             });
+
+
+            /* ============================
+   CLOSE PENDING FOLLOW-UPS
+============================ */
+
+await tx.followUp.updateMany({
+  where: {
+    leadId:
+      lead.id,
+
+    isCompleted:
+      false,
+  },
+
+  data: {
+    isCompleted:
+      true,
+  },
+});
 
           /* ============================
              UPDATE LEAD

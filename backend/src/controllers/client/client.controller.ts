@@ -154,11 +154,12 @@ export const convertLeadToClient =
       }
 
       const result =
-        await clientService.convertLeadToClient(
-          leadId as string,
-          employeeId,
-          req.body
-        );
+    await clientService.convertLeadToClient(
+  leadId as string,
+  employeeId,
+  req.body,
+  (req as any).employee
+);
 
       res
         .status(201)

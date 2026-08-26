@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.convertLeadToClient = exports.updateClient = exports.getClientById = exports.getClients = exports.createClient = void 0;
 const prisma_1 = __importDefault(require("../../config/prisma"));
+const leadAccess_1 = require("../../utils/leadAccess");
 /* ============================
    CREATE CLIENT
 ============================ */
@@ -240,7 +241,11 @@ exports.updateClient = updateClient;
 /* ============================
    CONVERT LEAD TO CLIENT
 ============================ */
-const convertLeadToClient = async (leadId, employeeId, data) => {
+const convertLeadToClient = async (leadId, employeeId, data, currentEmployee) => {
+    /* ============================
+       LEAD ACCESS
+    ============================ */
+    await (0, leadAccess_1.checkLeadAccess)(leadId, currentEmployee);
     /* ============================
        LEAD CHECK
     ============================ */
@@ -261,6 +266,9 @@ const convertLeadToClient = async (leadId, employeeId, data) => {
     if (lead.isConverted ||
         lead.client) {
         throw new Error("Lead Already Converted");
+    }
+    if (lead.stage === "LOST") {
+        throw new Error("Lost lead cannot be converted to client");
     }
     /* ============================
        NAME VALIDATION
@@ -332,6 +340,18 @@ const convertLeadToClient = async (leadId, employeeId, data) => {
                 panNumber: data.panNumber,
                 aadhaarNumber: data.aadhaarNumber,
                 isActive: true,
+            },
+        });
+        /* ============================
+CLOSE PENDING FOLLOW-UPS
+============================ */
+        await tx.followUp.updateMany({
+            where: {
+                leadId: lead.id,
+                isCompleted: false,
+            },
+            data: {
+                isCompleted: true,
             },
         });
         /* ============================

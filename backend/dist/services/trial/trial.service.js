@@ -18,6 +18,8 @@ const getRoleName = (currentEmployee) => {
 };
 /* ============================
    MANAGE TRIAL
+
+   Extend / Complete
 ============================ */
 const canManageTrials = (currentEmployee) => {
     const roleName = getRoleName(currentEmployee);
@@ -27,22 +29,28 @@ const canManageTrials = (currentEmployee) => {
 };
 /* ============================
    ALLOWED EMPLOYEE IDS
+
+   ADMIN / HR
+   -> all
+
+   TEAM LEADER
+   -> self + direct team
+
+   EMPLOYEE
+   -> self
 ============================ */
 const getAllowedEmployeeIds = async (currentEmployee) => {
     const roleName = getRoleName(currentEmployee);
-    /* ADMIN / HR */
     if (roleName === "ADMIN" ||
         roleName === "HR") {
         return null;
     }
-    /* EMPLOYEE */
     if (roleName ===
         "EMPLOYEE") {
         return [
             currentEmployee.id,
         ];
     }
-    /* TEAM LEADER */
     if (roleName ===
         "TEAM_LEADER") {
         const teamMembers = await prisma_1.default.employee.findMany({
@@ -66,6 +74,9 @@ const getAllowedEmployeeIds = async (currentEmployee) => {
 ============================ */
 const checkTrialAccess = async (employeeId, currentEmployee) => {
     const allowedIds = await getAllowedEmployeeIds(currentEmployee);
+    /*
+     * ADMIN / HR
+     */
     if (allowedIds === null) {
         return;
     }
@@ -74,6 +85,29 @@ const checkTrialAccess = async (employeeId, currentEmployee) => {
     }
     if (!allowedIds.includes(employeeId)) {
         throw new Error("Trial Access Denied");
+    }
+};
+/* ============================
+   CHECK LEAD ACCESS
+============================ */
+const checkLeadAccess = async (assignedEmployeeId, currentEmployee) => {
+    const allowedIds = await getAllowedEmployeeIds(currentEmployee);
+    /*
+     * ADMIN / HR
+     */
+    if (allowedIds === null) {
+        return;
+    }
+    /*
+     * Employee / TL cannot
+     * start trial on an
+     * unassigned lead.
+     */
+    if (!assignedEmployeeId) {
+        throw new Error("Lead Is Not Assigned To Any Employee");
+    }
+    if (!allowedIds.includes(assignedEmployeeId)) {
+        throw new Error("Lead Access Denied");
     }
 };
 /* ============================
@@ -90,12 +124,11 @@ const validateTrialDays = (trialDays) => {
    EXPIRE OLD TRIALS
 ============================ */
 const expireOldTrials = async () => {
-    const now = new Date();
     await prisma_1.default.trial.updateMany({
         where: {
             status: "ACTIVE",
             endDate: {
-                lt: now,
+                lt: new Date(),
             },
         },
         data: {
@@ -137,27 +170,176 @@ const startTrial = async (data, currentEmployee) => {
     ].includes(roleName)) {
         throw new Error("Trial Creation Access Denied");
     }
-    validateTrialDays(Number(data.trialDays));
+    /* ============================
+       BASIC VALIDATION
+    ============================ */
+    if (!data.leadId &&
+        !data.clientId) {
+        throw new Error("Lead Or Client Is Required");
+    }
+    if (!data.productId) {
+        throw new Error("Product Is Required");
+    }
+    const trialDays = Number(data.trialDays);
+    validateTrialDays(trialDays);
+    await expireOldTrials();
+    /* ============================
+       LEAD
+
+       Normal flow:
+       Lead -> Demo -> Client
+    ============================ */
+    let lead = null;
+    if (data.leadId) {
+        lead =
+            await prisma_1.default.lead.findUnique({
+                where: {
+                    id: data.leadId,
+                },
+                select: {
+                    id: true,
+                    leadCode: true,
+                    name: true,
+                    mobile: true,
+                    email: true,
+                    stage: true,
+                    isConverted: true,
+                    assignedEmployeeId: true,
+                    client: {
+                        select: {
+                            id: true,
+                            clientCode: true,
+                            isActive: true,
+                        },
+                    },
+                },
+            });
+        if (!lead) {
+            throw new Error("Lead Not Found");
+        }
+        if (lead.stage ===
+            "LOST") {
+            throw new Error("Lost Lead Cannot Start Trial");
+        }
+        await checkLeadAccess(lead.assignedEmployeeId, currentEmployee);
+    }
     /* ============================
        CLIENT
+
+       Existing clients can also
+       receive another product demo.
+
+       If client originated from
+       a lead, preserve that lead
+       relation automatically.
     ============================ */
-    const client = await prisma_1.default.client.findUnique({
-        where: {
-            id: data.clientId,
-        },
-        select: {
-            id: true,
-            clientCode: true,
-            name: true,
-            mobile: true,
-            isActive: true,
-        },
-    });
-    if (!client) {
-        throw new Error("Client Not Found");
+    let client = null;
+    if (data.clientId) {
+        client =
+            await prisma_1.default.client.findUnique({
+                where: {
+                    id: data.clientId,
+                },
+                select: {
+                    id: true,
+                    clientCode: true,
+                    name: true,
+                    mobile: true,
+                    email: true,
+                    isActive: true,
+                    leadId: true,
+                },
+            });
+        if (!client) {
+            throw new Error("Client Not Found");
+        }
+        if (!client.isActive) {
+            throw new Error("Inactive Client Cannot Start Trial");
+        }
     }
-    if (!client.isActive) {
-        throw new Error("Inactive Client Cannot Start Trial");
+    /* ============================
+       EFFECTIVE LEAD / CLIENT
+
+       If lead already converted,
+       automatically attach its
+       client.
+
+       If client came from lead,
+       automatically preserve the
+       original lead relation.
+    ============================ */
+    let effectiveLeadId = lead?.id ||
+        undefined;
+    let effectiveClientId = client?.id ||
+        undefined;
+    /*
+     * Lead already converted
+     */
+    if (lead?.client &&
+        !effectiveClientId) {
+        if (!lead.client
+            .isActive) {
+            throw new Error("Converted Client Is Inactive");
+        }
+        effectiveClientId =
+            lead.client.id;
+    }
+    /*
+     * Client originated from
+     * an existing lead.
+     */
+    if (client?.leadId &&
+        !effectiveLeadId) {
+        effectiveLeadId =
+            client.leadId;
+        const linkedLead = await prisma_1.default.lead.findUnique({
+            where: {
+                id: client.leadId,
+            },
+            select: {
+                id: true,
+                assignedEmployeeId: true,
+                stage: true,
+            },
+        });
+        if (!linkedLead) {
+            throw new Error("Client Source Lead Not Found");
+        }
+        await checkLeadAccess(linkedLead.assignedEmployeeId, currentEmployee);
+    }
+    /*
+     * If both were supplied,
+     * they must belong to the
+     * same lead/client journey.
+     */
+    if (lead &&
+        client &&
+        client.leadId &&
+        client.leadId !==
+            lead.id) {
+        throw new Error("Selected Client Does Not Belong To Selected Lead");
+    }
+    if (lead?.client &&
+        client &&
+        lead.client.id !==
+            client.id) {
+        throw new Error("Selected Lead Is Already Linked To Another Client");
+    }
+    /* ============================
+       DIRECT CLIENT SECURITY
+
+       Client without source lead:
+       Employee cannot pick random
+       company clients.
+
+       ADMIN / HR / TL can create
+       direct client trial.
+    ============================ */
+    if (client &&
+        !client.leadId &&
+        roleName ===
+            "EMPLOYEE") {
+        throw new Error("Employee Can Start Client Trial Only From Own Lead");
     }
     /* ============================
        PRODUCT
@@ -185,16 +367,16 @@ const startTrial = async (data, currentEmployee) => {
     }
     /* ============================
        EMPLOYEE ASSIGNMENT
+
+       EMPLOYEE:
+       always self.
+
+       Management:
+       selected employee,
+       otherwise lead owner,
+       otherwise self.
     ============================ */
     let assignedEmployeeId;
-    /*
-     * EMPLOYEE:
-     * always self assigned.
-     *
-     * Frontend kisi aur ka
-     * employeeId bheje tab bhi
-     * backend ignore karega.
-     */
     if (roleName ===
         "EMPLOYEE") {
         assignedEmployeeId =
@@ -203,6 +385,7 @@ const startTrial = async (data, currentEmployee) => {
     else {
         assignedEmployeeId =
             data.employeeId ||
+                lead?.assignedEmployeeId ||
                 currentEmployee.id;
     }
     const assignedEmployee = await prisma_1.default.employee.findUnique({
@@ -222,7 +405,7 @@ const startTrial = async (data, currentEmployee) => {
         throw new Error("Assigned Employee Not Found Or Inactive");
     }
     /* ============================
-       TL ASSIGNMENT ACCESS
+       TEAM LEADER ASSIGNMENT
     ============================ */
     if (roleName ===
         "TEAM_LEADER") {
@@ -233,21 +416,28 @@ const startTrial = async (data, currentEmployee) => {
         }
     }
     /* ============================
-       EXPIRE OLD
-    ============================ */
-    await expireOldTrials();
-    /* ============================
-       ACTIVE DUPLICATE
+       DUPLICATE ACTIVE TRIAL
 
-       Same client + same product
-       cannot have another ACTIVE
-       trial.
+       Same Lead + Product
+       OR
+       Same Client + Product
     ============================ */
+    const subjectFilters = [];
+    if (effectiveLeadId) {
+        subjectFilters.push({
+            leadId: effectiveLeadId,
+        });
+    }
+    if (effectiveClientId) {
+        subjectFilters.push({
+            clientId: effectiveClientId,
+        });
+    }
     const activeTrial = await prisma_1.default.trial.findFirst({
         where: {
-            clientId: data.clientId,
             productId: data.productId,
             status: "ACTIVE",
+            OR: subjectFilters,
         },
         select: {
             id: true,
@@ -263,9 +453,9 @@ const startTrial = async (data, currentEmployee) => {
     const startDate = new Date();
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() +
-        Number(data.trialDays));
+        trialDays);
     /* ============================
-       CODE
+       TRIAL CODE
     ============================ */
     const trialCode = await generateTrialCode();
     /* ============================
@@ -274,18 +464,30 @@ const startTrial = async (data, currentEmployee) => {
     const trial = await prisma_1.default.trial.create({
         data: {
             trialCode,
-            clientId: data.clientId,
+            leadId: effectiveLeadId,
+            clientId: effectiveClientId,
             productId: data.productId,
             employeeId: assignedEmployeeId,
             startDate,
             endDate,
-            trialDays: Number(data.trialDays),
+            trialDays,
             status: "ACTIVE",
             remarks: data.remarks
                 ?.trim() ||
                 undefined,
         },
         include: {
+            lead: {
+                select: {
+                    id: true,
+                    leadCode: true,
+                    name: true,
+                    mobile: true,
+                    email: true,
+                    stage: true,
+                    isConverted: true,
+                },
+            },
             client: {
                 select: {
                     id: true,
@@ -350,17 +552,17 @@ const getTrials = async (page = 1, limit = 10, status, search, employeeId, curre
             employeeId;
     }
     /* ============================
-       STATUS
+       STATUS FILTER
     ============================ */
     if (status) {
         const normalizedStatus = status.toUpperCase();
-        const statuses = [
+        const allowedStatuses = [
             "ACTIVE",
             "COMPLETED",
             "EXPIRED",
             "CANCELLED",
         ];
-        if (!statuses.includes(normalizedStatus)) {
+        if (!allowedStatuses.includes(normalizedStatus)) {
             throw new Error("Invalid Trial Status");
         }
         where.status =
@@ -368,6 +570,12 @@ const getTrials = async (page = 1, limit = 10, status, search, employeeId, curre
     }
     /* ============================
        SEARCH
+
+       Trial Code
+       Lead
+       Client
+       Product
+       Employee
     ============================ */
     if (search?.trim()) {
         const value = search.trim();
@@ -379,17 +587,60 @@ const getTrials = async (page = 1, limit = 10, status, search, employeeId, curre
                 },
             },
             {
-                client: {
-                    name: {
-                        contains: value,
-                        mode: "insensitive",
+                lead: {
+                    is: {
+                        leadCode: {
+                            contains: value,
+                            mode: "insensitive",
+                        },
+                    },
+                },
+            },
+            {
+                lead: {
+                    is: {
+                        name: {
+                            contains: value,
+                            mode: "insensitive",
+                        },
+                    },
+                },
+            },
+            {
+                lead: {
+                    is: {
+                        mobile: {
+                            contains: value,
+                        },
                     },
                 },
             },
             {
                 client: {
-                    mobile: {
-                        contains: value,
+                    is: {
+                        clientCode: {
+                            contains: value,
+                            mode: "insensitive",
+                        },
+                    },
+                },
+            },
+            {
+                client: {
+                    is: {
+                        name: {
+                            contains: value,
+                            mode: "insensitive",
+                        },
+                    },
+                },
+            },
+            {
+                client: {
+                    is: {
+                        mobile: {
+                            contains: value,
+                        },
                     },
                 },
             },
@@ -403,14 +654,19 @@ const getTrials = async (page = 1, limit = 10, status, search, employeeId, curre
             },
             {
                 employee: {
-                    name: {
-                        contains: value,
-                        mode: "insensitive",
+                    is: {
+                        name: {
+                            contains: value,
+                            mode: "insensitive",
+                        },
                     },
                 },
             },
         ];
     }
+    /* ============================
+       DATA
+    ============================ */
     const [trials, total,] = await Promise.all([
         prisma_1.default.trial.findMany({
             where,
@@ -420,6 +676,17 @@ const getTrials = async (page = 1, limit = 10, status, search, employeeId, curre
                 createdAt: "desc",
             },
             include: {
+                lead: {
+                    select: {
+                        id: true,
+                        leadCode: true,
+                        name: true,
+                        mobile: true,
+                        email: true,
+                        stage: true,
+                        isConverted: true,
+                    },
+                },
                 client: {
                     select: {
                         id: true,
@@ -471,6 +738,21 @@ const getTrialById = async (id, currentEmployee) => {
             id,
         },
         include: {
+            lead: {
+                select: {
+                    id: true,
+                    leadCode: true,
+                    name: true,
+                    mobile: true,
+                    email: true,
+                    city: true,
+                    state: true,
+                    address: true,
+                    stage: true,
+                    isConverted: true,
+                    assignedEmployeeId: true,
+                },
+            },
             client: {
                 select: {
                     id: true,
@@ -480,6 +762,8 @@ const getTrialById = async (id, currentEmployee) => {
                     email: true,
                     city: true,
                     state: true,
+                    address: true,
+                    isActive: true,
                 },
             },
             product: {
@@ -521,7 +805,8 @@ const extendTrial = async (id, trialDays, remarks, currentEmployee) => {
     if (!canManageTrials(currentEmployee)) {
         throw new Error("Trial Management Access Denied");
     }
-    validateTrialDays(Number(trialDays));
+    const days = Number(trialDays);
+    validateTrialDays(days);
     await expireOldTrials();
     const trial = await prisma_1.default.trial.findUnique({
         where: {
@@ -538,7 +823,7 @@ const extendTrial = async (id, trialDays, remarks, currentEmployee) => {
     }
     const endDate = new Date(trial.endDate);
     endDate.setDate(endDate.getDate() +
-        Number(trialDays));
+        days);
     const oldRemarks = trial.remarks
         ?.trim() ||
         "";
@@ -557,13 +842,23 @@ const extendTrial = async (id, trialDays, remarks, currentEmployee) => {
         data: {
             endDate,
             trialDays: trial.trialDays +
-                Number(trialDays),
+                days,
             extensionCount: {
                 increment: 1,
             },
             remarks: finalRemarks,
         },
         include: {
+            lead: {
+                select: {
+                    id: true,
+                    leadCode: true,
+                    name: true,
+                    mobile: true,
+                    stage: true,
+                    isConverted: true,
+                },
+            },
             client: {
                 select: {
                     id: true,
@@ -632,6 +927,16 @@ const completeTrial = async (id, currentEmployee) => {
             status: "COMPLETED",
         },
         include: {
+            lead: {
+                select: {
+                    id: true,
+                    leadCode: true,
+                    name: true,
+                    mobile: true,
+                    stage: true,
+                    isConverted: true,
+                },
+            },
             client: {
                 select: {
                     id: true,

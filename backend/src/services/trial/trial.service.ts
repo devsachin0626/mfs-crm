@@ -30,6 +30,8 @@ const getRoleName = (
 
 /* ============================
    MANAGE TRIAL
+
+   Extend / Complete
 ============================ */
 
 const canManageTrials = (
@@ -49,20 +51,25 @@ const canManageTrials = (
 
 /* ============================
    ALLOWED EMPLOYEE IDS
+
+   ADMIN / HR
+   -> all
+
+   TEAM LEADER
+   -> self + direct team
+
+   EMPLOYEE
+   -> self
 ============================ */
 
 const getAllowedEmployeeIds =
   async (
     currentEmployee: CurrentEmployee
-  ): Promise<
-    string[] | null
-  > => {
+  ): Promise<string[] | null> => {
     const roleName =
       getRoleName(
         currentEmployee
       );
-
-    /* ADMIN / HR */
 
     if (
       roleName === "ADMIN" ||
@@ -70,8 +77,6 @@ const getAllowedEmployeeIds =
     ) {
       return null;
     }
-
-    /* EMPLOYEE */
 
     if (
       roleName ===
@@ -81,8 +86,6 @@ const getAllowedEmployeeIds =
         currentEmployee.id,
       ];
     }
-
-    /* TEAM LEADER */
 
     if (
       roleName ===
@@ -94,8 +97,7 @@ const getAllowedEmployeeIds =
             reportingManagerId:
               currentEmployee.id,
 
-            isActive:
-              true,
+            isActive: true,
           },
 
           select: {
@@ -134,6 +136,9 @@ const checkTrialAccess =
         currentEmployee
       );
 
+    /*
+     * ADMIN / HR
+     */
     if (
       allowedIds === null
     ) {
@@ -153,6 +158,55 @@ const checkTrialAccess =
     ) {
       throw new Error(
         "Trial Access Denied"
+      );
+    }
+  };
+
+/* ============================
+   CHECK LEAD ACCESS
+============================ */
+
+const checkLeadAccess =
+  async (
+    assignedEmployeeId:
+      | string
+      | null,
+
+    currentEmployee:
+      CurrentEmployee
+  ) => {
+    const allowedIds =
+      await getAllowedEmployeeIds(
+        currentEmployee
+      );
+
+    /*
+     * ADMIN / HR
+     */
+    if (
+      allowedIds === null
+    ) {
+      return;
+    }
+
+    /*
+     * Employee / TL cannot
+     * start trial on an
+     * unassigned lead.
+     */
+    if (!assignedEmployeeId) {
+      throw new Error(
+        "Lead Is Not Assigned To Any Employee"
+      );
+    }
+
+    if (
+      !allowedIds.includes(
+        assignedEmployeeId
+      )
+    ) {
+      throw new Error(
+        "Lead Access Denied"
       );
     }
   };
@@ -183,9 +237,6 @@ const validateTrialDays = (
 
 const expireOldTrials =
   async () => {
-    const now =
-      new Date();
-
     await prisma.trial.updateMany({
       where: {
         status:
@@ -193,7 +244,7 @@ const expireOldTrials =
 
         endDate: {
           lt:
-            now,
+            new Date(),
         },
       },
 
@@ -281,47 +332,325 @@ export const startTrial =
       );
     }
 
-    validateTrialDays(
-      Number(
-        data.trialDays
-      )
-    );
-
     /* ============================
-       CLIENT
+       BASIC VALIDATION
     ============================ */
 
-    const client =
-      await prisma.client.findUnique({
-        where: {
-          id:
-            data.clientId,
-        },
-
-        select: {
-          id: true,
-
-          clientCode:
-            true,
-
-          name: true,
-
-          mobile: true,
-
-          isActive:
-            true,
-        },
-      });
-
-    if (!client) {
+    if (
+      !data.leadId &&
+      !data.clientId
+    ) {
       throw new Error(
-        "Client Not Found"
+        "Lead Or Client Is Required"
       );
     }
 
-    if (!client.isActive) {
+    if (!data.productId) {
       throw new Error(
-        "Inactive Client Cannot Start Trial"
+        "Product Is Required"
+      );
+    }
+
+    const trialDays =
+      Number(
+        data.trialDays
+      );
+
+    validateTrialDays(
+      trialDays
+    );
+
+    await expireOldTrials();
+
+    /* ============================
+       LEAD
+
+       Normal flow:
+       Lead -> Demo -> Client
+    ============================ */
+
+    let lead:
+      | {
+          id: string;
+          leadCode: string;
+          name: string | null;
+          mobile: string;
+          email: string | null;
+          stage: string;
+          isConverted: boolean;
+          assignedEmployeeId:
+            | string
+            | null;
+
+          client:
+            | {
+                id: string;
+                clientCode: string;
+                isActive: boolean;
+              }
+            | null;
+        }
+      | null = null;
+
+    if (data.leadId) {
+      lead =
+        await prisma.lead.findUnique({
+          where: {
+            id:
+              data.leadId,
+          },
+
+          select: {
+            id: true,
+
+            leadCode:
+              true,
+
+            name: true,
+
+            mobile: true,
+
+            email: true,
+
+            stage: true,
+
+            isConverted:
+              true,
+
+            assignedEmployeeId:
+              true,
+
+            client: {
+              select: {
+                id: true,
+
+                clientCode:
+                  true,
+
+                isActive:
+                  true,
+              },
+            },
+          },
+        });
+
+      if (!lead) {
+        throw new Error(
+          "Lead Not Found"
+        );
+      }
+
+      if (
+        lead.stage ===
+        "LOST"
+      ) {
+        throw new Error(
+          "Lost Lead Cannot Start Trial"
+        );
+      }
+
+      await checkLeadAccess(
+        lead.assignedEmployeeId,
+        currentEmployee
+      );
+    }
+
+    /* ============================
+       CLIENT
+
+       Existing clients can also
+       receive another product demo.
+
+       If client originated from
+       a lead, preserve that lead
+       relation automatically.
+    ============================ */
+
+    let client:
+      | {
+          id: string;
+          clientCode: string;
+          name: string;
+          mobile: string;
+          email: string | null;
+          isActive: boolean;
+          leadId:
+            | string
+            | null;
+        }
+      | null = null;
+
+    if (data.clientId) {
+      client =
+        await prisma.client.findUnique({
+          where: {
+            id:
+              data.clientId,
+          },
+
+          select: {
+            id: true,
+
+            clientCode:
+              true,
+
+            name: true,
+
+            mobile: true,
+
+            email: true,
+
+            isActive:
+              true,
+
+            leadId: true,
+          },
+        });
+
+      if (!client) {
+        throw new Error(
+          "Client Not Found"
+        );
+      }
+
+      if (!client.isActive) {
+        throw new Error(
+          "Inactive Client Cannot Start Trial"
+        );
+      }
+    }
+
+    /* ============================
+       EFFECTIVE LEAD / CLIENT
+
+       If lead already converted,
+       automatically attach its
+       client.
+
+       If client came from lead,
+       automatically preserve the
+       original lead relation.
+    ============================ */
+
+    let effectiveLeadId:
+      | string
+      | undefined =
+      lead?.id ||
+      undefined;
+
+    let effectiveClientId:
+      | string
+      | undefined =
+      client?.id ||
+      undefined;
+
+    /*
+     * Lead already converted
+     */
+    if (
+      lead?.client &&
+      !effectiveClientId
+    ) {
+      if (
+        !lead.client
+          .isActive
+      ) {
+        throw new Error(
+          "Converted Client Is Inactive"
+        );
+      }
+
+      effectiveClientId =
+        lead.client.id;
+    }
+
+    /*
+     * Client originated from
+     * an existing lead.
+     */
+    if (
+      client?.leadId &&
+      !effectiveLeadId
+    ) {
+      effectiveLeadId =
+        client.leadId;
+
+      const linkedLead =
+        await prisma.lead.findUnique({
+          where: {
+            id:
+              client.leadId,
+          },
+
+          select: {
+            id: true,
+
+            assignedEmployeeId:
+              true,
+
+            stage: true,
+          },
+        });
+
+      if (!linkedLead) {
+        throw new Error(
+          "Client Source Lead Not Found"
+        );
+      }
+
+      await checkLeadAccess(
+        linkedLead.assignedEmployeeId,
+        currentEmployee
+      );
+    }
+
+    /*
+     * If both were supplied,
+     * they must belong to the
+     * same lead/client journey.
+     */
+    if (
+      lead &&
+      client &&
+      client.leadId &&
+      client.leadId !==
+        lead.id
+    ) {
+      throw new Error(
+        "Selected Client Does Not Belong To Selected Lead"
+      );
+    }
+
+    if (
+      lead?.client &&
+      client &&
+      lead.client.id !==
+        client.id
+    ) {
+      throw new Error(
+        "Selected Lead Is Already Linked To Another Client"
+      );
+    }
+
+    /* ============================
+       DIRECT CLIENT SECURITY
+
+       Client without source lead:
+       Employee cannot pick random
+       company clients.
+
+       ADMIN / HR / TL can create
+       direct client trial.
+    ============================ */
+
+    if (
+      client &&
+      !client.leadId &&
+      roleName ===
+        "EMPLOYEE"
+    ) {
+      throw new Error(
+        "Employee Can Start Client Trial Only From Own Lead"
       );
     }
 
@@ -374,19 +703,18 @@ export const startTrial =
 
     /* ============================
        EMPLOYEE ASSIGNMENT
+
+       EMPLOYEE:
+       always self.
+
+       Management:
+       selected employee,
+       otherwise lead owner,
+       otherwise self.
     ============================ */
 
     let assignedEmployeeId:
       string;
-
-    /*
-     * EMPLOYEE:
-     * always self assigned.
-     *
-     * Frontend kisi aur ka
-     * employeeId bheje tab bhi
-     * backend ignore karega.
-     */
 
     if (
       roleName ===
@@ -397,6 +725,7 @@ export const startTrial =
     } else {
       assignedEmployeeId =
         data.employeeId ||
+        lead?.assignedEmployeeId ||
         currentEmployee.id;
     }
 
@@ -433,7 +762,7 @@ export const startTrial =
     }
 
     /* ============================
-       TL ASSIGNMENT ACCESS
+       TEAM LEADER ASSIGNMENT
     ============================ */
 
     if (
@@ -458,30 +787,45 @@ export const startTrial =
     }
 
     /* ============================
-       EXPIRE OLD
+       DUPLICATE ACTIVE TRIAL
+
+       Same Lead + Product
+       OR
+       Same Client + Product
     ============================ */
 
-    await expireOldTrials();
+    const subjectFilters:
+      any[] = [];
 
-    /* ============================
-       ACTIVE DUPLICATE
+    if (
+      effectiveLeadId
+    ) {
+      subjectFilters.push({
+        leadId:
+          effectiveLeadId,
+      });
+    }
 
-       Same client + same product
-       cannot have another ACTIVE
-       trial.
-    ============================ */
+    if (
+      effectiveClientId
+    ) {
+      subjectFilters.push({
+        clientId:
+          effectiveClientId,
+      });
+    }
 
     const activeTrial =
       await prisma.trial.findFirst({
         where: {
-          clientId:
-            data.clientId,
-
           productId:
             data.productId,
 
           status:
             "ACTIVE",
+
+          OR:
+            subjectFilters,
         },
 
         select: {
@@ -512,13 +856,11 @@ export const startTrial =
 
     endDate.setDate(
       endDate.getDate() +
-        Number(
-          data.trialDays
-        )
+        trialDays
     );
 
     /* ============================
-       CODE
+       TRIAL CODE
     ============================ */
 
     const trialCode =
@@ -533,8 +875,11 @@ export const startTrial =
         data: {
           trialCode,
 
+          leadId:
+            effectiveLeadId,
+
           clientId:
-            data.clientId,
+            effectiveClientId,
 
           productId:
             data.productId,
@@ -546,10 +891,7 @@ export const startTrial =
 
           endDate,
 
-          trialDays:
-            Number(
-              data.trialDays
-            ),
+          trialDays,
 
           status:
             "ACTIVE",
@@ -561,6 +903,26 @@ export const startTrial =
         },
 
         include: {
+          lead: {
+            select: {
+              id: true,
+
+              leadCode:
+                true,
+
+              name: true,
+
+              mobile: true,
+
+              email: true,
+
+              stage: true,
+
+              isConverted:
+                true,
+            },
+          },
+
           client: {
             select: {
               id: true,
@@ -628,9 +990,7 @@ export const getTrials =
     currentEmployee?:
       CurrentEmployee
   ) => {
-    if (
-      !currentEmployee
-    ) {
+    if (!currentEmployee) {
       throw new Error(
         "Authenticated Employee Not Found"
       );
@@ -693,14 +1053,14 @@ export const getTrials =
     }
 
     /* ============================
-       STATUS
+       STATUS FILTER
     ============================ */
 
     if (status) {
       const normalizedStatus =
         status.toUpperCase();
 
-      const statuses = [
+      const allowedStatuses = [
         "ACTIVE",
         "COMPLETED",
         "EXPIRED",
@@ -708,7 +1068,7 @@ export const getTrials =
       ];
 
       if (
-        !statuses.includes(
+        !allowedStatuses.includes(
           normalizedStatus
         )
       ) {
@@ -723,6 +1083,12 @@ export const getTrials =
 
     /* ============================
        SEARCH
+
+       Trial Code
+       Lead
+       Client
+       Product
+       Employee
     ============================ */
 
     if (
@@ -743,22 +1109,79 @@ export const getTrials =
         },
 
         {
-          client: {
-            name: {
-              contains:
-                value,
+          lead: {
+            is: {
+              leadCode: {
+                contains:
+                  value,
 
-              mode:
-                "insensitive",
+                mode:
+                  "insensitive",
+              },
+            },
+          },
+        },
+
+        {
+          lead: {
+            is: {
+              name: {
+                contains:
+                  value,
+
+                mode:
+                  "insensitive",
+              },
+            },
+          },
+        },
+
+        {
+          lead: {
+            is: {
+              mobile: {
+                contains:
+                  value,
+              },
             },
           },
         },
 
         {
           client: {
-            mobile: {
-              contains:
-                value,
+            is: {
+              clientCode: {
+                contains:
+                  value,
+
+                mode:
+                  "insensitive",
+              },
+            },
+          },
+        },
+
+        {
+          client: {
+            is: {
+              name: {
+                contains:
+                  value,
+
+                mode:
+                  "insensitive",
+              },
+            },
+          },
+        },
+
+        {
+          client: {
+            is: {
+              mobile: {
+                contains:
+                  value,
+              },
             },
           },
         },
@@ -777,17 +1200,23 @@ export const getTrials =
 
         {
           employee: {
-            name: {
-              contains:
-                value,
+            is: {
+              name: {
+                contains:
+                  value,
 
-              mode:
-                "insensitive",
+                mode:
+                  "insensitive",
+              },
             },
           },
         },
       ];
     }
+
+    /* ============================
+       DATA
+    ============================ */
 
     const [
       trials,
@@ -808,6 +1237,26 @@ export const getTrials =
           },
 
           include: {
+            lead: {
+              select: {
+                id: true,
+
+                leadCode:
+                  true,
+
+                name: true,
+
+                mobile: true,
+
+                email: true,
+
+                stage: true,
+
+                isConverted:
+                  true,
+              },
+            },
+
             client: {
               select: {
                 id: true,
@@ -895,6 +1344,35 @@ export const getTrialById =
         },
 
         include: {
+          lead: {
+            select: {
+              id: true,
+
+              leadCode:
+                true,
+
+              name: true,
+
+              mobile: true,
+
+              email: true,
+
+              city: true,
+
+              state: true,
+
+              address: true,
+
+              stage: true,
+
+              isConverted:
+                true,
+
+              assignedEmployeeId:
+                true,
+            },
+          },
+
           client: {
             select: {
               id: true,
@@ -911,6 +1389,11 @@ export const getTrialById =
               city: true,
 
               state: true,
+
+              address: true,
+
+              isActive:
+                true,
             },
           },
 
@@ -997,10 +1480,13 @@ export const extendTrial =
       );
     }
 
-    validateTrialDays(
+    const days =
       Number(
         trialDays
-      )
+      );
+
+    validateTrialDays(
+      days
     );
 
     await expireOldTrials();
@@ -1039,9 +1525,7 @@ export const extendTrial =
 
     endDate.setDate(
       endDate.getDate() +
-        Number(
-          trialDays
-        )
+        days
     );
 
     const oldRemarks =
@@ -1072,9 +1556,7 @@ export const extendTrial =
 
           trialDays:
             trial.trialDays +
-            Number(
-              trialDays
-            ),
+            days,
 
           extensionCount: {
             increment:
@@ -1086,12 +1568,33 @@ export const extendTrial =
         },
 
         include: {
+          lead: {
+            select: {
+              id: true,
+
+              leadCode:
+                true,
+
+              name: true,
+
+              mobile: true,
+
+              stage: true,
+
+              isConverted:
+                true,
+            },
+          },
+
           client: {
             select: {
               id: true,
+
               clientCode:
                 true,
+
               name: true,
+
               mobile: true,
             },
           },
@@ -1099,8 +1602,10 @@ export const extendTrial =
           product: {
             select: {
               id: true,
+
               productCode:
                 true,
+
               name: true,
             },
           },
@@ -1108,8 +1613,10 @@ export const extendTrial =
           employee: {
             select: {
               id: true,
+
               employeeCode:
                 true,
+
               name: true,
             },
           },
@@ -1207,12 +1714,33 @@ export const completeTrial =
         },
 
         include: {
+          lead: {
+            select: {
+              id: true,
+
+              leadCode:
+                true,
+
+              name: true,
+
+              mobile: true,
+
+              stage: true,
+
+              isConverted:
+                true,
+            },
+          },
+
           client: {
             select: {
               id: true,
+
               clientCode:
                 true,
+
               name: true,
+
               mobile: true,
             },
           },
@@ -1220,8 +1748,10 @@ export const completeTrial =
           product: {
             select: {
               id: true,
+
               productCode:
                 true,
+
               name: true,
             },
           },
@@ -1229,8 +1759,10 @@ export const completeTrial =
           employee: {
             select: {
               id: true,
+
               employeeCode:
                 true,
+
               name: true,
             },
           },

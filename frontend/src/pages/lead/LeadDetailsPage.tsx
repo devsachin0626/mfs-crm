@@ -623,6 +623,23 @@ const handleConvertLead =
 >
   Edit Lead
 </button>
+
+  {!lead.isConverted &&
+    lead.stage !== "LOST" && (
+      <button
+        type="button"
+        onClick={() =>
+          navigate(
+            `/trials/create?leadId=${lead.id}`
+          )
+        }
+        className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-medium text-violet-700 hover:bg-violet-100"
+      >
+        Start Demo
+      </button>
+    )}
+
+
 {!lead.isConverted && (
   <button
     type="button"

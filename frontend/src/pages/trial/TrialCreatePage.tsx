@@ -9,15 +9,17 @@ import {
   CheckCircle2,
   Loader2,
   PlayCircle,
+  Search,
 } from "lucide-react";
 
 import {
   useNavigate,
+  useSearchParams,
 } from "react-router-dom";
 
 import {
-  getClientOptions,
-} from "../../services/client.service";
+  getLeads,
+} from "../../services/lead.service";
 
 import {
   getTrialProductOptions,
@@ -36,8 +38,8 @@ import {
 } from "../../hooks/redux";
 
 import type {
-  ClientOption,
-} from "../../services/client.service";
+  Lead,
+} from "../../types/lead.types";
 
 import type {
   ProductOption,
@@ -48,11 +50,11 @@ import type {
 } from "../../types/employee.types";
 
 /* ============================
-   FORM TYPE
+   FORM
 ============================ */
 
 type TrialForm = {
-  clientId: string;
+  leadId: string;
 
   productId: string;
 
@@ -71,6 +73,11 @@ export default function TrialCreatePage() {
   const navigate =
     useNavigate();
 
+  const [
+    searchParams,
+  ] =
+    useSearchParams();
+
   const employee =
     useAppSelector(
       (state) =>
@@ -78,15 +85,27 @@ export default function TrialCreatePage() {
     );
 
   /* ============================
-     OPTIONS
+     QUERY LEAD
+
+     Example:
+     /trials/create?leadId=xxx
+  ============================ */
+
+  const queryLeadId =
+    searchParams.get(
+      "leadId"
+    ) || "";
+
+  /* ============================
+     DATA
   ============================ */
 
   const [
-    clients,
-    setClients,
+    leads,
+    setLeads,
   ] =
     useState<
-      ClientOption[]
+      Lead[]
     >([]);
 
   const [
@@ -106,7 +125,7 @@ export default function TrialCreatePage() {
     >([]);
 
   /* ============================
-     UI STATE
+     UI
   ============================ */
 
   const [
@@ -133,6 +152,12 @@ export default function TrialCreatePage() {
   ] =
     useState("");
 
+  const [
+    leadSearch,
+    setLeadSearch,
+  ] =
+    useState("");
+
   /* ============================
      FORM
   ============================ */
@@ -142,7 +167,8 @@ export default function TrialCreatePage() {
     setForm,
   ] =
     useState<TrialForm>({
-      clientId: "",
+      leadId:
+        queryLeadId,
 
       productId: "",
 
@@ -187,7 +213,6 @@ export default function TrialCreatePage() {
       return "";
     }, [employee]);
 
-
   const canAssign =
     roleName ===
       "ADMIN" ||
@@ -210,28 +235,42 @@ export default function TrialCreatePage() {
           setError("");
 
           const [
-            clientOptions,
+            leadResponse,
             productOptions,
           ] =
             await Promise.all([
-              getClientOptions(),
+              getLeads({
+                page: 1,
+                limit: 100,
+              }),
 
               getTrialProductOptions(),
             ]);
 
-          setClients(
-            clientOptions
+          /*
+           * Converted / Lost leads
+           * normally should not
+           * start a new demo.
+           */
+
+          const availableLeads =
+            (
+              leadResponse.leads ||
+              []
+            ).filter(
+              (lead) =>
+                lead.stage !==
+                  "LOST" &&
+                !lead.isConverted
+            );
+
+          setLeads(
+            availableLeads
           );
 
           setProducts(
             productOptions
           );
-
-          /*
-           * Employee dropdown
-           * only management roles
-           * need.
-           */
 
           if (canAssign) {
             const employeeResponse =
@@ -254,6 +293,61 @@ export default function TrialCreatePage() {
               []
             );
           }
+
+          /*
+           * If leadId comes from
+           * Lead Details page and
+           * that lead wasn't inside
+           * first 100 list records,
+           * fetch it separately.
+           */
+
+          if (
+            queryLeadId &&
+            !availableLeads.some(
+              (lead) =>
+                lead.id ===
+                queryLeadId
+            )
+          ) {
+            try {
+              const directLead =
+                await import(
+                  "../../services/lead.service"
+                ).then(
+                  ({
+                    getLeadById,
+                  }) =>
+                    getLeadById(
+                      queryLeadId
+                    )
+                );
+
+              if (
+                directLead.lead &&
+                directLead.lead.stage !==
+                  "LOST"
+              ) {
+                setLeads(
+                  (current) => [
+                    directLead.lead,
+                    ...current.filter(
+                      (item) =>
+                        item.id !==
+                        directLead
+                          .lead.id
+                    ),
+                  ]
+                );
+              }
+            } catch {
+              /*
+               * Backend access rule
+               * will still protect
+               * inaccessible lead.
+               */
+            }
+          }
         } catch (error: any) {
           setError(
             error?.response
@@ -268,23 +362,26 @@ export default function TrialCreatePage() {
       };
 
     loadOptions();
-  }, [canAssign]);
+  }, [
+    canAssign,
+    queryLeadId,
+  ]);
 
   /* ============================
-     SELECTED DATA
+     SELECTED LEAD
   ============================ */
 
-  const selectedClient =
+  const selectedLead =
     useMemo(
       () =>
-        clients.find(
+        leads.find(
           (item) =>
             item.id ===
-            form.clientId
+            form.leadId
         ),
       [
-        clients,
-        form.clientId,
+        leads,
+        form.leadId,
       ]
     );
 
@@ -303,17 +400,106 @@ export default function TrialCreatePage() {
     );
 
   /* ============================
+     FILTERED LEADS
+  ============================ */
+
+  const filteredLeads =
+    useMemo(() => {
+      const value =
+        leadSearch
+          .trim()
+          .toLowerCase();
+
+      if (!value) {
+        return leads;
+      }
+
+      return leads.filter(
+        (lead) =>
+          lead.leadCode
+            .toLowerCase()
+            .includes(
+              value
+            ) ||
+          (
+            lead.name ||
+            ""
+          )
+            .toLowerCase()
+            .includes(
+              value
+            ) ||
+          lead.mobile.includes(
+            value
+          )
+      );
+    }, [
+      leads,
+      leadSearch,
+    ]);
+
+  /* ============================
+     AUTO EMPLOYEE
+
+     Management selecting a Lead:
+     default trial owner should be
+     that Lead's assigned employee.
+  ============================ */
+
+  useEffect(() => {
+    if (
+      !canAssign ||
+      !selectedLead
+    ) {
+      return;
+    }
+
+    if (
+      selectedLead
+        .assignedEmployeeId
+    ) {
+      setForm(
+        (current) => ({
+          ...current,
+
+          employeeId:
+            selectedLead
+              .assignedEmployeeId ||
+            "",
+        })
+      );
+    }
+  }, [
+    canAssign,
+    selectedLead,
+  ]);
+
+  /* ============================
      VALIDATION
   ============================ */
 
   const validate =
     () => {
-      if (!form.clientId) {
-        return "Please select client";
+      if (!form.leadId) {
+        return "Please select Lead";
+      }
+
+      if (
+        selectedLead?.stage ===
+        "LOST"
+      ) {
+        return "Lost Lead cannot start demo";
+      }
+
+      if (
+        selectedLead
+          ?.isConverted
+      ) {
+        return "Converted Lead cannot start new Lead demo";
       }
 
       if (!form.productId) {
-        return "Please select product";
+        return "Please select Product";
       }
 
       const trialDays =
@@ -369,20 +555,11 @@ export default function TrialCreatePage() {
 
         const response =
           await startTrial({
-            clientId:
-              form.clientId,
+            leadId:
+              form.leadId,
 
             productId:
               form.productId,
-
-            /*
-             * EMPLOYEE:
-             * employeeId intentionally
-             * not sent.
-             *
-             * Backend will auto assign
-             * logged-in employee.
-             */
 
             employeeId:
               canAssign &&
@@ -403,7 +580,7 @@ export default function TrialCreatePage() {
 
         setSuccess(
           response.message ||
-            "Trial started successfully"
+            "Demo started successfully"
         );
 
         const trialId =
@@ -417,23 +594,25 @@ export default function TrialCreatePage() {
                 `/trials/${trialId}`
               );
             },
-            500
+            400
           );
-        } else {
-          setTimeout(
-            () => {
-              navigate(
-                "/trials"
-              );
-            },
-            500
-          );
+
+          return;
         }
+
+        setTimeout(
+          () => {
+            navigate(
+              "/trials"
+            );
+          },
+          400
+        );
       } catch (error: any) {
         setError(
-          error?.response?.data
-            ?.message ||
-            "Failed to start trial"
+          error?.response
+            ?.data?.message ||
+            "Failed to start demo"
         );
       } finally {
         setSubmitting(
@@ -456,7 +635,7 @@ export default function TrialCreatePage() {
           />
 
           <p className="mt-3 text-sm text-slate-500">
-            Loading trial
+            Loading demo
             options...
           </p>
         </div>
@@ -466,9 +645,7 @@ export default function TrialCreatePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      {/* ============================
-          HEADER
-      ============================ */}
+      {/* HEADER */}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -493,12 +670,12 @@ export default function TrialCreatePage() {
           </p>
 
           <h1 className="mt-1 text-2xl font-bold text-slate-900">
-            Start New Demo
+            Start Lead Demo
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Start a product
-            trial for a client.
+            Select a Lead and
+            start a product demo.
           </p>
         </div>
 
@@ -519,15 +696,15 @@ export default function TrialCreatePage() {
         </div>
       </div>
 
-      {/* ============================
-          ERROR / SUCCESS
-      ============================ */}
+      {/* ERROR */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
+
+      {/* SUCCESS */}
 
       {success && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
@@ -539,9 +716,7 @@ export default function TrialCreatePage() {
         </div>
       )}
 
-      {/* ============================
-          FORM
-      ============================ */}
+      {/* FORM */}
 
       <form
         onSubmit={
@@ -563,26 +738,48 @@ export default function TrialCreatePage() {
               </h2>
 
               <p className="mt-0.5 text-xs text-slate-500">
-                Select client,
-                product and
-                duration.
+                Lead, product,
+                duration and
+                assignment.
               </p>
             </div>
           </div>
         </div>
 
         <div className="space-y-6 p-6">
-          {/* ============================
-              CLIENT
-          ============================ */}
+          {/* LEAD */}
 
           <Field
-            label="Client"
+            label="Lead"
             required
           >
+            <div className="mb-2 relative">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <input
+                type="text"
+                value={
+                  leadSearch
+                }
+                onChange={(
+                  event
+                ) =>
+                  setLeadSearch(
+                    event.target
+                      .value
+                  )
+                }
+                placeholder="Search lead by name, mobile or code..."
+                className={`${inputClass} pl-9`}
+              />
+            </div>
+
             <select
               value={
-                form.clientId
+                form.leadId
               }
               onChange={(
                 event
@@ -591,7 +788,7 @@ export default function TrialCreatePage() {
                   (prev) => ({
                     ...prev,
 
-                    clientId:
+                    leadId:
                       event.target
                         .value,
                   })
@@ -602,61 +799,93 @@ export default function TrialCreatePage() {
               }
             >
               <option value="">
-                Select Client
+                Select Lead
               </option>
 
-              {clients.map(
-                (client) => (
+              {filteredLeads.map(
+                (lead) => (
                   <option
                     key={
-                      client.id
+                      lead.id
                     }
                     value={
-                      client.id
+                      lead.id
                     }
                   >
-                    {client.name}
+                    {lead.leadCode}
+                    {" - "}
+                    {lead.name ||
+                      "Unnamed Lead"}
                     {" - "}
                     {
-                      client.mobile
+                      lead.mobile
                     }
                   </option>
                 )
               )}
             </select>
 
-            {selectedClient && (
+            {leads.length ===
+              0 && (
+              <p className="mt-2 text-xs text-amber-600">
+                No eligible
+                Leads found.
+              </p>
+            )}
+
+            {selectedLead && (
               <InfoBox>
-                <p className="font-medium text-slate-700">
-                  {
-                    selectedClient.name
-                  }
-                </p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-800">
+                      {selectedLead.name ||
+                        "Unnamed Lead"}
+                    </p>
 
-                <p className="mt-1 text-xs text-slate-500">
-                  {
-                    selectedClient.clientCode
-                  }
-                  {" · "}
-                  {
-                    selectedClient.mobile
-                  }
-                </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {
+                        selectedLead.leadCode
+                      }
+                      {" · "}
+                      {
+                        selectedLead.mobile
+                      }
+                    </p>
 
-                {selectedClient.email && (
-                  <p className="mt-1 text-xs text-slate-500">
+                    {selectedLead.email && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        {
+                          selectedLead.email
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
                     {
-                      selectedClient.email
+                      selectedLead.stage
                     }
+                  </span>
+                </div>
+
+                {selectedLead
+                  .assignedEmployee && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    Lead Owner:{" "}
+                    <span className="font-semibold text-slate-700">
+                      {
+                        selectedLead
+                          .assignedEmployee
+                          .name
+                      }
+                    </span>
                   </p>
                 )}
               </InfoBox>
             )}
           </Field>
 
-          {/* ============================
-              PRODUCT
-          ============================ */}
+          {/* PRODUCT */}
 
           <Field
             label="Trial Product"
@@ -721,7 +950,7 @@ export default function TrialCreatePage() {
 
             {selectedProduct && (
               <InfoBox>
-                <p className="font-medium text-slate-700">
+                <p className="font-semibold text-slate-800">
                   {
                     selectedProduct.name
                   }
@@ -729,7 +958,6 @@ export default function TrialCreatePage() {
 
                 <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
                   <span>
-                    Code:{" "}
                     {
                       selectedProduct.productCode
                     }
@@ -737,7 +965,6 @@ export default function TrialCreatePage() {
 
                   {selectedProduct.type && (
                     <span>
-                      Type:{" "}
                       {
                         selectedProduct.type
                       }
@@ -747,8 +974,7 @@ export default function TrialCreatePage() {
                   {selectedProduct.durationDays !=
                     null && (
                     <span>
-                      Standard
-                      Duration:{" "}
+                      Standard:{" "}
                       {
                         selectedProduct.durationDays
                       }{" "}
@@ -760,9 +986,7 @@ export default function TrialCreatePage() {
             )}
           </Field>
 
-          {/* ============================
-              EMPLOYEE ASSIGNMENT
-          ============================ */}
+          {/* EMPLOYEE */}
 
           {canAssign ? (
             <Field label="Assigned Employee">
@@ -814,28 +1038,27 @@ export default function TrialCreatePage() {
               </select>
 
               <p className="mt-2 text-xs text-slate-500">
-                Leave blank to
-                assign this trial
-                to yourself.
+                Lead owner is
+                selected
+                automatically when
+                available.
               </p>
             </Field>
           ) : (
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
               <p className="text-sm font-semibold text-blue-800">
-                Trial Assignment
+                Demo Assignment
               </p>
 
               <p className="mt-1 text-xs text-blue-600">
-                This demo will
+                This Demo will
                 automatically be
                 assigned to you.
               </p>
             </div>
           )}
 
-          {/* ============================
-              DAYS
-          ============================ */}
+          {/* DAYS */}
 
           <Field
             label="Trial Days"
@@ -861,7 +1084,6 @@ export default function TrialCreatePage() {
                   })
                 )
               }
-              placeholder="Example: 7"
               className={
                 inputClass
               }
@@ -911,9 +1133,7 @@ export default function TrialCreatePage() {
             </div>
           </Field>
 
-          {/* ============================
-              REMARKS
-          ============================ */}
+          {/* REMARKS */}
 
           <Field label="Remarks">
             <textarea
@@ -934,7 +1154,7 @@ export default function TrialCreatePage() {
                   })
                 )
               }
-              placeholder="Add trial/demo notes..."
+              placeholder="Demo notes..."
               className={
                 inputClass
               }
@@ -942,16 +1162,16 @@ export default function TrialCreatePage() {
           </Field>
         </div>
 
-        {/* ============================
-            FOOTER
-        ============================ */}
+        {/* FOOTER */}
 
         <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={() =>
               navigate(
-                "/trials"
+                queryLeadId
+                  ? `/leads/${queryLeadId}`
+                  : "/trials"
               )
             }
             disabled={
@@ -1045,7 +1265,7 @@ function InfoBox({
 }
 
 /* ============================
-   INPUT CLASS
+   INPUT
 ============================ */
 
 const inputClass =

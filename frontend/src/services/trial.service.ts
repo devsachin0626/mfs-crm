@@ -35,11 +35,24 @@ export const getTrials =
               undefined,
 
             search:
-              params.search?.trim() ||
+              params.search
+                ?.trim() ||
               undefined,
 
             employeeId:
               params.employeeId ||
+              undefined,
+
+            leadId:
+              params.leadId ||
+              undefined,
+
+            clientId:
+              params.clientId ||
+              undefined,
+
+            productId:
+              params.productId ||
               undefined,
           },
         }
@@ -73,9 +86,6 @@ export const startTrial =
     data: StartTrialRequest
   ): Promise<TrialActionResponse> => {
     const payload: StartTrialRequest = {
-      clientId:
-        data.clientId,
-
       productId:
         data.productId,
 
@@ -85,24 +95,40 @@ export const startTrial =
         ),
 
       remarks:
-        data.remarks?.trim() ||
+        data.remarks
+          ?.trim() ||
         undefined,
     };
 
     /*
-     * employeeId optional hai.
-     *
-     * EMPLOYEE login:
-     * backend employeeId ignore karke
-     * self assign karega.
-     *
-     * ADMIN / HR / TL:
-     * selected employee use ho sakta hai.
+     * Normal CRM flow:
+     * Lead -> Demo / Trial
      */
 
-    if (
-      data.employeeId
-    ) {
+    if (data.leadId) {
+      payload.leadId =
+        data.leadId;
+    }
+
+    /*
+     * Optional direct client
+     * trial support.
+     */
+
+    if (data.clientId) {
+      payload.clientId =
+        data.clientId;
+    }
+
+    /*
+     * EMPLOYEE:
+     * backend self-assign karega.
+     *
+     * ADMIN / HR / TL:
+     * selected employee allowed.
+     */
+
+    if (data.employeeId) {
       payload.employeeId =
         data.employeeId;
     }
@@ -135,7 +161,8 @@ export const extendTrial =
             ),
 
           remarks:
-            data.remarks?.trim() ||
+            data.remarks
+              ?.trim() ||
             undefined,
         }
       );

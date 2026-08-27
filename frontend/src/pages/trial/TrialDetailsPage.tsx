@@ -43,9 +43,7 @@ export default function TrialDetailsPage() {
   const navigate =
     useNavigate();
 
-  const {
-    id,
-  } =
+  const { id } =
     useParams();
 
   const employee =
@@ -58,9 +56,9 @@ export default function TrialDetailsPage() {
     trial,
     setTrial,
   ] =
-    useState<
-      Trial | null
-    >(null);
+    useState<Trial | null>(
+      null
+    );
 
   const [
     loading,
@@ -139,8 +137,7 @@ export default function TrialDetailsPage() {
     }, [employee]);
 
   const canManage =
-    roleName ===
-      "ADMIN" ||
+    roleName === "ADMIN" ||
     roleName === "HR" ||
     roleName ===
       "TEAM_LEADER";
@@ -156,17 +153,13 @@ export default function TrialDetailsPage() {
           "Trial ID is missing"
         );
 
-        setLoading(
-          false
-        );
+        setLoading(false);
 
         return;
       }
 
       try {
-        setLoading(
-          true
-        );
+        setLoading(true);
 
         setError("");
 
@@ -185,13 +178,9 @@ export default function TrialDetailsPage() {
             "Failed to load trial"
         );
 
-        setTrial(
-          null
-        );
+        setTrial(null);
       } finally {
-        setLoading(
-          false
-        );
+        setLoading(false);
       }
     };
 
@@ -454,9 +443,9 @@ export default function TrialDetailsPage() {
           </div>
 
           <p className="mt-2 text-sm text-slate-500">
-            Trial details,
-            assignment and
-            duration.
+            Lead demo details,
+            product, assignment
+            and duration.
           </p>
         </div>
 
@@ -480,59 +469,59 @@ export default function TrialDetailsPage() {
 
           {canManage &&
             isActive && (
-            <>
-              <button
-                type="button"
-                onClick={() =>
-                  setShowExtend(
-                    true
-                  )
-                }
-                disabled={
-                  actionLoading
-                }
-                className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-              >
-                Extend Demo
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowExtend(
+                      true
+                    )
+                  }
+                  disabled={
+                    actionLoading
+                  }
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                >
+                  Extend Demo
+                </button>
 
-              <button
-                type="button"
-                onClick={
-                  handleComplete
-                }
-                disabled={
-                  actionLoading
-                }
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
-              >
-                {actionLoading ? (
-                  <Loader2
-                    size={16}
-                    className="animate-spin"
-                  />
-                ) : (
-                  <CheckCircle2
-                    size={16}
-                  />
-                )}
+                <button
+                  type="button"
+                  onClick={
+                    handleComplete
+                  }
+                  disabled={
+                    actionLoading
+                  }
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+                >
+                  {actionLoading ? (
+                    <Loader2
+                      size={16}
+                      className="animate-spin"
+                    />
+                  ) : (
+                    <CheckCircle2
+                      size={16}
+                    />
+                  )}
 
-                Complete Demo
-              </button>
-            </>
-          )}
+                  Complete Demo
+                </button>
+              </>
+            )}
         </div>
       </div>
 
-      {/* ============================
-          ERROR / SUCCESS
-      ============================ */}
+      {/* ERROR */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
+
+      {/* SUCCESS */}
 
       {success && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
@@ -558,11 +547,9 @@ export default function TrialDetailsPage() {
 
         <SummaryCard
           label="Start Date"
-          value={
-            formatDate(
-              trial.startDate
-            )
-          }
+          value={formatDate(
+            trial.startDate
+          )}
           subtext="Demo started"
           icon={
             <CalendarDays
@@ -573,11 +560,9 @@ export default function TrialDetailsPage() {
 
         <SummaryCard
           label="End Date"
-          value={
-            formatDate(
-              trial.endDate
-            )
-          }
+          value={formatDate(
+            trial.endDate
+          )}
           subtext={
             isActive
               ? remainingText
@@ -605,66 +590,183 @@ export default function TrialDetailsPage() {
       </div>
 
       {/* ============================
-          MAIN GRID
+          LEAD / CLIENT + PRODUCT
       ============================ */}
 
       <div className="grid gap-5 xl:grid-cols-2">
-        {/* CLIENT */}
+        {/* LEAD / CLIENT */}
 
         <DetailsCard
-          title="Client Details"
+          title={
+            trial.lead
+              ? "Lead Details"
+              : "Client Details"
+          }
         >
-          <DetailRow
-            label="Client Name"
-            value={
-              trial.client
-                ?.name ||
-              "-"
-            }
-          />
+          {trial.lead ? (
+            <>
+              <DetailRow
+                label="Lead Name"
+                value={
+                  trial.lead
+                    .name ||
+                  "Unnamed Lead"
+                }
+              />
 
-          <DetailRow
-            label="Client Code"
-            value={
-              trial.client
-                ?.clientCode ||
-              "-"
-            }
-          />
+              <DetailRow
+                label="Lead Code"
+                value={
+                  trial.lead
+                    .leadCode
+                }
+              />
 
-          <DetailRow
-            label="Mobile"
-            value={
-              trial.client
-                ?.mobile ||
-              "-"
-            }
-          />
+              <DetailRow
+                label="Mobile"
+                value={
+                  trial.lead
+                    .mobile
+                }
+              />
 
-          <DetailRow
-            label="Email"
-            value={
-              trial.client
-                ?.email ||
-              "-"
-            }
-          />
+              <DetailRow
+                label="Email"
+                value={
+                  trial.lead
+                    .email ||
+                  "-"
+                }
+              />
 
-          <DetailRow
-            label="Location"
-            value={[
-              trial.client
-                ?.city,
+              <DetailRow
+                label="Stage"
+                value={
+                  trial.lead
+                    .stage
+                    ? formatStatus(
+                        trial.lead
+                          .stage
+                      )
+                    : "-"
+                }
+              />
 
-              trial.client
-                ?.state,
-            ]
-              .filter(
-                Boolean
-              )
-              .join(", ") ||
-              "-"}
-          />
+              <DetailRow
+                label="Converted"
+                value={
+                  trial.lead
+                    .isConverted
+                    ? "Yes"
+                    : "No"
+                }
+              />
+
+              <DetailRow
+                label="Location"
+                value={
+                  [
+                    trial.lead
+                      .city,
+
+                    trial.lead
+                      .state,
+                  ]
+                    .filter(
+                      Boolean
+                    )
+                    .join(
+                      ", "
+                    ) ||
+                  "-"
+                }
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    `/leads/${trial.lead?.id}`
+                  )
+                }
+                className="mt-2 w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+              >
+                View Lead
+              </button>
+            </>
+          ) : trial.client ? (
+            <>
+              <DetailRow
+                label="Client Name"
+                value={
+                  trial.client
+                    .name
+                }
+              />
+
+              <DetailRow
+                label="Client Code"
+                value={
+                  trial.client
+                    .clientCode
+                }
+              />
+
+              <DetailRow
+                label="Mobile"
+                value={
+                  trial.client
+                    .mobile
+                }
+              />
+
+              <DetailRow
+                label="Email"
+                value={
+                  trial.client
+                    .email ||
+                  "-"
+                }
+              />
+
+              <DetailRow
+                label="Location"
+                value={
+                  [
+                    trial.client
+                      .city,
+
+                    trial.client
+                      .state,
+                  ]
+                    .filter(
+                      Boolean
+                    )
+                    .join(
+                      ", "
+                    ) ||
+                  "-"
+                }
+              />
+
+              <DetailRow
+                label="Active Client"
+                value={
+                  trial.client
+                    .isActive ===
+                  false
+                    ? "No"
+                    : "Yes"
+                }
+              />
+            </>
+          ) : (
+            <p className="text-sm text-slate-500">
+              Lead / Client
+              information is not
+              available.
+            </p>
+          )}
         </DetailsCard>
 
         {/* PRODUCT */}
@@ -754,7 +856,18 @@ export default function TrialDetailsPage() {
                 ?.email && (
                 <p className="mt-1 text-xs text-slate-400">
                   {
-                    trial.employee.email
+                    trial.employee
+                      .email
+                  }
+                </p>
+              )}
+
+              {trial.employee
+                ?.mobile && (
+                <p className="mt-1 text-xs text-slate-400">
+                  {
+                    trial.employee
+                      .mobile
                   }
                 </p>
               )}
@@ -767,11 +880,9 @@ export default function TrialDetailsPage() {
         >
           <DetailRow
             label="Status"
-            value={
-              formatStatus(
-                trial.status
-              )
-            }
+            value={formatStatus(
+              trial.status
+            )}
           />
 
           <DetailRow
@@ -785,20 +896,16 @@ export default function TrialDetailsPage() {
 
           <DetailRow
             label="Created At"
-            value={
-              formatDateTime(
-                trial.createdAt
-              )
-            }
+            value={formatDateTime(
+              trial.createdAt
+            )}
           />
 
           <DetailRow
             label="Updated At"
-            value={
-              formatDateTime(
-                trial.updatedAt
-              )
-            }
+            value={formatDateTime(
+              trial.updatedAt
+            )}
           />
         </DetailsCard>
       </div>
@@ -816,25 +923,24 @@ export default function TrialDetailsPage() {
         </div>
       </DetailsCard>
 
-      {/* ============================
-          EMPLOYEE INFO
-      ============================ */}
+      {/* EMPLOYEE INFO */}
 
       {!canManage &&
         isActive && (
-        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-          <p className="text-sm font-semibold text-blue-800">
-            Demo Management
-          </p>
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <p className="text-sm font-semibold text-blue-800">
+              Demo Management
+            </p>
 
-          <p className="mt-1 text-xs text-blue-600">
-            You can view your
-            trial details. Trial
-            extension and completion
-            are management actions.
-          </p>
-        </div>
-      )}
+            <p className="mt-1 text-xs text-blue-600">
+              You can view your
+              trial details. Trial
+              extension and
+              completion are
+              management actions.
+            </p>
+          </div>
+        )}
 
       {/* ============================
           EXTEND MODAL
@@ -891,9 +997,7 @@ export default function TrialDetailsPage() {
                     15,
                     30,
                   ].map(
-                    (
-                      days
-                    ) => (
+                    (days) => (
                       <button
                         key={
                           days
@@ -915,10 +1019,7 @@ export default function TrialDetailsPage() {
                             : "border-slate-200 text-slate-600 hover:bg-slate-50"
                         }`}
                       >
-                        {
-                          days
-                        }{" "}
-                        Days
+                        {days} Days
                       </button>
                     )
                   )}
@@ -1213,21 +1314,17 @@ function getRemainingText(
     endDate.getTime() -
     Date.now();
 
-  if (
-    difference <= 0
-  ) {
+  if (difference <= 0) {
     return "Expired";
   }
 
   const days =
     Math.ceil(
       difference /
-        (
-          1000 *
+        (1000 *
           60 *
           60 *
-          24
-        )
+          24)
     );
 
   if (days === 1) {

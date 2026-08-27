@@ -406,6 +406,8 @@ model Lead {
 
   client Client?
 
+  trials Trial[]
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
@@ -940,8 +942,11 @@ model Trial {
 
   trialCode String @unique
 
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id])
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
 
   productId String
   product   Product @relation(fields: [productId], references: [id])
@@ -950,8 +955,7 @@ model Trial {
   employee   Employee? @relation(fields: [employeeId], references: [id])
 
   startDate DateTime
-
-  endDate DateTime
+  endDate   DateTime
 
   trialDays Int
 
@@ -964,6 +968,7 @@ model Trial {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([leadId])
   @@index([clientId])
   @@index([productId])
   @@index([employeeId])

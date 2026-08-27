@@ -250,11 +250,7 @@ export default function TrialListPage() {
     };
 
   /* ============================
-     SUMMARY
-
-     Current loaded page summary.
-     Backend summary API later
-     can replace this.
+     PAGE SUMMARY
   ============================ */
 
   const pageSummary =
@@ -297,9 +293,7 @@ export default function TrialListPage() {
 
   return (
     <div className="space-y-5">
-      {/* ============================
-          HEADER
-      ============================ */}
+      {/* HEADER */}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -312,9 +306,9 @@ export default function TrialListPage() {
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Manage client product
-            demos, expiry and trial
-            progress.
+            Manage Lead demos,
+            trial duration,
+            expiry and progress.
           </p>
         </div>
 
@@ -359,9 +353,7 @@ export default function TrialListPage() {
         </div>
       </div>
 
-      {/* ============================
-          ERROR
-      ============================ */}
+      {/* ERROR */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
@@ -375,9 +367,7 @@ export default function TrialListPage() {
         </div>
       )}
 
-      {/* ============================
-          SUMMARY CARDS
-      ============================ */}
+      {/* SUMMARY */}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
@@ -435,9 +425,7 @@ export default function TrialListPage() {
         />
       </div>
 
-      {/* ============================
-          FILTERS
-      ============================ */}
+      {/* FILTERS */}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row">
@@ -466,7 +454,7 @@ export default function TrialListPage() {
                       .value
                   )
                 }
-                placeholder="Search trial code, client, mobile, product..."
+                placeholder="Search trial, lead, mobile, client, product..."
                 className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
@@ -527,9 +515,7 @@ export default function TrialListPage() {
         </div>
       </div>
 
-      {/* ============================
-          TABLE
-      ============================ */}
+      {/* TABLE */}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
@@ -578,7 +564,7 @@ export default function TrialListPage() {
                     </TableHead>
 
                     <TableHead>
-                      Client
+                      Lead / Client
                     </TableHead>
 
                     <TableHead>
@@ -629,9 +615,7 @@ export default function TrialListPage() {
               </table>
             </div>
 
-            {/* ============================
-                PAGINATION
-            ============================ */}
+            {/* PAGINATION */}
 
             <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-slate-500">
@@ -712,7 +696,7 @@ export default function TrialListPage() {
 }
 
 /* ============================
-   TRIAL ROW
+   ROW
 ============================ */
 
 function TrialRow({
@@ -722,6 +706,29 @@ function TrialRow({
   trial: Trial;
   onOpen: () => void;
 }) {
+  const subjectName =
+    trial.lead?.name ||
+    trial.client?.name ||
+    "Unnamed";
+
+  const subjectMobile =
+    trial.lead?.mobile ||
+    trial.client?.mobile ||
+    "-";
+
+  const subjectCode =
+    trial.lead?.leadCode ||
+    trial.client
+      ?.clientCode ||
+    "-";
+
+  const subjectType =
+    trial.lead
+      ? "LEAD"
+      : trial.client
+        ? "CLIENT"
+        : "-";
+
   return (
     <tr className="transition hover:bg-slate-50/70">
       <td className="whitespace-nowrap px-5 py-4">
@@ -745,17 +752,40 @@ function TrialRow({
       </td>
 
       <td className="px-5 py-4">
-        <p className="max-w-48 truncate text-sm font-medium text-slate-800">
-          {trial.client
-            ?.name ||
-            "-"}
-        </p>
+        <div className="flex items-start gap-2">
+          <div>
+            <p className="max-w-48 truncate text-sm font-medium text-slate-800">
+              {subjectName}
+            </p>
 
-        <p className="mt-1 text-xs text-slate-500">
-          {trial.client
-            ?.mobile ||
-            "-"}
-        </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {subjectCode}
+              {" · "}
+              {subjectMobile}
+            </p>
+          </div>
+
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+              subjectType ===
+              "LEAD"
+                ? "bg-violet-50 text-violet-700"
+                : subjectType ===
+                    "CLIENT"
+                  ? "bg-blue-50 text-blue-700"
+                  : "bg-slate-100 text-slate-500"
+            }`}
+          >
+            {subjectType}
+          </span>
+        </div>
+
+        {trial.lead
+          ?.isConverted && (
+          <p className="mt-1 text-xs font-medium text-emerald-600">
+            Lead Converted
+          </p>
+        )}
       </td>
 
       <td className="px-5 py-4">
@@ -898,7 +928,8 @@ function SummaryCard({
   title: string;
   value: number;
   description: string;
-  icon: React.ReactNode;
+  icon:
+    React.ReactNode;
 }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -974,8 +1005,8 @@ function EmptyTrials({
       </h3>
 
       <p className="mt-1 max-w-sm text-sm text-slate-500">
-        No demo/trial matches
-        the selected filters.
+        No demo matches the
+        selected filters.
       </p>
 
       <button
@@ -1076,12 +1107,9 @@ function getRemainingText(
     return "";
   }
 
-  const now =
-    new Date();
-
   const difference =
     endDate.getTime() -
-    now.getTime();
+    Date.now();
 
   if (
     difference <= 0

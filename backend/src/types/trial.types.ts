@@ -1,5 +1,8 @@
 export interface StartTrialRequest {
-  clientId: string;
+  leadId?: string;
+
+  clientId?: string;
+
   productId: string;
 
   employeeId?: string;
@@ -16,11 +19,19 @@ export interface ExtendTrialRequest {
 }
 
 export interface TrialQuery {
-  page?: string;
+  page?: number;
 
-  limit?: string;
+  limit?: number;
 
   status?: string;
 
   search?: string;
+
+  employeeId?: string;
+
+  leadId?: string;
+
+  clientId?: string;
+
+  productId?: string;
 }

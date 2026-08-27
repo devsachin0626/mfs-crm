@@ -167,16 +167,14 @@ export default function Sidebar() {
       ],
     },
 
-    {
-      label: "Reports",
-      path: "/reports",
-      icon: FileBarChart,
-      roles: [
-        "ADMIN",
-        "HR",
-        "TEAM_LEADER",
-      ],
-    },
+   {
+  label: "Reports",
+  path: "/reports",
+  icon: FileBarChart,
+  roles: [
+    "ADMIN",
+  ],
+},
 
     {
       label: "Settings",

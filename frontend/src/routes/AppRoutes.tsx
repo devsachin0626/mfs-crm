@@ -93,6 +93,14 @@ import TrialDetailsPage from "../pages/trial/TrialDetailsPage";
 import ProtectedRoute from "./ProtectedRoute";
 import DashboardLayout from "../layouts/DashboardLayout";
 
+
+
+/* ============================
+   REPORTS
+============================ */
+
+import ReportPage from "../pages/report/ReportPage";
+
 export default function AppRoutes() {
   return (
     <BrowserRouter>
@@ -381,6 +389,29 @@ export default function AppRoutes() {
                 }
               />
             </Route>
+
+
+            {/* ============================
+    REPORTS
+    ADMIN ONLY
+============================ */}
+
+<Route
+  element={
+    <ProtectedRoute
+      allowedRoles={[
+        "ADMIN",
+      ]}
+    />
+  }
+>
+  <Route
+    path="/reports"
+    element={
+      <ReportPage />
+    }
+  />
+</Route>
 
             {/* ============================
                 ADMIN / HR / TEAM LEADER

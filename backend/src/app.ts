@@ -27,6 +27,7 @@ import followUpRoutes from "./routes/follow-up.routes";
 import { errorMiddleware } from "./middleware/error.middleware";
 import branchRoutes from "./routes/branch.routes";
 import roleRoutes from "./routes/role.routes";
+import reportRoutes from "./routes/report.routes";
 
 
 
@@ -89,6 +90,10 @@ app.use(
 app.use(
   "/api/roles",
   roleRoutes
+);
+app.use(
+  "/api/reports",
+  reportRoutes
 );
 
 

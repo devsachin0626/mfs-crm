@@ -31,6 +31,7 @@ const follow_up_routes_1 = __importDefault(require("./routes/follow-up.routes"))
 const error_middleware_1 = require("./middleware/error.middleware");
 const branch_routes_1 = __importDefault(require("./routes/branch.routes"));
 const role_routes_1 = __importDefault(require("./routes/role.routes"));
+const report_routes_1 = __importDefault(require("./routes/report.routes"));
 const app = (0, express_1.default)();
 // Middleware
 app.use((0, cors_1.default)());
@@ -62,6 +63,7 @@ app.use("/api/lead-history", lead_history_routes_1.default);
 app.use("/api/follow-ups", follow_up_routes_1.default);
 app.use("/api/branches", branch_routes_1.default);
 app.use("/api/roles", role_routes_1.default);
+app.use("/api/reports", report_routes_1.default);
 // Health Check
 app.get("/", (req, res) => {
     res.json({

@@ -13,6 +13,7 @@ import leaveReducer from "./slices/leaveSlice";
 import targetReducer from "./slices/targetSlice";
 import payrollReducer from "./slices/payrollSlice";
 import trialReducer from "./slices/trialSlice";
+import reportReducer from "./slices/reportSlice";
 
 export const store =
   configureStore({
@@ -46,6 +47,7 @@ export const store =
 
       trial:
         trialReducer,
+        report: reportReducer,
     },
   });
 

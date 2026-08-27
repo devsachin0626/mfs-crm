@@ -17,6 +17,7 @@ import {
   CalendarClock,
   Phone,
   Columns3,
+  FlaskConical,
 } from "lucide-react";
 
 import {
@@ -108,6 +109,12 @@ export default function Sidebar() {
       label: "Follow Ups",
       path: "/follow-ups",
       icon: CalendarClock,
+    },
+
+    {
+      label: "Demo / Trials",
+      path: "/trials",
+      icon: FlaskConical,
     },
 
     {
@@ -208,11 +215,6 @@ export default function Sidebar() {
   const isActive = (
     path: string
   ) => {
-    /*
-     * Dashboard should match
-     * only /dashboard.
-     */
-
     if (
       path === "/dashboard"
     ) {
@@ -221,12 +223,6 @@ export default function Sidebar() {
         "/dashboard"
       );
     }
-
-    /*
-     * Leads special case:
-     * /leads should not highlight
-     * together with Pipeline.
-     */
 
     if (path === "/leads") {
       return (

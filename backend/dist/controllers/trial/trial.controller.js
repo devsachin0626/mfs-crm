@@ -35,73 +35,250 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.completeTrial = exports.extendTrial = exports.getTrialById = exports.getTrials = exports.startTrial = void 0;
 const trialService = __importStar(require("../../services/trial/trial.service"));
+/* ============================
+   CURRENT EMPLOYEE
+============================ */
+const getCurrentEmployee = (req) => {
+    const employee = req.employee;
+    if (!employee) {
+        return null;
+    }
+    return employee;
+};
+/* ============================
+   START TRIAL
+============================ */
 const startTrial = async (req, res) => {
     try {
-        const result = await trialService.startTrial(req.body);
-        res.status(201).json(result);
+        const currentEmployee = getCurrentEmployee(req);
+        if (!currentEmployee) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+            return;
+        }
+        const result = await trialService.startTrial(req.body, currentEmployee);
+        res
+            .status(201)
+            .json(result);
     }
     catch (error) {
         res.status(400).json({
             success: false,
-            message: error.message || "Trial Start Failed",
+            message: error.message ||
+                "Trial Start Failed",
         });
     }
 };
 exports.startTrial = startTrial;
+/* ============================
+   GET TRIALS
+============================ */
 const getTrials = async (req, res) => {
     try {
-        const page = Number(req.query.page) || 1;
-        const limit = Number(req.query.limit) || 10;
-        const result = await trialService.getTrials(page, limit);
-        res.status(200).json(result);
+        const currentEmployee = getCurrentEmployee(req);
+        if (!currentEmployee) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+            return;
+        }
+        const page = Math.max(Number(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
+        const status = typeof req.query
+            .status ===
+            "string"
+            ? req.query.status
+            : undefined;
+        const search = typeof req.query
+            .search ===
+            "string"
+            ? req.query.search
+            : undefined;
+        const employeeId = typeof req.query
+            .employeeId ===
+            "string"
+            ? req.query
+                .employeeId
+            : undefined;
+        const result = await trialService.getTrials(page, limit, status, search, employeeId, currentEmployee);
+        res
+            .status(200)
+            .json(result);
     }
     catch (error) {
-        res.status(500).json({
+        res.status(400).json({
             success: false,
-            message: error.message,
+            message: error.message ||
+                "Failed To Fetch Trials",
         });
     }
 };
 exports.getTrials = getTrials;
+/* ============================
+   GET TRIAL BY ID
+============================ */
 const getTrialById = async (req, res) => {
     try {
+        const currentEmployee = getCurrentEmployee(req);
+        if (!currentEmployee) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+            return;
+        }
         const id = req.params.id;
-        const result = await trialService.getTrialById(id);
-        res.status(200).json(result);
+        if (!id) {
+            res.status(400).json({
+                success: false,
+                message: "Trial ID Is Required",
+            });
+            return;
+        }
+        const result = await trialService.getTrialById(id, currentEmployee);
+        res
+            .status(200)
+            .json(result);
     }
     catch (error) {
-        res.status(404).json({
+        const message = error.message ||
+            "Failed To Fetch Trial";
+        if (message ===
+            "Trial Not Found") {
+            res.status(404).json({
+                success: false,
+                message,
+            });
+            return;
+        }
+        if (message ===
+            "Trial Access Denied") {
+            res.status(403).json({
+                success: false,
+                message,
+            });
+            return;
+        }
+        res.status(400).json({
             success: false,
-            message: error.message,
+            message,
         });
     }
 };
 exports.getTrialById = getTrialById;
+/* ============================
+   EXTEND TRIAL
+============================ */
 const extendTrial = async (req, res) => {
     try {
+        const currentEmployee = getCurrentEmployee(req);
+        if (!currentEmployee) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+            return;
+        }
         const id = req.params.id;
-        const { trialDays } = req.body;
-        const result = await trialService.extendTrial(id, trialDays);
-        res.status(200).json(result);
+        if (!id) {
+            res.status(400).json({
+                success: false,
+                message: "Trial ID Is Required",
+            });
+            return;
+        }
+        const trialDays = Number(req.body.trialDays);
+        const remarks = typeof req.body
+            .remarks ===
+            "string"
+            ? req.body.remarks
+            : undefined;
+        const result = await trialService.extendTrial(id, trialDays, remarks, currentEmployee);
+        res
+            .status(200)
+            .json(result);
     }
     catch (error) {
+        const message = error.message ||
+            "Trial Extension Failed";
+        if (message ===
+            "Trial Access Denied" ||
+            message ===
+                "Trial Management Access Denied") {
+            res.status(403).json({
+                success: false,
+                message,
+            });
+            return;
+        }
+        if (message ===
+            "Trial Not Found") {
+            res.status(404).json({
+                success: false,
+                message,
+            });
+            return;
+        }
         res.status(400).json({
             success: false,
-            message: error.message,
+            message,
         });
     }
 };
 exports.extendTrial = extendTrial;
+/* ============================
+   COMPLETE TRIAL
+============================ */
 const completeTrial = async (req, res) => {
     try {
+        const currentEmployee = getCurrentEmployee(req);
+        if (!currentEmployee) {
+            res.status(401).json({
+                success: false,
+                message: "Unauthorized",
+            });
+            return;
+        }
         const id = req.params.id;
-        const result = await trialService.completeTrial(id);
-        res.status(200).json(result);
+        if (!id) {
+            res.status(400).json({
+                success: false,
+                message: "Trial ID Is Required",
+            });
+            return;
+        }
+        const result = await trialService.completeTrial(id, currentEmployee);
+        res
+            .status(200)
+            .json(result);
     }
     catch (error) {
+        const message = error.message ||
+            "Trial Completion Failed";
+        if (message ===
+            "Trial Access Denied" ||
+            message ===
+                "Trial Management Access Denied") {
+            res.status(403).json({
+                success: false,
+                message,
+            });
+            return;
+        }
+        if (message ===
+            "Trial Not Found") {
+            res.status(404).json({
+                success: false,
+                message,
+            });
+            return;
+        }
         res.status(400).json({
             success: false,
-            message: error.message,
+            message,
         });
     }
 };

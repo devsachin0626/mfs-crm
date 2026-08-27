@@ -1,4 +1,6 @@
-import { configureStore } from "@reduxjs/toolkit";
+import {
+  configureStore,
+} from "@reduxjs/toolkit";
 
 import authReducer from "./slices/authSlice";
 import dashboardReducer from "./slices/dashboardSlice";
@@ -10,24 +12,47 @@ import attendanceReducer from "./slices/attendanceSlice";
 import leaveReducer from "./slices/leaveSlice";
 import targetReducer from "./slices/targetSlice";
 import payrollReducer from "./slices/payrollSlice";
+import trialReducer from "./slices/trialSlice";
 
-export const store = configureStore({
-  reducer: {
-    auth: authReducer,
-    dashboard: dashboardReducer,
-    lead: leadReducer,
-    leadDetails: leadDetailsReducer,
-    employee: employeeReducer,
-    employeeDetails: employeeDetailsReducer,
-    attendance: attendanceReducer,
-    leave: leaveReducer,
-    target: targetReducer,
-    payroll: payrollReducer,
-  },
-});
+export const store =
+  configureStore({
+    reducer: {
+      auth: authReducer,
 
-export type RootState = ReturnType<
-  typeof store.getState
->;
+      dashboard:
+        dashboardReducer,
 
-export type AppDispatch = typeof store.dispatch;
+      lead: leadReducer,
+
+      leadDetails:
+        leadDetailsReducer,
+
+      employee:
+        employeeReducer,
+
+      employeeDetails:
+        employeeDetailsReducer,
+
+      attendance:
+        attendanceReducer,
+
+      leave: leaveReducer,
+
+      target:
+        targetReducer,
+
+      payroll:
+        payrollReducer,
+
+      trial:
+        trialReducer,
+    },
+  });
+
+export type RootState =
+  ReturnType<
+    typeof store.getState
+  >;
+
+export type AppDispatch =
+  typeof store.dispatch;

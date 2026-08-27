@@ -38,9 +38,46 @@ const trialController = __importStar(require("../controllers/trial/trial.control
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const role_middleware_1 = require("../middleware/role.middleware");
 const router = (0, express_1.Router)();
-router.post("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), trialController.startTrial);
+/* ============================
+   START TRIAL
+
+   ADMIN / HR
+   -> any allowed employee
+
+   TEAM LEADER
+   -> self / own team
+
+   EMPLOYEE
+   -> self only
+============================ */
+router.post("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), trialController.startTrial);
+/* ============================
+   LIST TRIALS
+
+   ADMIN / HR
+   -> all
+
+   TEAM LEADER
+   -> self + own team
+
+   EMPLOYEE
+   -> own
+============================ */
 router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), trialController.getTrials);
+/* ============================
+   TRIAL DETAILS
+============================ */
 router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), trialController.getTrialById);
+/* ============================
+   EXTEND TRIAL
+
+   management action
+============================ */
 router.patch("/:id/extend", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), trialController.extendTrial);
+/* ============================
+   COMPLETE TRIAL
+
+   management action
+============================ */
 router.patch("/:id/complete", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER"), trialController.completeTrial);
 exports.default = router;

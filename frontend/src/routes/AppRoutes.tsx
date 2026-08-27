@@ -79,6 +79,14 @@ import FollowUpListPage from "../pages/followup/FollowUpListPage";
 import CallingWorkspacePage from "../pages/calling/CallingWorkspacePage";
 
 /* ============================
+   TRIAL / DEMO
+============================ */
+
+import TrialListPage from "../pages/trial/TrialListPage";
+import TrialCreatePage from "../pages/trial/TrialCreatePage";
+import TrialDetailsPage from "../pages/trial/TrialDetailsPage";
+
+/* ============================
    ROUTE / LAYOUT
 ============================ */
 
@@ -182,6 +190,41 @@ export default function AppRoutes() {
               path="/calling"
               element={
                 <CallingWorkspacePage />
+              }
+            />
+
+            {/* ============================
+                TRIAL / DEMO
+                ALL LOGGED-IN ROLES
+
+                EMPLOYEE:
+                own trials + start own
+
+                TEAM LEADER:
+                self + team
+
+                ADMIN / HR:
+                company scope
+            ============================ */}
+
+            <Route
+              path="/trials"
+              element={
+                <TrialListPage />
+              }
+            />
+
+            <Route
+              path="/trials/create"
+              element={
+                <TrialCreatePage />
+              }
+            />
+
+            <Route
+              path="/trials/:id"
+              element={
+                <TrialDetailsPage />
               }
             />
 

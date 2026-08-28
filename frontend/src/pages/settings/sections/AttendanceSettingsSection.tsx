@@ -260,6 +260,8 @@ export default function AttendanceSettingsSection() {
           "HALF_DAY_AFTER_TIME"
         );
 
+      /* REQUIRED */
+
       if (
         !officeStart ||
         !officeEnd ||
@@ -272,6 +274,112 @@ export default function AttendanceSettingsSection() {
 
         return;
       }
+
+      /* FORMAT */
+
+      if (
+        !isValidTime(
+          officeStart
+        ) ||
+        !isValidTime(
+          officeEnd
+        ) ||
+        !isValidTime(
+          lateAfter
+        ) ||
+        !isValidTime(
+          halfDayAfter
+        )
+      ) {
+        setError(
+          "Invalid attendance time format."
+        );
+
+        return;
+      }
+
+      const startMinutes =
+        timeToMinutes(
+          officeStart
+        );
+
+      const endMinutes =
+        timeToMinutes(
+          officeEnd
+        );
+
+      const lateMinutes =
+        timeToMinutes(
+          lateAfter
+        );
+
+      const halfDayMinutes =
+        timeToMinutes(
+          halfDayAfter
+        );
+
+      /* OFFICE RANGE */
+
+      if (
+        endMinutes <=
+        startMinutes
+      ) {
+        setError(
+          "Office End Time must be after Office Start Time."
+        );
+
+        return;
+      }
+
+      /* LATE RULE */
+
+      if (
+        lateMinutes <
+        startMinutes
+      ) {
+        setError(
+          "Late After Time cannot be before Office Start Time."
+        );
+
+        return;
+      }
+
+      if (
+        lateMinutes >=
+        endMinutes
+      ) {
+        setError(
+          "Late After Time must be before Office End Time."
+        );
+
+        return;
+      }
+
+      /* HALF DAY RULE */
+
+      if (
+        halfDayMinutes <=
+        lateMinutes
+      ) {
+        setError(
+          "Half Day After Time must be after Late After Time."
+        );
+
+        return;
+      }
+
+      if (
+        halfDayMinutes >=
+        endMinutes
+      ) {
+        setError(
+          "Half Day After Time must be before Office End Time."
+        );
+
+        return;
+      }
+
+      /* SAVE */
 
       try {
         await dispatch(
@@ -671,7 +779,7 @@ export default function AttendanceSettingsSection() {
 
       <SettingsCard
         title="Office Timing Rules"
-        description="Configure default attendance timings used by the CRM."
+        description="Configure attendance timings used by Check-In and attendance status."
         action={
           <div className="flex flex-wrap gap-2">
             <button
@@ -771,7 +879,7 @@ export default function AttendanceSettingsSection() {
 
         <SettingRow
           title="Late After"
-          description="Employee may be marked late after this time."
+          description="Check-In after this time is marked Late."
         >
           <input
             type="time"
@@ -797,7 +905,7 @@ export default function AttendanceSettingsSection() {
 
         <SettingRow
           title="Half Day After"
-          description="Employee may be treated as half-day when reporting after this time."
+          description="Check-In after this time is automatically treated as Half Day."
         >
           <input
             type="time"
@@ -820,6 +928,18 @@ export default function AttendanceSettingsSection() {
             }
           />
         </SettingRow>
+
+        <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <p className="text-sm font-semibold text-blue-800">
+            Attendance Rule
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-blue-600">
+            Before Late After Time → Present.
+            After Late After Time → Late.
+            After Half Day After Time → Half Day.
+          </p>
+        </div>
       </SettingsCard>
 
       {/* ============================
@@ -1213,7 +1333,8 @@ function Message({
     () => void;
 }) {
   const success =
-    type === "SUCCESS";
+    type ===
+    "SUCCESS";
 
   return (
     <div
@@ -1240,6 +1361,7 @@ function Message({
         onClick={
           onClose
         }
+        className="rounded-md p-1 hover:bg-black/5"
       >
         <X
           size={16}
@@ -1350,7 +1472,8 @@ function TableHead({
   return (
     <th
       className={`whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 ${
-        align === "right"
+        align ===
+        "right"
           ? "text-right"
           : "text-left"
       }`}
@@ -1361,7 +1484,43 @@ function TableHead({
 }
 
 /* ============================
-   DATE HELPERS
+   TIME VALIDATION
+============================ */
+
+function isValidTime(
+  value: string
+) {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(
+    value
+  );
+}
+
+/* ============================
+   TIME → MINUTES
+============================ */
+
+function timeToMinutes(
+  value: string
+) {
+  const [
+    hours,
+    minutes,
+  ] =
+    value
+      .split(":")
+      .map(
+        Number
+      );
+
+  return (
+    hours *
+      60 +
+    minutes
+  );
+}
+
+/* ============================
+   DATE INPUT
 ============================ */
 
 function toDateInput(
@@ -1373,8 +1532,30 @@ function toDateInput(
     return "";
   }
 
+  /*
+   * Handles both:
+   * YYYY-MM-DD
+   * ISO datetime
+   */
+
+  const raw =
+    value.slice(
+      0,
+      10
+    );
+
+  if (
+    /^\d{4}-\d{2}-\d{2}$/.test(
+      raw
+    )
+  ) {
+    return raw;
+  }
+
   const date =
-    new Date(value);
+    new Date(
+      value
+    );
 
   if (
     Number.isNaN(
@@ -1384,16 +1565,59 @@ function toDateInput(
     return "";
   }
 
-  return date
-    .toISOString()
-    .slice(0, 10);
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() +
+        1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
 }
+
+/* ============================
+   FORMAT DATE
+============================ */
 
 function formatDate(
   value: string
 ) {
+  const raw =
+    value.slice(
+      0,
+      10
+    );
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    raw
+      .split("-")
+      .map(
+        Number
+      );
+
   const date =
-    new Date(value);
+    new Date(
+      year,
+      month - 1,
+      day
+    );
 
   if (
     Number.isNaN(
@@ -1406,11 +1630,14 @@ function formatDate(
   return date.toLocaleDateString(
     "en-IN",
     {
-      day: "2-digit",
+      day:
+        "2-digit",
 
-      month: "short",
+      month:
+        "short",
 
-      year: "numeric",
+      year:
+        "numeric",
     }
   );
 }
@@ -1440,7 +1667,8 @@ function getErrorMessage(
 
     return (
       apiError.response
-        ?.data?.message ||
+        ?.data
+        ?.message ||
       apiError.message ||
       "Something went wrong"
     );

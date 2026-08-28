@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetSettingGroupController = exports.resetSettingController = exports.bulkUpdateSettingsController = exports.updateSettingController = exports.getSettingByKeyController = exports.getSettingsByGroupController = exports.getControlPanelSettingsController = exports.getSettingsListController = exports.getAllSettingsController = void 0;
+exports.getBrandSettingsController = exports.resetSettingGroupController = exports.resetSettingController = exports.bulkUpdateSettingsController = exports.updateSettingController = exports.getSettingByKeyController = exports.getSettingsByGroupController = exports.getControlPanelSettingsController = exports.getSettingsListController = exports.getAllSettingsController = void 0;
 const settings_service_1 = require("../../services/settings/settings.service");
 /* ============================
    GET ALL SETTINGS
@@ -267,3 +267,30 @@ const resetSettingGroupController = async (req, res) => {
     }
 };
 exports.resetSettingGroupController = resetSettingGroupController;
+/* ============================
+ GET BRAND SETTINGS
+
+ Authenticated users ke liye
+ sidebar / common layout data.
+============================ */
+const getBrandSettingsController = async (_req, res) => {
+    try {
+        const result = await (0, settings_service_1.getAllSettings)();
+        res.status(200).json({
+            success: true,
+            brand: {
+                companyName: result.settings
+                    .COMPANY_NAME ||
+                    "Mahakal Financial Services",
+            },
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error?.message ||
+                "Failed To Load Brand Settings",
+        });
+    }
+};
+exports.getBrandSettingsController = getBrandSettingsController;

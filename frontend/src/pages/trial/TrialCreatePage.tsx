@@ -19,11 +19,12 @@ import {
 
 import {
   getLeads,
+  getLeadById,
 } from "../../services/lead.service";
 
 import {
-  getTrialProductOptions,
-} from "../../services/product.service";
+  getActiveDemoProducts,
+} from "../../services/demoProduct.service";
 
 import {
   getEmployees,
@@ -34,6 +35,10 @@ import {
 } from "../../services/trial.service";
 
 import {
+  getSettingByKey,
+} from "../../services/settings.service";
+
+import {
   useAppSelector,
 } from "../../hooks/redux";
 
@@ -42,12 +47,12 @@ import type {
 } from "../../types/lead.types";
 
 import type {
-  ProductOption,
-} from "../../services/product.service";
-
-import type {
   Employee,
 } from "../../types/employee.types";
+
+import type {
+  DemoProduct,
+} from "../../types/settings.types";
 
 /* ============================
    FORM
@@ -56,7 +61,7 @@ import type {
 type TrialForm = {
   leadId: string;
 
-  productId: string;
+  demoProductId: string;
 
   employeeId: string;
 
@@ -64,6 +69,13 @@ type TrialForm = {
 
   remarks: string;
 };
+
+/* ============================
+   DEFAULT
+============================ */
+
+const DEFAULT_TRIAL_DAYS =
+  "7";
 
 /* ============================
    PAGE
@@ -86,9 +98,6 @@ export default function TrialCreatePage() {
 
   /* ============================
      QUERY LEAD
-
-     Example:
-     /trials/create?leadId=xxx
   ============================ */
 
   const queryLeadId =
@@ -104,16 +113,16 @@ export default function TrialCreatePage() {
     leads,
     setLeads,
   ] =
-    useState<
-      Lead[]
-    >([]);
+    useState<Lead[]>(
+      []
+    );
 
   const [
     products,
     setProducts,
   ] =
     useState<
-      ProductOption[]
+      DemoProduct[]
     >([]);
 
   const [
@@ -170,13 +179,17 @@ export default function TrialCreatePage() {
       leadId:
         queryLeadId,
 
-      productId: "",
+      demoProductId:
+        "",
 
-      employeeId: "",
+      employeeId:
+        "",
 
-      trialDays: "7",
+      trialDays:
+        DEFAULT_TRIAL_DAYS,
 
-      remarks: "",
+      remarks:
+        "",
     });
 
   /* ============================
@@ -216,7 +229,8 @@ export default function TrialCreatePage() {
   const canAssign =
     roleName ===
       "ADMIN" ||
-    roleName === "HR" ||
+    roleName ===
+      "HR" ||
     roleName ===
       "TEAM_LEADER";
 
@@ -234,9 +248,14 @@ export default function TrialCreatePage() {
 
           setError("");
 
+          /*
+           * Lead + Demo Product
+           * parallel load.
+           */
+
           const [
             leadResponse,
-            productOptions,
+            demoProducts,
           ] =
             await Promise.all([
               getLeads({
@@ -244,14 +263,12 @@ export default function TrialCreatePage() {
                 limit: 100,
               }),
 
-              getTrialProductOptions(),
+              getActiveDemoProducts(),
             ]);
 
-          /*
-           * Converted / Lost leads
-           * normally should not
-           * start a new demo.
-           */
+          /* ============================
+             LEADS
+          ============================ */
 
           const availableLeads =
             (
@@ -268,9 +285,73 @@ export default function TrialCreatePage() {
             availableLeads
           );
 
+          /* ============================
+             DEMO PRODUCTS
+          ============================ */
+
           setProducts(
-            productOptions
+            demoProducts ||
+              []
           );
+
+          /* ============================
+             DEFAULT TRIAL DAYS
+
+             Settings endpoint can be
+             ADMIN-only, therefore
+             failure must not break
+             employee Trial form.
+          ============================ */
+
+          try {
+            const settingResponse =
+              await getSettingByKey(
+                "DEFAULT_TRIAL_DAYS"
+              );
+
+            const value =
+              Number(
+                settingResponse
+                  ?.setting
+                  ?.value
+              );
+
+            if (
+              Number.isInteger(
+                value
+              ) &&
+              value > 0 &&
+              value <= 365
+            ) {
+              setForm(
+                (current) => ({
+                  ...current,
+
+                  trialDays:
+                    String(
+                      value
+                    ),
+                })
+              );
+            }
+          } catch {
+            /*
+             * Keep safe fallback.
+             */
+
+            setForm(
+              (current) => ({
+                ...current,
+
+                trialDays:
+                  DEFAULT_TRIAL_DAYS,
+              })
+            );
+          }
+
+          /* ============================
+             EMPLOYEES
+          ============================ */
 
           if (canAssign) {
             const employeeResponse =
@@ -281,7 +362,8 @@ export default function TrialCreatePage() {
 
             setEmployees(
               (
-                employeeResponse.employees ||
+                employeeResponse
+                  .employees ||
                 []
               ).filter(
                 (item) =>
@@ -294,13 +376,12 @@ export default function TrialCreatePage() {
             );
           }
 
-          /*
-           * If leadId comes from
-           * Lead Details page and
-           * that lead wasn't inside
-           * first 100 list records,
-           * fetch it separately.
-           */
+          /* ============================
+             QUERY LEAD
+
+             Lead may not exist inside
+             first 100 records.
+          ============================ */
 
           if (
             queryLeadId &&
@@ -312,25 +393,22 @@ export default function TrialCreatePage() {
           ) {
             try {
               const directLead =
-                await import(
-                  "../../services/lead.service"
-                ).then(
-                  ({
-                    getLeadById,
-                  }) =>
-                    getLeadById(
-                      queryLeadId
-                    )
+                await getLeadById(
+                  queryLeadId
                 );
 
               if (
                 directLead.lead &&
-                directLead.lead.stage !==
-                  "LOST"
+                directLead.lead
+                  .stage !==
+                  "LOST" &&
+                !directLead.lead
+                  .isConverted
               ) {
                 setLeads(
                   (current) => [
                     directLead.lead,
+
                     ...current.filter(
                       (item) =>
                         item.id !==
@@ -342,13 +420,14 @@ export default function TrialCreatePage() {
               }
             } catch {
               /*
-               * Backend access rule
-               * will still protect
-               * inaccessible lead.
+               * Backend access rules
+               * still protect Lead.
                */
             }
           }
-        } catch (error: any) {
+        } catch (
+          error: any
+        ) {
           setError(
             error?.response
               ?.data?.message ||
@@ -361,7 +440,7 @@ export default function TrialCreatePage() {
         }
       };
 
-    loadOptions();
+    void loadOptions();
   }, [
     canAssign,
     queryLeadId,
@@ -385,22 +464,26 @@ export default function TrialCreatePage() {
       ]
     );
 
+  /* ============================
+     SELECTED DEMO PRODUCT
+  ============================ */
+
   const selectedProduct =
     useMemo(
       () =>
         products.find(
           (item) =>
             item.id ===
-            form.productId
+            form.demoProductId
         ),
       [
         products,
-        form.productId,
+        form.demoProductId,
       ]
     );
 
   /* ============================
-     FILTERED LEADS
+     FILTER LEADS
   ============================ */
 
   const filteredLeads =
@@ -440,10 +523,6 @@ export default function TrialCreatePage() {
 
   /* ============================
      AUTO EMPLOYEE
-
-     Management selecting a Lead:
-     default trial owner should be
-     that Lead's assigned employee.
   ============================ */
 
   useEffect(() => {
@@ -480,12 +559,15 @@ export default function TrialCreatePage() {
 
   const validate =
     () => {
-      if (!form.leadId) {
+      if (
+        !form.leadId
+      ) {
         return "Please select Lead";
       }
 
       if (
-        selectedLead?.stage ===
+        selectedLead
+          ?.stage ===
         "LOST"
       ) {
         return "Lost Lead cannot start demo";
@@ -498,8 +580,10 @@ export default function TrialCreatePage() {
         return "Converted Lead cannot start new Lead demo";
       }
 
-      if (!form.productId) {
-        return "Please select Product";
+      if (
+        !form.demoProductId
+      ) {
+        return "Please select Demo Product";
       }
 
       const trialDays =
@@ -558,8 +642,8 @@ export default function TrialCreatePage() {
             leadId:
               form.leadId,
 
-            productId:
-              form.productId,
+            demoProductId:
+              form.demoProductId,
 
             employeeId:
               canAssign &&
@@ -608,7 +692,9 @@ export default function TrialCreatePage() {
           },
           400
         );
-      } catch (error: any) {
+      } catch (
+        error: any
+      ) {
         setError(
           error?.response
             ?.data?.message ||
@@ -625,7 +711,9 @@ export default function TrialCreatePage() {
      LOADING
   ============================ */
 
-  if (loadingOptions) {
+  if (
+    loadingOptions
+  ) {
     return (
       <div className="flex min-h-80 items-center justify-center">
         <div className="text-center">
@@ -645,7 +733,9 @@ export default function TrialCreatePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-5">
-      {/* HEADER */}
+      {/* ============================
+          HEADER
+      ============================ */}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -696,7 +786,9 @@ export default function TrialCreatePage() {
         </div>
       </div>
 
-      {/* ERROR */}
+      {/* ============================
+          ERROR
+      ============================ */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -704,7 +796,9 @@ export default function TrialCreatePage() {
         </div>
       )}
 
-      {/* SUCCESS */}
+      {/* ============================
+          SUCCESS
+      ============================ */}
 
       {success && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
@@ -716,7 +810,9 @@ export default function TrialCreatePage() {
         </div>
       )}
 
-      {/* FORM */}
+      {/* ============================
+          FORM
+      ============================ */}
 
       <form
         onSubmit={
@@ -738,7 +834,7 @@ export default function TrialCreatePage() {
               </h2>
 
               <p className="mt-0.5 text-xs text-slate-500">
-                Lead, product,
+                Lead, demo product,
                 duration and
                 assignment.
               </p>
@@ -747,13 +843,15 @@ export default function TrialCreatePage() {
         </div>
 
         <div className="space-y-6 p-6">
-          {/* LEAD */}
+          {/* ============================
+              LEAD
+          ============================ */}
 
           <Field
             label="Lead"
             required
           >
-            <div className="mb-2 relative">
+            <div className="relative mb-2">
               <Search
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -785,8 +883,8 @@ export default function TrialCreatePage() {
                 event
               ) =>
                 setForm(
-                  (prev) => ({
-                    ...prev,
+                  (current) => ({
+                    ...current,
 
                     leadId:
                       event.target
@@ -812,7 +910,9 @@ export default function TrialCreatePage() {
                       lead.id
                     }
                   >
-                    {lead.leadCode}
+                    {
+                      lead.leadCode
+                    }
                     {" - "}
                     {lead.name ||
                       "Unnamed Lead"}
@@ -885,24 +985,26 @@ export default function TrialCreatePage() {
             )}
           </Field>
 
-          {/* PRODUCT */}
+          {/* ============================
+              DEMO PRODUCT
+          ============================ */}
 
           <Field
-            label="Trial Product"
+            label="Demo Product"
             required
           >
             <select
               value={
-                form.productId
+                form.demoProductId
               }
               onChange={(
                 event
               ) =>
                 setForm(
-                  (prev) => ({
-                    ...prev,
+                  (current) => ({
+                    ...current,
 
-                    productId:
+                    demoProductId:
                       event.target
                         .value,
                   })
@@ -913,8 +1015,7 @@ export default function TrialCreatePage() {
               }
             >
               <option value="">
-                Select Trial
-                Product
+                Select Demo Product
               </option>
 
               {products.map(
@@ -932,7 +1033,7 @@ export default function TrialCreatePage() {
                     }
                     {" - "}
                     {
-                      product.productCode
+                      product.code
                     }
                   </option>
                 )
@@ -942,51 +1043,49 @@ export default function TrialCreatePage() {
             {products.length ===
               0 && (
               <p className="mt-2 text-xs text-amber-600">
-                No active
-                trial-enabled
-                products found.
+                No active Demo
+                Products found.
+                Create or activate
+                one from Settings.
               </p>
             )}
 
             {selectedProduct && (
               <InfoBox>
-                <p className="font-semibold text-slate-800">
-                  {
-                    selectedProduct.name
-                  }
-                </p>
-
-                <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-                  <span>
-                    {
-                      selectedProduct.productCode
-                    }
-                  </span>
-
-                  {selectedProduct.type && (
-                    <span>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-800">
                       {
-                        selectedProduct.type
+                        selectedProduct.name
                       }
-                    </span>
-                  )}
+                    </p>
 
-                  {selectedProduct.durationDays !=
-                    null && (
-                    <span>
-                      Standard:{" "}
+                    <p className="mt-1 text-xs font-medium text-slate-500">
                       {
-                        selectedProduct.durationDays
-                      }{" "}
-                      days
-                    </span>
-                  )}
+                        selectedProduct.code
+                      }
+                    </p>
+
+                    {selectedProduct.description && (
+                      <p className="mt-2 text-xs leading-5 text-slate-500">
+                        {
+                          selectedProduct.description
+                        }
+                      </p>
+                    )}
+                  </div>
+
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                    Active
+                  </span>
                 </div>
               </InfoBox>
             )}
           </Field>
 
-          {/* EMPLOYEE */}
+          {/* ============================
+              EMPLOYEE
+          ============================ */}
 
           {canAssign ? (
             <Field label="Assigned Employee">
@@ -998,8 +1097,8 @@ export default function TrialCreatePage() {
                   event
                 ) =>
                   setForm(
-                    (prev) => ({
-                      ...prev,
+                    (current) => ({
+                      ...current,
 
                       employeeId:
                         event.target
@@ -1058,7 +1157,9 @@ export default function TrialCreatePage() {
             </div>
           )}
 
-          {/* DAYS */}
+          {/* ============================
+              DAYS
+          ============================ */}
 
           <Field
             label="Trial Days"
@@ -1075,8 +1176,8 @@ export default function TrialCreatePage() {
                 event
               ) =>
                 setForm(
-                  (prev) => ({
-                    ...prev,
+                  (current) => ({
+                    ...current,
 
                     trialDays:
                       event.target
@@ -1106,9 +1207,9 @@ export default function TrialCreatePage() {
                     onClick={() =>
                       setForm(
                         (
-                          prev
+                          current
                         ) => ({
-                          ...prev,
+                          ...current,
 
                           trialDays:
                             String(
@@ -1133,7 +1234,9 @@ export default function TrialCreatePage() {
             </div>
           </Field>
 
-          {/* REMARKS */}
+          {/* ============================
+              REMARKS
+          ============================ */}
 
           <Field label="Remarks">
             <textarea
@@ -1145,8 +1248,8 @@ export default function TrialCreatePage() {
                 event
               ) =>
                 setForm(
-                  (prev) => ({
-                    ...prev,
+                  (current) => ({
+                    ...current,
 
                     remarks:
                       event.target
@@ -1162,7 +1265,9 @@ export default function TrialCreatePage() {
           </Field>
         </div>
 
-        {/* FOOTER */}
+        {/* ============================
+            FOOTER
+        ============================ */}
 
         <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4 sm:flex-row sm:justify-end">
           <button
@@ -1222,11 +1327,13 @@ export default function TrialCreatePage() {
 
 function Field({
   label,
-  required = false,
+  required,
   children,
 }: {
   label: string;
+
   required?: boolean;
+
   children:
     React.ReactNode;
 }) {
@@ -1258,15 +1365,15 @@ function InfoBox({
     React.ReactNode;
 }) {
   return (
-    <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
       {children}
     </div>
   );
 }
 
 /* ============================
-   INPUT
+   INPUT CLASS
 ============================ */
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";

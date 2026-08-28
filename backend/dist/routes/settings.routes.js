@@ -6,9 +6,22 @@ const role_middleware_1 = require("../middleware/role.middleware");
 const settings_controller_1 = require("../controllers/settings/settings.controller");
 const router = (0, express_1.Router)();
 /* ============================
-   ADMIN ONLY
+   AUTHENTICATED USERS
+
+   Common CRM settings such as
+   company branding.
 ============================ */
 router.use(auth_middleware_1.authenticate);
+/* ============================
+   BRAND SETTINGS
+
+   ADMIN / HR / TL / EMPLOYEE
+   sab authenticated users.
+============================ */
+router.get("/brand", settings_controller_1.getBrandSettingsController);
+/* ============================
+   ADMIN ONLY BELOW
+============================ */
 router.use((0, role_middleware_1.authorize)("ADMIN"));
 /* ============================
    GET ALL RAW SETTINGS

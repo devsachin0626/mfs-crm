@@ -948,8 +948,8 @@ model Trial {
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id])
 
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
 
   demoProductId String?
 

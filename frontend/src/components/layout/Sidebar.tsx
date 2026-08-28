@@ -1,4 +1,9 @@
 import {
+  useEffect,
+  useState,
+} from "react";
+
+import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
@@ -24,12 +29,35 @@ import {
   useAppSelector,
 } from "../../hooks/redux";
 
+import {
+  getBrandSettings,
+} from "../../services/settings.service";
+
+/* ============================
+   TYPES
+============================ */
+
 type MenuItem = {
   label: string;
+
   path: string;
-  icon: React.ElementType;
+
+  icon:
+    React.ElementType;
+
   roles?: string[];
 };
+
+/* ============================
+   DEFAULT BRAND
+============================ */
+
+const DEFAULT_COMPANY_NAME =
+  "Mahakal Financial Services";
+
+/* ============================
+   SIDEBAR
+============================ */
 
 export default function Sidebar() {
   const navigate =
@@ -45,6 +73,49 @@ export default function Sidebar() {
     );
 
   /* ============================
+     COMPANY NAME
+  ============================ */
+
+  const [
+    companyName,
+    setCompanyName,
+  ] =
+    useState(
+      DEFAULT_COMPANY_NAME
+    );
+
+  /* ============================
+     LOAD BRAND
+  ============================ */
+
+  useEffect(() => {
+    const loadBrand =
+      async () => {
+        try {
+          const response =
+            await getBrandSettings();
+
+          setCompanyName(
+            response?.brand
+              ?.companyName ||
+              DEFAULT_COMPANY_NAME
+          );
+        } catch {
+          /*
+           * Brand API fail hone par
+           * sidebar break nahi karega.
+           */
+
+          setCompanyName(
+            DEFAULT_COMPANY_NAME
+          );
+        }
+      };
+
+    void loadBrand();
+  }, []);
+
+  /* ============================
      ROLE
   ============================ */
 
@@ -53,7 +124,8 @@ export default function Sidebar() {
       employee?.role as unknown;
 
     if (
-      typeof role === "string"
+      typeof role ===
+      "string"
     ) {
       return role;
     }
@@ -80,111 +152,187 @@ export default function Sidebar() {
      MENU
   ============================ */
 
-  const menuItems: MenuItem[] = [
-    {
-      label: "Dashboard",
-      path: "/dashboard",
-      icon: LayoutDashboard,
-    },
+  const menuItems:
+    MenuItem[] = [
+      {
+        label:
+          "Dashboard",
 
-    {
-      label: "Leads",
-      path: "/leads",
-      icon: Users,
-    },
+        path:
+          "/dashboard",
 
-    {
-      label: "Pipeline",
-      path: "/leads/pipeline",
-      icon: Columns3,
-    },
+        icon:
+          LayoutDashboard,
+      },
 
-    {
-      label: "Calling",
-      path: "/calling",
-      icon: Phone,
-    },
+      {
+        label:
+          "Leads",
 
-    {
-      label: "Follow Ups",
-      path: "/follow-ups",
-      icon: CalendarClock,
-    },
+        path:
+          "/leads",
 
-    {
-      label: "Demo / Trials",
-      path: "/trials",
-      icon: FlaskConical,
-    },
+        icon:
+          Users,
+      },
 
-    {
-      label: "Payments",
-      path: "/payments",
-      icon: IndianRupee,
-      roles: [
-        "ADMIN",
-        "HR",
-        "TEAM_LEADER",
-      ],
-    },
+      {
+        label:
+          "Pipeline",
 
-    {
-      label: "Employees",
-      path: "/employees",
-      icon: UserCog,
-      roles: [
-        "ADMIN",
-        "HR",
-        "TEAM_LEADER",
-      ],
-    },
+        path:
+          "/leads/pipeline",
 
-    {
-      label: "Attendance",
-      path: "/attendance",
-      icon: CalendarCheck,
-    },
+        icon:
+          Columns3,
+      },
 
-    {
-      label: "Leaves",
-      path: "/leaves",
-      icon: CalendarDays,
-    },
+      {
+        label:
+          "Calling",
 
-    {
-      label: "Targets",
-      path: "/targets",
-      icon: Target,
-    },
+        path:
+          "/calling",
 
-    {
-      label: "Payroll",
-      path: "/payroll",
-      icon: Banknote,
-      roles: [
-        "ADMIN",
-        "HR",
-      ],
-    },
+        icon:
+          Phone,
+      },
 
-   {
-  label: "Reports",
-  path: "/reports",
-  icon: FileBarChart,
-  roles: [
-    "ADMIN",
-  ],
-},
+      {
+        label:
+          "Follow Ups",
 
-    {
-      label: "Settings",
-      path: "/settings",
-      icon: Settings,
-      roles: [
-        "ADMIN",
-      ],
-    },
-  ];
+        path:
+          "/follow-ups",
+
+        icon:
+          CalendarClock,
+      },
+
+      {
+        label:
+          "Demo / Trials",
+
+        path:
+          "/trials",
+
+        icon:
+          FlaskConical,
+      },
+
+      {
+        label:
+          "Payments",
+
+        path:
+          "/payments",
+
+        icon:
+          IndianRupee,
+
+        roles: [
+          "ADMIN",
+          "HR",
+          "TEAM_LEADER",
+        ],
+      },
+
+      {
+        label:
+          "Employees",
+
+        path:
+          "/employees",
+
+        icon:
+          UserCog,
+
+        roles: [
+          "ADMIN",
+          "HR",
+          "TEAM_LEADER",
+        ],
+      },
+
+      {
+        label:
+          "Attendance",
+
+        path:
+          "/attendance",
+
+        icon:
+          CalendarCheck,
+      },
+
+      {
+        label:
+          "Leaves",
+
+        path:
+          "/leaves",
+
+        icon:
+          CalendarDays,
+      },
+
+      {
+        label:
+          "Targets",
+
+        path:
+          "/targets",
+
+        icon:
+          Target,
+      },
+
+      {
+        label:
+          "Payroll",
+
+        path:
+          "/payroll",
+
+        icon:
+          Banknote,
+
+        roles: [
+          "ADMIN",
+          "HR",
+        ],
+      },
+
+      {
+        label:
+          "Reports",
+
+        path:
+          "/reports",
+
+        icon:
+          FileBarChart,
+
+        roles: [
+          "ADMIN",
+        ],
+      },
+
+      {
+        label:
+          "Settings",
+
+        path:
+          "/settings",
+
+        icon:
+          Settings,
+
+        roles: [
+          "ADMIN",
+        ],
+      },
+    ];
 
   /* ============================
      ROLE FILTER
@@ -195,7 +343,8 @@ export default function Sidebar() {
       (item) => {
         if (
           !item.roles ||
-          item.roles.length === 0
+          item.roles.length ===
+            0
         ) {
           return true;
         }
@@ -214,7 +363,8 @@ export default function Sidebar() {
     path: string
   ) => {
     if (
-      path === "/dashboard"
+      path ===
+      "/dashboard"
     ) {
       return (
         location.pathname ===
@@ -222,7 +372,10 @@ export default function Sidebar() {
       );
     }
 
-    if (path === "/leads") {
+    if (
+      path ===
+      "/leads"
+    ) {
       return (
         location.pathname ===
           "/leads" ||
@@ -262,8 +415,8 @@ export default function Sidebar() {
           MFS CRM
         </h1>
 
-        <p className="text-sm text-blue-200">
-          Mahakal Financial Services
+        <p className="mt-1 truncate text-sm text-blue-200">
+          {companyName}
         </p>
       </div>
 

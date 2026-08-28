@@ -3,7 +3,7 @@ export interface StartTrialRequest {
 
   clientId?: string;
 
-  productId: string;
+demoProductId: string;
 
   employeeId?: string;
 

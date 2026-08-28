@@ -13,6 +13,7 @@ import {
 import {
   bulkUpdateSettingsController,
   getAllSettingsController,
+  getBrandSettingsController,
   getControlPanelSettingsController,
   getSettingByKeyController,
   getSettingsByGroupController,
@@ -26,12 +27,31 @@ const router =
   Router();
 
 /* ============================
-   ADMIN ONLY
+   AUTHENTICATED USERS
+
+   Common CRM settings such as
+   company branding.
 ============================ */
 
 router.use(
   authenticate
 );
+
+/* ============================
+   BRAND SETTINGS
+
+   ADMIN / HR / TL / EMPLOYEE
+   sab authenticated users.
+============================ */
+
+router.get(
+  "/brand",
+  getBrandSettingsController
+);
+
+/* ============================
+   ADMIN ONLY BELOW
+============================ */
 
 router.use(
   authorize(

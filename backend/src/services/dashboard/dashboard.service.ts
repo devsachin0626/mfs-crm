@@ -1,5 +1,9 @@
 import prisma from "../../config/prisma";
 
+import {
+  getNumberSetting,
+} from "../settings/settings.service";
+
 /* ============================
    ROLE
 ============================ */
@@ -576,8 +580,10 @@ export const getDashboardStats =
      * employee settings later.
      */
 
-    const dailyCallTarget =
-      250;
+   const dailyCallTarget =
+  await getNumberSetting(
+    "DAILY_CALL_TARGET"
+  );
 
     const callProgress =
       dailyCallTarget > 0

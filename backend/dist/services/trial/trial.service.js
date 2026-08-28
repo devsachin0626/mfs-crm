@@ -177,7 +177,7 @@ const startTrial = async (data, currentEmployee) => {
         !data.clientId) {
         throw new Error("Lead Or Client Is Required");
     }
-    if (!data.productId) {
+    if (!data.demoProductId) {
         throw new Error("Product Is Required");
     }
     const trialDays = Number(data.trialDays);
@@ -344,26 +344,25 @@ const startTrial = async (data, currentEmployee) => {
     /* ============================
        PRODUCT
     ============================ */
-    const product = await prisma_1.default.product.findUnique({
+    /* ============================
+      DEMO PRODUCT
+   ============================ */
+    const demoProduct = await prisma_1.default.demoProduct.findUnique({
         where: {
-            id: data.productId,
+            id: data.demoProductId,
         },
         select: {
             id: true,
-            productCode: true,
+            code: true,
             name: true,
             isActive: true,
-            isTrialAvailable: true,
         },
     });
-    if (!product) {
-        throw new Error("Product Not Found");
+    if (!demoProduct) {
+        throw new Error("Demo Product Not Found");
     }
-    if (!product.isActive) {
-        throw new Error("Inactive Product Cannot Start Trial");
-    }
-    if (!product.isTrialAvailable) {
-        throw new Error("Trial Not Available For This Product");
+    if (!demoProduct.isActive) {
+        throw new Error("Inactive Demo Product Cannot Start Trial");
     }
     /* ============================
        EMPLOYEE ASSIGNMENT
@@ -435,7 +434,7 @@ const startTrial = async (data, currentEmployee) => {
     }
     const activeTrial = await prisma_1.default.trial.findFirst({
         where: {
-            productId: data.productId,
+            demoProductId: data.demoProductId,
             status: "ACTIVE",
             OR: subjectFilters,
         },
@@ -466,7 +465,7 @@ const startTrial = async (data, currentEmployee) => {
             trialCode,
             leadId: effectiveLeadId,
             clientId: effectiveClientId,
-            productId: data.productId,
+            demoProductId: data.demoProductId,
             employeeId: assignedEmployeeId,
             startDate,
             endDate,
@@ -503,6 +502,13 @@ const startTrial = async (data, currentEmployee) => {
                     productCode: true,
                     name: true,
                     type: true,
+                },
+            },
+            demoProduct: {
+                select: {
+                    id: true,
+                    code: true,
+                    name: true,
                 },
             },
             employee: {
@@ -704,6 +710,13 @@ const getTrials = async (page = 1, limit = 10, status, search, employeeId, curre
                         type: true,
                     },
                 },
+                demoProduct: {
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true,
+                    },
+                },
                 employee: {
                     select: {
                         id: true,
@@ -775,6 +788,13 @@ const getTrialById = async (id, currentEmployee) => {
                     price: true,
                     durationDays: true,
                     isTrialAvailable: true,
+                },
+            },
+            demoProduct: {
+                select: {
+                    id: true,
+                    code: true,
+                    name: true,
                 },
             },
             employee: {
@@ -874,6 +894,13 @@ const extendTrial = async (id, trialDays, remarks, currentEmployee) => {
                     name: true,
                 },
             },
+            demoProduct: {
+                select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                },
+            },
             employee: {
                 select: {
                     id: true,
@@ -949,6 +976,13 @@ const completeTrial = async (id, currentEmployee) => {
                 select: {
                     id: true,
                     productCode: true,
+                    name: true,
+                },
+            },
+            demoProduct: {
+                select: {
+                    id: true,
+                    code: true,
                     name: true,
                 },
             },

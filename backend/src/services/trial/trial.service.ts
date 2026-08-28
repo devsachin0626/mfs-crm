@@ -345,7 +345,7 @@ export const startTrial =
       );
     }
 
-    if (!data.productId) {
+    if (!data.demoProductId) {
       throw new Error(
         "Product Is Required"
       );
@@ -658,48 +658,41 @@ export const startTrial =
        PRODUCT
     ============================ */
 
-    const product =
-      await prisma.product.findUnique({
-        where: {
-          id:
-            data.productId,
-        },
+ /* ============================
+   DEMO PRODUCT
+============================ */
 
-        select: {
-          id: true,
+const demoProduct =
+  await prisma.demoProduct.findUnique({
+    where: {
+      id:
+        data.demoProductId,
+    },
 
-          productCode:
-            true,
+    select: {
+      id: true,
 
-          name: true,
+      code: true,
 
-          isActive:
-            true,
+      name: true,
 
-          isTrialAvailable:
-            true,
-        },
-      });
+      isActive: true,
+    },
+  });
 
-    if (!product) {
-      throw new Error(
-        "Product Not Found"
-      );
-    }
+if (!demoProduct) {
+  throw new Error(
+    "Demo Product Not Found"
+  );
+}
 
-    if (!product.isActive) {
-      throw new Error(
-        "Inactive Product Cannot Start Trial"
-      );
-    }
-
-    if (
-      !product.isTrialAvailable
-    ) {
-      throw new Error(
-        "Trial Not Available For This Product"
-      );
-    }
+if (
+  !demoProduct.isActive
+) {
+  throw new Error(
+    "Inactive Demo Product Cannot Start Trial"
+  );
+}
 
     /* ============================
        EMPLOYEE ASSIGNMENT
@@ -818,8 +811,8 @@ export const startTrial =
     const activeTrial =
       await prisma.trial.findFirst({
         where: {
-          productId:
-            data.productId,
+          demoProductId:
+  data.demoProductId,
 
           status:
             "ACTIVE",
@@ -881,8 +874,8 @@ export const startTrial =
           clientId:
             effectiveClientId,
 
-          productId:
-            data.productId,
+         demoProductId:
+  data.demoProductId,
 
           employeeId:
             assignedEmployeeId,
@@ -950,6 +943,14 @@ export const startTrial =
               type: true,
             },
           },
+
+          demoProduct: {
+  select: {
+    id: true,
+    code: true,
+    name: true,
+  },
+},
 
           employee: {
             select: {
@@ -1285,6 +1286,14 @@ export const getTrials =
               },
             },
 
+            demoProduct: {
+  select: {
+    id: true,
+    code: true,
+    name: true,
+  },
+},
+
             employee: {
               select: {
                 id: true,
@@ -1417,6 +1426,14 @@ export const getTrialById =
                 true,
             },
           },
+
+          demoProduct: {
+  select: {
+    id: true,
+    code: true,
+    name: true,
+  },
+},
 
           employee: {
             select: {
@@ -1610,6 +1627,14 @@ export const extendTrial =
             },
           },
 
+          demoProduct: {
+  select: {
+    id: true,
+    code: true,
+    name: true,
+  },
+},
+
           employee: {
             select: {
               id: true,
@@ -1755,6 +1780,14 @@ export const completeTrial =
               name: true,
             },
           },
+
+          demoProduct: {
+  select: {
+    id: true,
+    code: true,
+    name: true,
+  },
+},
 
           employee: {
             select: {

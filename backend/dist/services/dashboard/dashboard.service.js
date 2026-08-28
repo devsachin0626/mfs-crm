@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getDashboardStats = void 0;
 const prisma_1 = __importDefault(require("../../config/prisma"));
+const settings_service_1 = require("../settings/settings.service");
 /* ============================
    ROLE
 ============================ */
@@ -334,7 +335,7 @@ const getDashboardStats = async (currentEmployee) => {
      * We can move this to
      * employee settings later.
      */
-    const dailyCallTarget = 250;
+    const dailyCallTarget = await (0, settings_service_1.getNumberSetting)("DAILY_CALL_TARGET");
     const callProgress = dailyCallTarget > 0
         ? Number(Math.min((callsToday /
             dailyCallTarget) *

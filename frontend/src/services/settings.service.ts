@@ -127,10 +127,29 @@ export const resetSettingGroup =
     return response.data;
   };
 
+  /* ============================
+   GET BRAND SETTINGS
+============================ */
+
+export const getBrandSettings =
+  async () => {
+    const response =
+      await api.get<{
+        success: boolean;
+
+        brand: {
+          companyName: string;
+        };
+      }>(
+        `${SETTINGS_URL}/brand`
+      );
+
+    return response.data;
+  };
+
 /* ============================
    SETTINGS SERVICE
 ============================ */
-
 const settingsService = {
   getSettingsList,
 
@@ -147,6 +166,8 @@ const settingsService = {
   resetSetting,
 
   resetSettingGroup,
+
+  getBrandSettings,
 };
 
 export default settingsService;

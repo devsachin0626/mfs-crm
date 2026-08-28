@@ -54,6 +54,10 @@ export const getTrials =
             productId:
               params.productId ||
               undefined,
+
+            demoProductId:
+              params.demoProductId ||
+              undefined,
           },
         }
       );
@@ -86,8 +90,8 @@ export const startTrial =
     data: StartTrialRequest
   ): Promise<TrialActionResponse> => {
     const payload: StartTrialRequest = {
-      productId:
-        data.productId,
+      demoProductId:
+        data.demoProductId,
 
       trialDays:
         Number(
@@ -100,33 +104,27 @@ export const startTrial =
         undefined,
     };
 
-    /*
-     * Normal CRM flow:
-     * Lead -> Demo / Trial
-     */
+    /* ============================
+       LEAD
+    ============================ */
 
     if (data.leadId) {
       payload.leadId =
         data.leadId;
     }
 
-    /*
-     * Optional direct client
-     * trial support.
-     */
+    /* ============================
+       CLIENT
+    ============================ */
 
     if (data.clientId) {
       payload.clientId =
         data.clientId;
     }
 
-    /*
-     * EMPLOYEE:
-     * backend self-assign karega.
-     *
-     * ADMIN / HR / TL:
-     * selected employee allowed.
-     */
+    /* ============================
+       EMPLOYEE
+    ============================ */
 
     if (data.employeeId) {
       payload.employeeId =

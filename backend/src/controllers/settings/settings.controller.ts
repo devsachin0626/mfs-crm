@@ -450,3 +450,40 @@ export const resetSettingGroupController =
       });
     }
   };
+
+  /* ============================
+   GET BRAND SETTINGS
+
+   Authenticated users ke liye
+   sidebar / common layout data.
+============================ */
+
+export const getBrandSettingsController =
+  async (
+    _req: Request,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const result =
+        await getAllSettings();
+
+      res.status(200).json({
+        success: true,
+
+        brand: {
+          companyName:
+            result.settings
+              .COMPANY_NAME ||
+            "Mahakal Financial Services",
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+
+        message:
+          error?.message ||
+          "Failed To Load Brand Settings",
+      });
+    }
+  };

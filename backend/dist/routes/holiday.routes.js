@@ -1,16 +1,25 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const role_middleware_1 = require("../middleware/role.middleware");
 const holiday_service_1 = require("../controllers/holiday/holiday.service");
 const router = (0, express_1.Router)();
-// Create Holiday
-router.post("/", holiday_service_1.createHolidayController);
-// Get All Holidays
-router.get("/", holiday_service_1.getHolidaysController);
-// Get Holiday By ID
-router.get("/:id", holiday_service_1.getHolidayByIdController);
-// Update Holiday
-router.put("/:id", holiday_service_1.updateHolidayController);
-// Delete Holiday
-router.delete("/:id", holiday_service_1.deleteHolidayController);
+/* ============================
+   AUTHENTICATION
+============================ */
+router.use(auth_middleware_1.authenticate);
+/* ============================
+   GET HOLIDAYS
+
+   Admin / HR can view.
+============================ */
+router.get("/", (0, role_middleware_1.authorize)("ADMIN", "HR"), holiday_service_1.getHolidaysController);
+router.get("/:id", (0, role_middleware_1.authorize)("ADMIN", "HR"), holiday_service_1.getHolidayByIdController);
+/* ============================
+   ADMIN ONLY MUTATIONS
+============================ */
+router.post("/", (0, role_middleware_1.authorize)("ADMIN"), holiday_service_1.createHolidayController);
+router.put("/:id", (0, role_middleware_1.authorize)("ADMIN"), holiday_service_1.updateHolidayController);
+router.delete("/:id", (0, role_middleware_1.authorize)("ADMIN"), holiday_service_1.deleteHolidayController);
 exports.default = router;

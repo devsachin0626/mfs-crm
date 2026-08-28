@@ -32,6 +32,8 @@ const error_middleware_1 = require("./middleware/error.middleware");
 const branch_routes_1 = __importDefault(require("./routes/branch.routes"));
 const role_routes_1 = __importDefault(require("./routes/role.routes"));
 const report_routes_1 = __importDefault(require("./routes/report.routes"));
+const settings_routes_1 = __importDefault(require("./routes/settings.routes"));
+const demo_product_routes_1 = __importDefault(require("./routes/demo-product.routes"));
 const app = (0, express_1.default)();
 // Middleware
 app.use((0, cors_1.default)());
@@ -58,12 +60,14 @@ app.use("/api/notifications", notification_routes_1.default);
 app.use("/api/lead-sources", lead_source_routes_1.default);
 app.use("/api/lead-statuses", lead_status_routes_1.default);
 app.use("/api/import-batches", import_batch_routes_1.default);
+app.use("/api/demo-products", demo_product_routes_1.default);
 app.use("/api/lead-assignment-history", lead_assignment_history_routes_1.default);
 app.use("/api/lead-history", lead_history_routes_1.default);
 app.use("/api/follow-ups", follow_up_routes_1.default);
 app.use("/api/branches", branch_routes_1.default);
 app.use("/api/roles", role_routes_1.default);
 app.use("/api/reports", report_routes_1.default);
+app.use("/api/settings", settings_routes_1.default);
 // Health Check
 app.get("/", (req, res) => {
     res.json({

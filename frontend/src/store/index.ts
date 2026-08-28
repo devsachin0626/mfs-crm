@@ -14,6 +14,7 @@ import targetReducer from "./slices/targetSlice";
 import payrollReducer from "./slices/payrollSlice";
 import trialReducer from "./slices/trialSlice";
 import reportReducer from "./slices/reportSlice";
+import settingsReducer from "./slices/settingsSlice";
 
 export const store =
   configureStore({
@@ -47,7 +48,11 @@ export const store =
 
       trial:
         trialReducer,
+
+
         report: reportReducer,
+
+        settings: settingsReducer,
     },
   });
 

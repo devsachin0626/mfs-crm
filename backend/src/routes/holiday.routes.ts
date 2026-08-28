@@ -1,28 +1,84 @@
-import { Router } from "express";
+import {
+  Router,
+} from "express";
+
+import {
+  authenticate,
+} from "../middleware/auth.middleware";
+
+import {
+  authorize,
+} from "../middleware/role.middleware";
 
 import {
   createHolidayController,
-  getHolidaysController,
-  getHolidayByIdController,
-  updateHolidayController,
   deleteHolidayController,
+  getHolidayByIdController,
+  getHolidaysController,
+  updateHolidayController,
 } from "../controllers/holiday/holiday.service";
 
-const router = Router();
+const router =
+  Router();
 
-// Create Holiday
-router.post("/", createHolidayController);
+/* ============================
+   AUTHENTICATION
+============================ */
 
-// Get All Holidays
-router.get("/", getHolidaysController);
+router.use(
+  authenticate
+);
 
-// Get Holiday By ID
-router.get("/:id", getHolidayByIdController);
+/* ============================
+   GET HOLIDAYS
 
-// Update Holiday
-router.put("/:id", updateHolidayController);
+   Admin / HR can view.
+============================ */
 
-// Delete Holiday
-router.delete("/:id", deleteHolidayController);
+router.get(
+  "/",
+  authorize(
+    "ADMIN",
+    "HR"
+  ),
+  getHolidaysController
+);
+
+router.get(
+  "/:id",
+  authorize(
+    "ADMIN",
+    "HR"
+  ),
+  getHolidayByIdController
+);
+
+/* ============================
+   ADMIN ONLY MUTATIONS
+============================ */
+
+router.post(
+  "/",
+  authorize(
+    "ADMIN"
+  ),
+  createHolidayController
+);
+
+router.put(
+  "/:id",
+  authorize(
+    "ADMIN"
+  ),
+  updateHolidayController
+);
+
+router.delete(
+  "/:id",
+  authorize(
+    "ADMIN"
+  ),
+  deleteHolidayController
+);
 
 export default router;

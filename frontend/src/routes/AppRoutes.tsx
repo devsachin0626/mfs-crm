@@ -101,6 +101,13 @@ import DashboardLayout from "../layouts/DashboardLayout";
 
 import ReportPage from "../pages/report/ReportPage";
 
+/* ============================
+    Settings
+============================ */
+
+
+import SettingsPage from "../pages/settings/SettingsPage";
+
 export default function AppRoutes() {
   return (
     <BrowserRouter>
@@ -405,6 +412,13 @@ export default function AppRoutes() {
     />
   }
 >
+
+  <Route
+  path="/settings"
+  element={
+    <SettingsPage />
+  }
+/>
   <Route
     path="/reports"
     element={

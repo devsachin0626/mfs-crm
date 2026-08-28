@@ -951,6 +951,10 @@ model Trial {
   productId String
   product   Product @relation(fields: [productId], references: [id])
 
+  demoProductId String?
+
+  demoProduct DemoProduct? @relation(fields: [demoProductId], references: [id])
+
   employeeId String?
   employee   Employee? @relation(fields: [employeeId], references: [id])
 
@@ -971,7 +975,30 @@ model Trial {
   @@index([leadId])
   @@index([clientId])
   @@index([productId])
+  @@index([demoProductId])
   @@index([employeeId])
   @@index([status])
   @@map("trials")
+}
+
+model DemoProduct {
+  id String @id @default(cuid())
+
+  code String @unique
+
+  name String @unique
+
+  description String?
+
+  isActive Boolean @default(true)
+
+  sortOrder Int @default(0)
+
+  trials Trial[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@map("demo_products")
 }

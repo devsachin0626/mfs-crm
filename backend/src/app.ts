@@ -28,6 +28,8 @@ import { errorMiddleware } from "./middleware/error.middleware";
 import branchRoutes from "./routes/branch.routes";
 import roleRoutes from "./routes/role.routes";
 import reportRoutes from "./routes/report.routes";
+import settingsRoutes from "./routes/settings.routes";
+import demoProductRoutes from "./routes/demo-product.routes";
 
 
 
@@ -77,6 +79,11 @@ app.use("/api/lead-sources", leadSourceRoutes);
 app.use("/api/lead-statuses", leadStatusRoutes);
 app.use("/api/import-batches", importBatchRoutes);
 app.use(
+  "/api/demo-products",
+  demoProductRoutes
+);
+
+app.use(
   "/api/lead-assignment-history",
   leadAssignmentHistoryRoutes
 );
@@ -94,6 +101,11 @@ app.use(
 app.use(
   "/api/reports",
   reportRoutes
+);
+
+app.use(
+  "/api/settings",
+  settingsRoutes
 );
 
 

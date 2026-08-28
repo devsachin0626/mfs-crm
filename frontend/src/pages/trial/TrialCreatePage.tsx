@@ -35,7 +35,7 @@ import {
 } from "../../services/trial.service";
 
 import {
-  getSettingByKey,
+  getTrialRuntimeSettings,
 } from "../../services/settings.service";
 
 import {
@@ -303,51 +303,45 @@ export default function TrialCreatePage() {
              employee Trial form.
           ============================ */
 
-          try {
-            const settingResponse =
-              await getSettingByKey(
-                "DEFAULT_TRIAL_DAYS"
-              );
+       try {
+  const runtimeResponse =
+    await getTrialRuntimeSettings();
 
-            const value =
-              Number(
-                settingResponse
-                  ?.setting
-                  ?.value
-              );
+  const value =
+    Number(
+      runtimeResponse
+        ?.trial
+        ?.defaultTrialDays
+    );
 
-            if (
-              Number.isInteger(
-                value
-              ) &&
-              value > 0 &&
-              value <= 365
-            ) {
-              setForm(
-                (current) => ({
-                  ...current,
+  if (
+    Number.isInteger(
+      value
+    ) &&
+    value > 0 &&
+    value <= 365
+  ) {
+    setForm(
+      (current) => ({
+        ...current,
 
-                  trialDays:
-                    String(
-                      value
-                    ),
-                })
-              );
-            }
-          } catch {
-            /*
-             * Keep safe fallback.
-             */
+        trialDays:
+          String(
+            value
+          ),
+      })
+    );
+  }
+} catch {
+  setForm(
+    (current) => ({
+      ...current,
 
-            setForm(
-              (current) => ({
-                ...current,
-
-                trialDays:
-                  DEFAULT_TRIAL_DAYS,
-              })
-            );
-          }
+      trialDays:
+        DEFAULT_TRIAL_DAYS,
+    })
+  );
+}
 
           /* ============================
              EMPLOYEES

@@ -10,6 +10,13 @@ import type {
 } from "../types/trial.types";
 
 /* ============================
+   API
+============================ */
+
+const TRIAL_URL =
+  "/trials";
+
+/* ============================
    GET TRIALS
 ============================ */
 
@@ -19,16 +26,14 @@ export const getTrials =
   ): Promise<TrialListResponse> => {
     const response =
       await api.get<TrialListResponse>(
-        "/trials",
+        TRIAL_URL,
         {
           params: {
             page:
-              params.page ??
-              1,
+              params.page ?? 1,
 
             limit:
-              params.limit ??
-              10,
+              params.limit ?? 10,
 
             status:
               params.status ||
@@ -41,22 +46,6 @@ export const getTrials =
 
             employeeId:
               params.employeeId ||
-              undefined,
-
-            leadId:
-              params.leadId ||
-              undefined,
-
-            clientId:
-              params.clientId ||
-              undefined,
-
-            productId:
-              params.productId ||
-              undefined,
-
-            demoProductId:
-              params.demoProductId ||
               undefined,
           },
         }
@@ -73,9 +62,15 @@ export const getTrialById =
   async (
     id: string
   ): Promise<TrialDetailsResponse> => {
+    if (!id) {
+      throw new Error(
+        "Trial ID Is Required"
+      );
+    }
+
     const response =
       await api.get<TrialDetailsResponse>(
-        `/trials/${id}`
+        `${TRIAL_URL}/${id}`
       );
 
     return response.data;
@@ -89,51 +84,68 @@ export const startTrial =
   async (
     data: StartTrialRequest
   ): Promise<TrialActionResponse> => {
-    const payload: StartTrialRequest = {
-      demoProductId:
-        data.demoProductId,
-
-      trialDays:
-        Number(
-          data.trialDays
-        ),
-
-      remarks:
-        data.remarks
-          ?.trim() ||
-        undefined,
-    };
-
-    /* ============================
-       LEAD
-    ============================ */
-
-    if (data.leadId) {
-      payload.leadId =
-        data.leadId;
+    if (
+      !data.leadId &&
+      !data.clientId
+    ) {
+      throw new Error(
+        "Lead Or Client Is Required"
+      );
     }
 
-    /* ============================
-       CLIENT
-    ============================ */
-
-    if (data.clientId) {
-      payload.clientId =
-        data.clientId;
+    if (
+      !data.demoProductId
+    ) {
+      throw new Error(
+        "Demo Product Is Required"
+      );
     }
 
-    /* ============================
-       EMPLOYEE
-    ============================ */
+    const trialDays =
+      Number(
+        data.trialDays
+      );
 
-    if (data.employeeId) {
-      payload.employeeId =
-        data.employeeId;
+    if (
+      !Number.isInteger(
+        trialDays
+      ) ||
+      trialDays <= 0 ||
+      trialDays > 365
+    ) {
+      throw new Error(
+        "Trial Days Must Be Between 1 And 365"
+      );
     }
+
+    const payload:
+      StartTrialRequest = {
+        demoProductId:
+          data.demoProductId,
+
+        trialDays,
+
+        leadId:
+          data.leadId ||
+          undefined,
+
+        clientId:
+          data.clientId ||
+          undefined,
+
+        employeeId:
+          data.employeeId ||
+          undefined,
+
+        remarks:
+          data.remarks
+            ?.trim() ||
+          undefined,
+      };
 
     const response =
       await api.post<TrialActionResponse>(
-        "/trials",
+        TRIAL_URL,
         payload
       );
 
@@ -149,14 +161,34 @@ export const extendTrial =
     id: string,
     data: ExtendTrialRequest
   ): Promise<TrialActionResponse> => {
+    if (!id) {
+      throw new Error(
+        "Trial ID Is Required"
+      );
+    }
+
+    const trialDays =
+      Number(
+        data.trialDays
+      );
+
+    if (
+      !Number.isInteger(
+        trialDays
+      ) ||
+      trialDays <= 0 ||
+      trialDays > 365
+    ) {
+      throw new Error(
+        "Trial Days Must Be Between 1 And 365"
+      );
+    }
+
     const response =
       await api.patch<TrialActionResponse>(
-        `/trials/${id}/extend`,
+        `${TRIAL_URL}/${id}/extend`,
         {
-          trialDays:
-            Number(
-              data.trialDays
-            ),
+          trialDays,
 
           remarks:
             data.remarks
@@ -176,9 +208,15 @@ export const completeTrial =
   async (
     id: string
   ): Promise<TrialActionResponse> => {
+    if (!id) {
+      throw new Error(
+        "Trial ID Is Required"
+      );
+    }
+
     const response =
       await api.patch<TrialActionResponse>(
-        `/trials/${id}/complete`
+        `${TRIAL_URL}/${id}/complete`
       );
 
     return response.data;

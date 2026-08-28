@@ -7,6 +7,7 @@ import {
   bulkUpdateSettings,
   getAllSettings,
   getControlPanelSettings,
+  getNumberSetting,
   getSettingByKey,
   getSettingsByGroup,
   getSettingsList,
@@ -484,6 +485,59 @@ export const getBrandSettingsController =
         message:
           error?.message ||
           "Failed To Load Brand Settings",
+      });
+    }
+  };
+
+  /* ============================
+   GET TRIAL RUNTIME SETTINGS
+
+   Authenticated CRM users.
+============================ */
+
+export const getTrialRuntimeSettingsController =
+  async (
+    _req: Request,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const [
+        defaultTrialDays,
+        maxExtensionDays,
+        maxExtensions,
+      ] =
+        await Promise.all([
+          getNumberSetting(
+            "DEFAULT_TRIAL_DAYS"
+          ),
+
+          getNumberSetting(
+            "MAX_TRIAL_EXTENSION_DAYS"
+          ),
+
+          getNumberSetting(
+            "MAX_TRIAL_EXTENSIONS"
+          ),
+        ]);
+
+      res.status(200).json({
+        success: true,
+
+        trial: {
+          defaultTrialDays,
+
+          maxExtensionDays,
+
+          maxExtensions,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+
+        message:
+          error?.message ||
+          "Failed To Load Trial Runtime Settings",
       });
     }
   };

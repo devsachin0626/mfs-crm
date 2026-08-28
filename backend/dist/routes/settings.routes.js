@@ -19,6 +19,7 @@ router.use(auth_middleware_1.authenticate);
    sab authenticated users.
 ============================ */
 router.get("/brand", settings_controller_1.getBrandSettingsController);
+router.get("/trial-runtime", settings_controller_1.getTrialRuntimeSettingsController);
 /* ============================
    ADMIN ONLY BELOW
 ============================ */

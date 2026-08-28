@@ -577,10 +577,12 @@ const createTrialExcelReport = async ({ data, filters = {}, }) => {
             subjectCode,
             subjectName,
             subjectMobile,
-            trial.product
-                .productCode,
-            trial.product
-                .name,
+            trial.demoProduct?.code ||
+                trial.product?.productCode ||
+                "-",
+            trial.demoProduct?.name ||
+                trial.product?.name ||
+                "-",
             trial.employee
                 ?.employeeCode ||
                 "",

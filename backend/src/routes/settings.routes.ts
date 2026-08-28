@@ -21,6 +21,7 @@ import {
   resetSettingController,
   resetSettingGroupController,
   updateSettingController,
+  getTrialRuntimeSettingsController,
 } from "../controllers/settings/settings.controller";
 
 const router =
@@ -47,6 +48,11 @@ router.use(
 router.get(
   "/brand",
   getBrandSettingsController
+);
+
+router.get(
+  "/trial-runtime",
+  getTrialRuntimeSettingsController
 );
 
 /* ============================

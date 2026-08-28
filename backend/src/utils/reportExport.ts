@@ -942,13 +942,30 @@ interface TrialExportData {
     mobile: string;
   } | null;
 
-  product: {
+  /*
+   * OLD PRODUCT
+   * Historical trials
+   */
+
+  product?: {
     productCode: string;
 
     name: string;
 
     type?: string | null;
-  };
+  } | null;
+
+  /*
+   * NEW DEMO PRODUCT
+   */
+
+  demoProduct?: {
+    code: string;
+
+    name: string;
+
+    description?: string | null;
+  } | null;
 
   employee?: {
     employeeCode: string;
@@ -1220,11 +1237,13 @@ export const createTrialExcelReport =
 
           subjectMobile,
 
-          trial.product
-            .productCode,
+         trial.demoProduct?.code ||
+  trial.product?.productCode ||
+  "-",
 
-          trial.product
-            .name,
+trial.demoProduct?.name ||
+  trial.product?.name ||
+  "-",
 
           trial.employee
             ?.employeeCode ||

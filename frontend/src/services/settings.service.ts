@@ -147,6 +147,31 @@ export const getBrandSettings =
     return response.data;
   };
 
+
+  /* ============================
+   GET TRIAL RUNTIME SETTINGS
+============================ */
+
+export const getTrialRuntimeSettings =
+  async () => {
+    const response =
+      await api.get<{
+        success: boolean;
+
+        trial: {
+          defaultTrialDays: number;
+
+          maxExtensionDays: number;
+
+          maxExtensions: number;
+        };
+      }>(
+        `${SETTINGS_URL}/trial-runtime`
+      );
+
+    return response.data;
+  };
+
 /* ============================
    SETTINGS SERVICE
 ============================ */
@@ -168,6 +193,8 @@ const settingsService = {
   resetSettingGroup,
 
   getBrandSettings,
+
+  getTrialRuntimeSettings,
 };
 
 export default settingsService;

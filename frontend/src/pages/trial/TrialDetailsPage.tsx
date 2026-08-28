@@ -27,6 +27,10 @@ import {
 } from "../../services/trial.service";
 
 import {
+  getTrialRuntimeSettings,
+} from "../../services/settings.service";
+
+import {
   useAppSelector,
 } from "../../hooks/redux";
 
@@ -103,6 +107,22 @@ export default function TrialDetailsPage() {
     useState("");
 
   /* ============================
+     RUNTIME TRIAL SETTINGS
+  ============================ */
+
+  const [
+    maxExtensionDays,
+    setMaxExtensionDays,
+  ] =
+    useState(7);
+
+  const [
+    maxExtensions,
+    setMaxExtensions,
+  ] =
+    useState(2);
+
+  /* ============================
      ROLE
   ============================ */
 
@@ -163,14 +183,69 @@ export default function TrialDetailsPage() {
 
         setError("");
 
-        const response =
-          await getTrialById(
-            id
-          );
+        const [
+          trialResponse,
+          runtimeResponse,
+        ] =
+          await Promise.all([
+            getTrialById(
+              id
+            ),
+
+            getTrialRuntimeSettings(),
+          ]);
 
         setTrial(
-          response.trial
+          trialResponse.trial
         );
+
+        const runtime =
+          runtimeResponse?.trial;
+
+        if (runtime) {
+          const extensionDays =
+            Number(
+              runtime.maxExtensionDays
+            );
+
+          const extensions =
+            Number(
+              runtime.maxExtensions
+            );
+
+          if (
+            Number.isInteger(
+              extensionDays
+            ) &&
+            extensionDays >= 0
+          ) {
+            setMaxExtensionDays(
+              extensionDays
+            );
+
+            setExtendDays(
+              extensionDays > 0
+                ? String(
+                    Math.min(
+                      extensionDays,
+                      7
+                    )
+                  )
+                : "0"
+            );
+          }
+
+          if (
+            Number.isInteger(
+              extensions
+            ) &&
+            extensions >= 0
+          ) {
+            setMaxExtensions(
+              extensions
+            );
+          }
+        }
       } catch (error: any) {
         setError(
           error?.response
@@ -185,7 +260,7 @@ export default function TrialDetailsPage() {
     };
 
   useEffect(() => {
-    loadTrial();
+    void loadTrial();
   }, [id]);
 
   /* ============================
@@ -210,11 +285,42 @@ export default function TrialDetailsPage() {
         !Number.isInteger(
           days
         ) ||
-        days <= 0 ||
-        days > 365
+        days <= 0
       ) {
         setError(
-          "Extension days must be between 1 and 365"
+          "Extension days must be greater than 0"
+        );
+
+        return;
+      }
+
+      if (
+        maxExtensionDays <= 0
+      ) {
+        setError(
+          "Trial extension is disabled in Settings"
+        );
+
+        return;
+      }
+
+      if (
+        days >
+        maxExtensionDays
+      ) {
+        setError(
+          `Maximum ${maxExtensionDays} days can be added per extension`
+        );
+
+        return;
+      }
+
+      if (
+        trial.extensionCount >=
+        maxExtensions
+      ) {
+        setError(
+          `Maximum ${maxExtensions} trial extensions allowed`
         );
 
         return;
@@ -261,7 +367,14 @@ export default function TrialDetailsPage() {
         );
 
         setExtendDays(
-          "7"
+          maxExtensionDays > 0
+            ? String(
+                Math.min(
+                  maxExtensionDays,
+                  7
+                )
+              )
+            : "0"
         );
       } catch (error: any) {
         setError(
@@ -391,6 +504,10 @@ export default function TrialDetailsPage() {
     );
   }
 
+  /* ============================
+     COMPUTED
+  ============================ */
+
   const isActive =
     trial.status ===
     "ACTIVE";
@@ -399,6 +516,19 @@ export default function TrialDetailsPage() {
     getRemainingText(
       trial.endDate
     );
+
+  const remainingExtensions =
+    Math.max(
+      maxExtensions -
+        trial.extensionCount,
+      0
+    );
+
+  const canExtend =
+    canManage &&
+    isActive &&
+    maxExtensionDays > 0 &&
+    remainingExtensions > 0;
 
   return (
     <div className="space-y-5">
@@ -452,8 +582,8 @@ export default function TrialDetailsPage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={
-              loadTrial
+            onClick={() =>
+              void loadTrial()
             }
             disabled={
               actionLoading
@@ -478,11 +608,18 @@ export default function TrialDetailsPage() {
                     )
                   }
                   disabled={
-                    actionLoading
+                    actionLoading ||
+                    !canExtend
                   }
-                  className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Extend Demo
+                  {remainingExtensions <=
+                  0
+                    ? "Extension Limit Reached"
+                    : maxExtensionDays <=
+                        0
+                      ? "Extension Disabled"
+                      : "Extend Demo"}
                 </button>
 
                 <button
@@ -579,8 +716,8 @@ export default function TrialDetailsPage() {
 
         <SummaryCard
           label="Extensions"
-          value={`${trial.extensionCount}`}
-          subtext="Times extended"
+          value={`${trial.extensionCount} / ${maxExtensions}`}
+          subtext={`${remainingExtensions} remaining`}
           icon={
             <RefreshCw
               size={20}
@@ -777,6 +914,8 @@ export default function TrialDetailsPage() {
           <DetailRow
             label="Product"
             value={
+              trial.demoProduct
+                ?.name ||
               trial.product
                 ?.name ||
               "-"
@@ -786,6 +925,8 @@ export default function TrialDetailsPage() {
           <DetailRow
             label="Product Code"
             value={
+              trial.demoProduct
+                ?.code ||
               trial.product
                 ?.productCode ||
               "-"
@@ -793,34 +934,71 @@ export default function TrialDetailsPage() {
           />
 
           <DetailRow
-            label="Type"
+            label="Product Source"
             value={
-              trial.product
-                ?.type ||
-              "-"
+              trial.demoProduct
+                ? "Demo Product"
+                : trial.product
+                  ? "Historical Product"
+                  : "-"
             }
           />
 
-          <DetailRow
-            label="Standard Duration"
-            value={
-              trial.product
-                ?.durationDays !=
-              null
-                ? `${trial.product.durationDays} days`
-                : "-"
-            }
-          />
+          {trial.demoProduct ? (
+            <>
+              <DetailRow
+                label="Status"
+                value={
+                  trial.demoProduct
+                    .isActive ===
+                  false
+                    ? "Inactive"
+                    : "Active"
+                }
+              />
 
-          <DetailRow
-            label="Trial Available"
-            value={
-              trial.product
-                ?.isTrialAvailable
-                ? "Yes"
-                : "No"
-            }
-          />
+              <DetailRow
+                label="Description"
+                value={
+                  trial.demoProduct
+                    .description ||
+                  "-"
+                }
+              />
+            </>
+          ) : (
+            <>
+              <DetailRow
+                label="Type"
+                value={
+                  trial.product
+                    ?.type ||
+                  "-"
+                }
+              />
+
+              <DetailRow
+                label="Standard Duration"
+                value={
+                  trial.product
+                    ?.durationDays !=
+                  null
+                    ? `${trial.product.durationDays} days`
+                    : "-"
+                }
+              />
+
+              <DetailRow
+                label="Trial Available"
+                value={
+                  trial.product
+                    ?.isTrialAvailable
+                    ? "Yes"
+                    : "No"
+                }
+              />
+            </>
+          )}
         </DetailsCard>
       </div>
 
@@ -972,7 +1150,9 @@ export default function TrialDetailsPage() {
                 <input
                   type="number"
                   min={1}
-                  max={365}
+                  max={
+                    maxExtensionDays
+                  }
                   value={
                     extendDays
                   }
@@ -989,40 +1169,65 @@ export default function TrialDetailsPage() {
                   }
                 />
 
-                <div className="mt-2 flex flex-wrap gap-2">
+                <p className="mt-2 text-xs text-slate-500">
+                  Maximum{" "}
+                  <span className="font-semibold text-slate-700">
+                    {
+                      maxExtensionDays
+                    }
+                  </span>{" "}
+                  days per
+                  extension.{" "}
+                  <span className="font-semibold text-slate-700">
+                    {
+                      remainingExtensions
+                    }
+                  </span>{" "}
+                  extension(s)
+                  remaining.
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
                   {[
+                    1,
                     3,
                     5,
                     7,
                     15,
                     30,
-                  ].map(
-                    (days) => (
-                      <button
-                        key={
-                          days
-                        }
-                        type="button"
-                        onClick={() =>
-                          setExtendDays(
+                  ]
+                    .filter(
+                      (days) =>
+                        days <=
+                        maxExtensionDays
+                    )
+                    .map(
+                      (days) => (
+                        <button
+                          key={
+                            days
+                          }
+                          type="button"
+                          onClick={() =>
+                            setExtendDays(
+                              String(
+                                days
+                              )
+                            )
+                          }
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+                            extendDays ===
                             String(
                               days
                             )
-                          )
-                        }
-                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
-                          extendDays ===
-                          String(
-                            days
-                          )
-                            ? "border-blue-600 bg-blue-50 text-blue-700"
-                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                        }`}
-                      >
-                        {days} Days
-                      </button>
-                    )
-                  )}
+                              ? "border-blue-600 bg-blue-50 text-blue-700"
+                              : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {days} Days
+                        </button>
+                      )
+                    )}
                 </div>
               </div>
 
@@ -1074,9 +1279,10 @@ export default function TrialDetailsPage() {
                   handleExtend
                 }
                 disabled={
-                  actionLoading
+                  actionLoading ||
+                  !canExtend
                 }
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {actionLoading && (
                   <Loader2
@@ -1104,6 +1310,7 @@ function DetailsCard({
   children,
 }: {
   title: string;
+
   children:
     React.ReactNode;
 }) {
@@ -1131,6 +1338,7 @@ function DetailRow({
   value,
 }: {
   label: string;
+
   value:
     | string
     | number;
@@ -1159,8 +1367,11 @@ function SummaryCard({
   icon,
 }: {
   label: string;
+
   value: string;
+
   subtext: string;
+
   icon:
     React.ReactNode;
 }) {
@@ -1196,12 +1407,14 @@ function SummaryCard({
 function StatusBadge({
   status,
 }: {
-  status: TrialStatus;
+  status:
+    TrialStatus;
 }) {
-  const styles: Record<
-    TrialStatus,
-    string
-  > = {
+  const styles:
+    Record<
+      TrialStatus,
+      string
+    > = {
     ACTIVE:
       "bg-emerald-50 text-emerald-700 ring-emerald-600/10",
 
@@ -1264,7 +1477,9 @@ function formatDate(
     "en-IN",
     {
       day: "2-digit",
+
       month: "short",
+
       year: "numeric",
     }
   );
@@ -1288,9 +1503,13 @@ function formatDateTime(
     "en-IN",
     {
       day: "2-digit",
+
       month: "short",
+
       year: "numeric",
+
       hour: "2-digit",
+
       minute: "2-digit",
     }
   );
@@ -1314,17 +1533,21 @@ function getRemainingText(
     endDate.getTime() -
     Date.now();
 
-  if (difference <= 0) {
+  if (
+    difference <= 0
+  ) {
     return "Expired";
   }
 
   const days =
     Math.ceil(
       difference /
-        (1000 *
+        (
+          1000 *
           60 *
           60 *
-          24)
+          24
+        )
     );
 
   if (days === 1) {

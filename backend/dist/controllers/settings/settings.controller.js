@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getBrandSettingsController = exports.resetSettingGroupController = exports.resetSettingController = exports.bulkUpdateSettingsController = exports.updateSettingController = exports.getSettingByKeyController = exports.getSettingsByGroupController = exports.getControlPanelSettingsController = exports.getSettingsListController = exports.getAllSettingsController = void 0;
+exports.getTrialRuntimeSettingsController = exports.getBrandSettingsController = exports.resetSettingGroupController = exports.resetSettingController = exports.bulkUpdateSettingsController = exports.updateSettingController = exports.getSettingByKeyController = exports.getSettingsByGroupController = exports.getControlPanelSettingsController = exports.getSettingsListController = exports.getAllSettingsController = void 0;
 const settings_service_1 = require("../../services/settings/settings.service");
 /* ============================
    GET ALL SETTINGS
@@ -294,3 +294,33 @@ const getBrandSettingsController = async (_req, res) => {
     }
 };
 exports.getBrandSettingsController = getBrandSettingsController;
+/* ============================
+ GET TRIAL RUNTIME SETTINGS
+
+ Authenticated CRM users.
+============================ */
+const getTrialRuntimeSettingsController = async (_req, res) => {
+    try {
+        const [defaultTrialDays, maxExtensionDays, maxExtensions,] = await Promise.all([
+            (0, settings_service_1.getNumberSetting)("DEFAULT_TRIAL_DAYS"),
+            (0, settings_service_1.getNumberSetting)("MAX_TRIAL_EXTENSION_DAYS"),
+            (0, settings_service_1.getNumberSetting)("MAX_TRIAL_EXTENSIONS"),
+        ]);
+        res.status(200).json({
+            success: true,
+            trial: {
+                defaultTrialDays,
+                maxExtensionDays,
+                maxExtensions,
+            },
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error?.message ||
+                "Failed To Load Trial Runtime Settings",
+        });
+    }
+};
+exports.getTrialRuntimeSettingsController = getTrialRuntimeSettingsController;

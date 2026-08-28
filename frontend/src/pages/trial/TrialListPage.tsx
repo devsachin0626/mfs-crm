@@ -788,19 +788,25 @@ function TrialRow({
         )}
       </td>
 
-      <td className="px-5 py-4">
-        <p className="max-w-48 truncate text-sm font-medium text-slate-800">
-          {trial.product
-            ?.name ||
-            "-"}
-        </p>
+     <td className="px-5 py-4">
+  <p className="max-w-48 truncate text-sm font-medium text-slate-800">
+    {trial.demoProduct?.name ||
+      trial.product?.name ||
+      "-"}
+  </p>
 
-        <p className="mt-1 text-xs text-slate-500">
-          {trial.product
-            ?.productCode ||
-            "-"}
-        </p>
-      </td>
+  <p className="mt-1 text-xs text-slate-500">
+    {trial.demoProduct?.code ||
+      trial.product?.productCode ||
+      "-"}
+  </p>
+
+  {trial.demoProduct && (
+    <p className="mt-1 text-[11px] font-medium text-blue-600">
+      Demo Product
+    </p>
+  )}
+</td>
 
       <td className="px-5 py-4">
         <p className="max-w-40 truncate text-sm text-slate-700">

@@ -82,15 +82,7 @@ export default function LeaveDetailsPage() {
 
   const loadLeave =
     async () => {
-      if (
-        !id ||
-        !canApprove ||
-        processing ||
-        leave?.status !==
-          "PENDING" ||
-        leave.employee.id ===
-          employee?.id
-      ) {
+      if (!id) {
         return;
       }
 
@@ -141,7 +133,15 @@ export default function LeaveDetailsPage() {
         | "APPROVED"
         | "REJECTED"
     ) => {
-      if (!id) {
+      if (
+        !id ||
+        !canApprove ||
+        processing ||
+        leave?.status !==
+          "PENDING" ||
+        leave.employee.id ===
+          employee?.id
+      ) {
         return;
       }
 

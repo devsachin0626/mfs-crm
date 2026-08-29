@@ -1,13 +1,13 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import * as leaveService from "../../services/leave/leave.service";
-import strict from "node:assert/strict";
+import { AuthRequest } from "../../middleware/auth.middleware";
 
 /* ============================
    APPLY LEAVE
 ============================ */
 
 export const applyLeave = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
@@ -27,7 +27,7 @@ export const applyLeave = async (
 ============================ */
 
 export const getLeaves = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
@@ -44,17 +44,19 @@ export const getLeaves = async (
         ? req.query.status
         : undefined;
 
-        const employeeId =
-  typeof req.query.employeeId === "string"
-    ? req.query.employeeId
-    : undefined;
+    const employeeId =
+      typeof req.query.employeeId === "string"
+        ? req.query.employeeId
+        : undefined;
 
     const result = await leaveService.getLeaves(
       page,
       limit,
       search,
       status,
-      employeeId
+      employeeId,
+      req.employee!.id,
+      req.employee!.role.name
     );
 
     res.status(200).json(result);
@@ -71,17 +73,26 @@ export const getLeaves = async (
 ============================ */
 
 export const getLeaveById = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
 
-    const result = await leaveService.getLeaveById(id as string);
+    const result = await leaveService.getLeaveById(
+      id as string,
+      req.employee!.id,
+      req.employee!.role.name
+    );
 
     res.status(200).json(result);
   } catch (error: any) {
-    res.status(404).json({
+    const statusCode =
+      error.message === "Access Denied"
+        ? 403
+        : 404;
+
+    res.status(statusCode).json({
       success: false,
       message: error.message,
     });
@@ -93,7 +104,7 @@ export const getLeaveById = async (
 ============================ */
 
 export const updateLeave = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
@@ -118,23 +129,31 @@ export const updateLeave = async (
 ============================ */
 
 export const approveRejectLeave = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const { status, approvedById } = req.body;
+    const { status } = req.body;
 
     const result =
       await leaveService.approveRejectLeave(
         id as string,
         status,
-        approvedById
+        req.employee!.id,
+        req.employee!.role.name
       );
 
     res.status(200).json(result);
   } catch (error: any) {
-    res.status(400).json({
+    const statusCode =
+      error.message === "Access Denied" ||
+      error.message ===
+        "You cannot approve or reject your own leave"
+        ? 403
+        : 400;
+
+    res.status(statusCode).json({
       success: false,
       message: error.message,
     });

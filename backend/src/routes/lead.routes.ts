@@ -183,6 +183,16 @@ router.get(
 ============================ */
 
 router.patch(
+  "/bulk/allocate",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR"
+  ),
+  leadController.allocateLeadsFromPool
+);
+
+router.patch(
   "/bulk/assign",
   authenticate,
   authorize(

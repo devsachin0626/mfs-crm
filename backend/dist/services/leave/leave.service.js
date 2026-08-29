@@ -422,12 +422,6 @@ const updateLeave = async (id, data) => {
                 undefined
                 ? data.reason.trim()
                 : leave.reason,
-            status: data.status ??
-                leave.status,
-            approvedById: data.approvedById !==
-                undefined
-                ? data.approvedById
-                : leave.approvedById,
         },
         include: {
             employee: {
@@ -555,30 +549,42 @@ const approveRejectLeave = async (id, status, approvedById, currentEmployee) => 
        derives APPROVED leave
        automatically.
     ============================ */
-    const updatedLeave = await prisma_1.default.leave.update({
-        where: {
-            id,
-        },
-        data: {
-            status,
-            approvedById,
-        },
-        include: {
-            employee: {
-                select: {
-                    id: true,
-                    employeeCode: true,
-                    name: true,
+    const updatedLeave = await prisma_1.default.$transaction(async (transaction) => {
+        const result = await transaction.leave.updateMany({
+            where: {
+                id,
+                status: "PENDING",
+            },
+            data: {
+                status,
+                approvedById,
+            },
+        });
+        if (result.count ===
+            0) {
+            throw new Error("Leave has already been processed");
+        }
+        return transaction.leave.findUnique({
+            where: {
+                id,
+            },
+            include: {
+                employee: {
+                    select: {
+                        id: true,
+                        employeeCode: true,
+                        name: true,
+                    },
+                },
+                approvedBy: {
+                    select: {
+                        id: true,
+                        employeeCode: true,
+                        name: true,
+                    },
                 },
             },
-            approvedBy: {
-                select: {
-                    id: true,
-                    employeeCode: true,
-                    name: true,
-                },
-            },
-        },
+        });
     });
     return {
         success: true,

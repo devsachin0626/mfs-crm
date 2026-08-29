@@ -1,6 +1,9 @@
 import prisma from "../../config/prisma";
 import { comparePassword } from "../../utils/password";
-import { generateToken } from "../../utils/jwt";
+import {
+  generateToken,
+  generateImpersonationToken,
+} from "../../utils/jwt";
 import { hashPassword } from "../../utils/password";
 
 interface LoginDto {
@@ -173,3 +176,160 @@ export const resetEmployeePassword = async (
       "Employee Password Reset Successfully",
   };
 };
+
+export const impersonateEmployee =
+  async (
+    adminId: string,
+    employeeId: string,
+    metadata?: {
+      ipAddress?: string;
+      userAgent?: string;
+    }
+  ) => {
+    const admin =
+      await prisma.employee.findUnique({
+        where: {
+          id:
+            adminId,
+        },
+
+        include: {
+          role: true,
+        },
+      });
+
+    if (
+      !admin ||
+      admin.role.name !==
+        "ADMIN"
+    ) {
+      throw new Error(
+        "Admin access required"
+      );
+    }
+
+    const employee =
+      await prisma.employee.findUnique({
+        where: {
+          id:
+            employeeId,
+        },
+
+        include: {
+          role: true,
+          branch: true,
+        },
+      });
+
+    if (!employee) {
+      throw new Error(
+        "Employee Not Found"
+      );
+    }
+
+    if (
+      employee.id ===
+      admin.id
+    ) {
+      throw new Error(
+        "You are already logged in as this admin"
+      );
+    }
+
+    if (
+      !employee.isActive ||
+      employee.status !==
+        "ACTIVE"
+    ) {
+      throw new Error(
+        "Employee account is inactive"
+      );
+    }
+
+    const token =
+      generateImpersonationToken({
+        id:
+          employee.id,
+
+        employeeCode:
+          employee.employeeCode,
+
+        roleId:
+          employee.roleId,
+
+        impersonatorId:
+          admin.id,
+      });
+
+    await prisma.activityLog.create({
+      data: {
+        employeeId:
+          admin.id,
+
+        module:
+          "AUTH",
+
+        action:
+          "IMPERSONATE_EMPLOYEE",
+
+        recordId:
+          employee.id,
+
+        ipAddress:
+          metadata
+            ?.ipAddress ||
+          null,
+
+        userAgent:
+          metadata
+            ?.userAgent ||
+          null,
+      },
+    });
+
+    return {
+      success: true,
+
+      message:
+        `Logged in as ${employee.name}`,
+
+      token,
+
+      employee: {
+        id:
+          employee.id,
+
+        employeeCode:
+          employee.employeeCode,
+
+        name:
+          employee.name,
+
+        mobile:
+          employee.mobile,
+
+        email:
+          employee.email,
+
+        role:
+          employee.role.name,
+
+        branch:
+          employee.branch.name,
+
+        profileImage:
+          employee.profileImage,
+      },
+
+      impersonation: {
+        impersonatorId:
+          admin.id,
+
+        impersonatorName:
+          admin.name,
+
+        expiresInMinutes:
+          60,
+      },
+    };
+  };

@@ -35,3 +35,31 @@ export interface BulkStatusRequest {
 
   remarks?: string;
 }
+
+export interface AllocateLeadPoolRequest {
+  employeeId: string;
+
+  quantity: number;
+
+  reason?: string;
+}
+
+export interface AllocateLeadPoolResponse {
+  success: boolean;
+
+  message: string;
+
+  employee: {
+    id: string;
+
+    employeeCode: string;
+
+    name: string;
+  };
+
+  requested: number;
+
+  assigned: number;
+
+  availableRemaining: number;
+}

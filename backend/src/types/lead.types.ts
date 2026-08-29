@@ -188,6 +188,12 @@ export interface BulkAssignLeadRequest {
   reason?: string;
 }
 
+export interface AllocateLeadPoolRequest {
+  employeeId: string;
+  quantity: number;
+  reason?: string;
+}
+
 export interface BulkChangeStageRequest {
   leadIds: string[];
   stage: LeadStage;

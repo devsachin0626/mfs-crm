@@ -25,9 +25,55 @@ export const me = async (
   res: Response
 ): Promise<void> => {
   try {
+    const employee =
+      req.employee;
+
+    if (!employee) {
+      res.status(401).json({
+        success: false,
+        message:
+          "Authenticated Employee Not Found",
+      });
+
+      return;
+    }
+
     res.status(200).json({
       success: true,
-      employee: req.employee,
+
+      employee: {
+        id:
+          employee.id,
+
+        employeeCode:
+          employee.employeeCode,
+
+        name:
+          employee.name,
+
+        mobile:
+          employee.mobile,
+
+        email:
+          employee.email,
+
+        role:
+          employee.role.name,
+
+        branch:
+          employee.branch.name,
+
+        profileImage:
+          employee.profileImage,
+      },
+
+      impersonation: {
+        active:
+          Boolean(
+            req.authPayload
+              ?.impersonatorId
+          ),
+      },
     });
   } catch (error: any) {
     res.status(500).json({

@@ -15,7 +15,12 @@ import {
 
 import {
   CallOutcome,
+  Prisma,
 } from "@prisma/client";
+
+import type {
+  AllocateLeadPoolRequest,
+} from "../../types/lead.types";
 
 
 
@@ -3677,6 +3682,215 @@ export const bulkAssignLeads = async (
       changedLeads.length,
   };
 };
+
+/* ============================
+   ALLOCATE LEADS FROM POOL
+
+   ADMIN / HR only.
+   Uses PostgreSQL row locks so
+   the same unassigned lead can
+   never be allocated twice.
+============================ */
+
+export const allocateLeadsFromPool =
+  async (
+    data:
+      AllocateLeadPoolRequest,
+    currentEmployee: any
+  ) => {
+    const roleName =
+      getRoleName(
+        currentEmployee
+      );
+
+    if (
+      roleName !== "ADMIN" &&
+      roleName !== "HR"
+    ) {
+      throw new Error(
+        "Lead pool allocation access denied"
+      );
+    }
+
+    const quantity =
+      Number(
+        data.quantity
+      );
+
+    if (
+      !Number.isInteger(
+        quantity
+      ) ||
+      quantity < 1 ||
+      quantity > 5000
+    ) {
+      throw new Error(
+        "Quantity must be between 1 and 5000"
+      );
+    }
+
+    const employee =
+      await prisma.employee.findUnique({
+        where: {
+          id:
+            data.employeeId,
+        },
+
+        select: {
+          id: true,
+          employeeCode:
+            true,
+          name: true,
+          isActive: true,
+          status: true,
+        },
+      });
+
+    if (!employee) {
+      throw new Error(
+        "Employee Not Found"
+      );
+    }
+
+    if (
+      !employee.isActive ||
+      employee.status !==
+        "ACTIVE"
+    ) {
+      throw new Error(
+        "Cannot allocate leads to inactive employee"
+      );
+    }
+
+    const reason =
+      data.reason?.trim() ||
+      "Lead pool allocation";
+
+    const assigned =
+      await prisma.$transaction(
+        async (tx) => {
+          const poolLeads =
+            await tx.$queryRaw<
+              Array<{
+                id: string;
+              }>
+            >(
+              Prisma.sql`
+                SELECT "id"
+                FROM "leads"
+                WHERE "assignedEmployeeId" IS NULL
+                  AND "isDuplicate" = false
+                ORDER BY "createdAt" ASC, "id" ASC
+                FOR UPDATE SKIP LOCKED
+                LIMIT ${quantity}
+              `
+            );
+
+          if (
+            poolLeads.length ===
+            0
+          ) {
+            return 0;
+          }
+
+          const leadIds =
+            poolLeads.map(
+              (lead) =>
+                lead.id
+            );
+
+          const updateResult =
+            await tx.lead.updateMany({
+              where: {
+                id: {
+                  in:
+                    leadIds,
+                },
+
+                assignedEmployeeId:
+                  null,
+              },
+
+              data: {
+                assignedEmployeeId:
+                  employee.id,
+              },
+            });
+
+          if (
+            updateResult.count !==
+            leadIds.length
+          ) {
+            throw new Error(
+              "Lead pool changed during allocation. Please try again"
+            );
+          }
+
+          await tx.leadAssignmentHistory.createMany({
+            data:
+              leadIds.map(
+                (leadId) => ({
+                  leadId,
+
+                  fromEmployeeId:
+                    null,
+
+                  toEmployeeId:
+                    employee.id,
+
+                  reason,
+                })
+              ),
+          });
+
+          return leadIds.length;
+        }
+      );
+
+    if (assigned === 0) {
+      throw new Error(
+        "No unassigned leads are available"
+      );
+    }
+
+    const availableRemaining =
+      await prisma.lead.count({
+        where: {
+          assignedEmployeeId:
+            null,
+
+          isDuplicate:
+            false,
+        },
+      });
+
+    return {
+      success: true,
+
+      message:
+        assigned === quantity
+          ? `${assigned} leads assigned successfully to ${employee.name}`
+          : `${assigned} of ${quantity} requested leads assigned to ${employee.name}`,
+
+      employee: {
+        id:
+          employee.id,
+
+        employeeCode:
+          employee.employeeCode,
+
+        name:
+          employee.name,
+      },
+
+      requested:
+        quantity,
+
+      assigned,
+
+      availableRemaining,
+    };
+  };
 
 /* ============================
    BULK CHANGE STAGE

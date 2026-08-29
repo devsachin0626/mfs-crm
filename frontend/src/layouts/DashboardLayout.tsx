@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
+import ImpersonationBanner from "../components/layout/ImpersonationBanner";
 
 export default function DashboardLayout() {
   return (
@@ -10,6 +11,7 @@ export default function DashboardLayout() {
 
       <div className="flex flex-1 flex-col">
         <Header />
+        <ImpersonationBanner />
 
         <main className="flex-1 p-6">
           <Outlet />

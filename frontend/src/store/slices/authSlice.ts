@@ -1,6 +1,10 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-import { getToken, removeToken } from "../../utils/auth";
+import {
+  clearImpersonationSession,
+  getToken,
+  removeToken,
+} from "../../utils/auth";
 
 export interface AuthEmployee {
   id: string;
@@ -59,6 +63,7 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
 
       removeToken();
+      clearImpersonationSession();
     },
   },
 });

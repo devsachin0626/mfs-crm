@@ -1,9 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../config/prisma";
-import { verifyToken } from "../utils/jwt";
+import {
+  verifyToken,
+  type JwtPayload,
+} from "../utils/jwt";
 
 export interface AuthRequest extends Request {
   employee?: any;
+  authPayload?: JwtPayload;
 }
 
 export const authenticate = async (
@@ -53,6 +57,7 @@ export const authenticate = async (
     }
 
     req.employee = employee;
+    req.authPayload = payload;
 
     next();
   } catch (error) {

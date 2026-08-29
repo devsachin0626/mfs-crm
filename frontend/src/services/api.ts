@@ -1,6 +1,10 @@
 import axios from "axios";
 
-import { getToken, removeToken } from "../utils/auth";
+import {
+  clearImpersonationSession,
+  getToken,
+  removeToken,
+} from "../utils/auth";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -34,6 +38,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       removeToken();
+      clearImpersonationSession();
 
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";

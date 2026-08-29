@@ -8,12 +8,25 @@ export interface JwtPayload {
   id: string;
   employeeCode: string;
   roleId: string;
+  impersonatorId?: string;
 }
 
 export const generateToken = (payload: JwtPayload): string => {
   return jwt.sign(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
   });
+};
+
+export const generateImpersonationToken = (
+  payload: JwtPayload
+): string => {
+  return jwt.sign(
+    payload,
+    JWT_SECRET,
+    {
+      expiresIn: "1h",
+    }
+  );
 };
 
 export const verifyToken = (token: string): JwtPayload => {

@@ -35,6 +35,13 @@ router.get(
   }
 );
 
+router.post(
+  "/impersonate/:employeeId",
+  authenticate,
+  authorize("ADMIN"),
+  authController.impersonateEmployee
+);
+
 router.patch(
   "/reset-employee-password",
   authenticate,

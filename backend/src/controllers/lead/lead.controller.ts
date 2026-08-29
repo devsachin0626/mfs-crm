@@ -734,6 +734,47 @@ export const bulkAssignLeads =
   };
 
 /* ============================
+   ALLOCATE LEADS FROM POOL
+============================ */
+
+export const allocateLeadsFromPool =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
+
+        return;
+      }
+
+      const result =
+        await leadService.allocateLeadsFromPool(
+          req.body,
+          req.employee
+        );
+
+      res
+        .status(200)
+        .json(result);
+    } catch (error: any) {
+      res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            error.message ||
+            "Lead Pool Allocation Failed",
+        });
+    }
+  };
+
+/* ============================
    BULK CHANGE STAGE
 ============================ */
 

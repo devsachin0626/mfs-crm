@@ -1,5 +1,8 @@
 import prisma from "../../config/prisma";
-import { ApplyLeaveRequest } from "../../types/leave.types";
+import {
+  ApplyLeaveRequest,
+  UpdateLeaveRequest,
+} from "../../types/leave.types";
 
 export const applyLeave = async (
   data: ApplyLeaveRequest
@@ -83,7 +86,8 @@ export const getLeaves = async (
   search?: string,
   status?: string,
   employeeId?: string,
-
+  requesterId?: string,
+  requesterRole?: string
 ) => {
   const skip = (page - 1) * limit;
 
@@ -105,8 +109,26 @@ export const getLeaves = async (
   }
 
   if (employeeId) {
-  where.employeeId = employeeId;
-}
+    where.employeeId = employeeId;
+  }
+
+  // Restrict leave visibility by authenticated role
+  if (requesterRole === "EMPLOYEE") {
+    where.employeeId = requesterId;
+  }
+
+  if (requesterRole === "TEAM_LEADER") {
+    where.OR = [
+      {
+        employeeId: requesterId,
+      },
+      {
+        employee: {
+          reportingManagerId: requesterId,
+        },
+      },
+    ];
+  }
 
   const total = await prisma.leave.count({
     where,
@@ -153,7 +175,11 @@ export const getLeaves = async (
   };
 };
 
-export const getLeaveById = async (id: string) => {
+export const getLeaveById = async (
+  id: string,
+  requesterId: string,
+  requesterRole: string
+) => {
   const leave = await prisma.leave.findUnique({
     where: {
       id,
@@ -167,6 +193,7 @@ export const getLeaveById = async (id: string) => {
           name: true,
           mobile: true,
           email: true,
+          reportingManagerId: true,
         },
       },
 
@@ -186,13 +213,22 @@ export const getLeaveById = async (id: string) => {
     throw new Error("Leave Not Found");
   }
 
+  const canView =
+    requesterRole === "ADMIN" ||
+    requesterRole === "HR" ||
+    leave.employeeId === requesterId ||
+    (requesterRole === "TEAM_LEADER" &&
+      leave.employee.reportingManagerId === requesterId);
+
+  if (!canView) {
+    throw new Error("Access Denied");
+  }
+
   return {
     success: true,
     leave,
   };
 };
-
-import { UpdateLeaveRequest } from "../../types/leave.types";
 
 export const updateLeave = async (
   id: string,
@@ -234,13 +270,6 @@ export const updateLeave = async (
       toDate,
 
       reason: data.reason ?? leave.reason,
-
-      status: data.status ?? leave.status,
-
-      approvedById:
-        data.approvedById !== undefined
-          ? data.approvedById
-          : leave.approvedById,
     },
 
     include: {
@@ -273,16 +302,30 @@ export const updateLeave = async (
   };
 };
 
-
 export const approveRejectLeave = async (
   id: string,
   status: "APPROVED" | "REJECTED",
-  approvedById: string
+  approvedById: string,
+  approverRole: string
 ) => {
-  // Check Leave Exists
+  if (
+    status !== "APPROVED" &&
+    status !== "REJECTED"
+  ) {
+    throw new Error("Invalid leave status");
+  }
+
+  // Check Leave Exists and load reporting relationship
   const leave = await prisma.leave.findUnique({
     where: {
       id,
+    },
+    include: {
+      employee: {
+        select: {
+          reportingManagerId: true,
+        },
+      },
     },
   });
 
@@ -290,55 +333,76 @@ export const approveRejectLeave = async (
     throw new Error("Leave Not Found");
   }
 
-  // Check Approver Exists
-  const approver = await prisma.employee.findUnique({
-    where: {
-      id: approvedById,
-    },
-  });
-
-  if (!approver) {
-    throw new Error("Approver Not Found");
+  // Nobody may process their own leave
+  if (leave.employeeId === approvedById) {
+    throw new Error(
+      "You cannot approve or reject your own leave"
+    );
   }
 
-  // Prevent Multiple Approval/Rejection
-  if (leave.status !== "PENDING") {
-    throw new Error("Leave has already been processed");
+  // Team Leaders may process only direct team members
+  if (
+    approverRole === "TEAM_LEADER" &&
+    leave.employee.reportingManagerId !== approvedById
+  ) {
+    throw new Error("Access Denied");
   }
 
-  // Approve / Reject Leave
-  const updatedLeave = await prisma.leave.update({
-    where: {
-      id,
-    },
+  if (
+    approverRole !== "ADMIN" &&
+    approverRole !== "HR" &&
+    approverRole !== "TEAM_LEADER"
+  ) {
+    throw new Error("Access Denied");
+  }
 
-    data: {
-      status,
-      approvedById,
-    },
-
-    include: {
-      employee: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
+  const updatedLeave = await prisma.$transaction(
+    async (transaction) => {
+      const result = await transaction.leave.updateMany({
+        where: {
+          id,
+          status: "PENDING",
         },
-      },
-
-      approvedBy: {
-        select: {
-          id: true,
-          employeeCode: true,
-          name: true,
-          mobile: true,
-          email: true,
+        data: {
+          status,
+          approvedById,
         },
-      },
-    },
-  });
+      });
+
+      if (result.count === 0) {
+        throw new Error(
+          "Leave has already been processed"
+        );
+      }
+
+      return transaction.leave.findUnique({
+        where: {
+          id,
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              employeeCode: true,
+              name: true,
+              mobile: true,
+              email: true,
+            },
+          },
+
+          approvedBy: {
+            select: {
+              id: true,
+              employeeCode: true,
+              name: true,
+              mobile: true,
+              email: true,
+            },
+          },
+        },
+      });
+    }
+  );
 
   return {
     success: true,

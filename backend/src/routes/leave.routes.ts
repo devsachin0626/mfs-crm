@@ -17,7 +17,7 @@ router.post(
 router.get(
   "/",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"),
   leaveController.getLeaves
 );
 
@@ -25,7 +25,7 @@ router.get(
 router.get(
   "/:id",
   authenticate,
-  authorize("ADMIN", "HR", "TEAM_LEADER"),
+  authorize("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"),
   leaveController.getLeaveById
 );
 
@@ -41,7 +41,7 @@ router.put(
 router.put(
   "/:id/approve",
   authenticate,
-  authorize("ADMIN", "HR"),
+  authorize("ADMIN", "HR", "TEAM_LEADER"),
   leaveController.approveRejectLeave
 );
 

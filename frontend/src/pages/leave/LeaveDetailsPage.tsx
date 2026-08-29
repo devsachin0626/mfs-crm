@@ -75,10 +75,26 @@ export default function LeaveDetailsPage() {
     loadLeave();
   }, [id]);
 
+  const canProcessLeave =
+    leave?.status === "PENDING" &&
+    Boolean(employee?.id) &&
+    employee?.id !== leave?.employeeId &&
+    [
+      "ADMIN",
+      "HR",
+      "TEAM_LEADER",
+    ].includes(employee?.role || "");
+
   const handleDecision = async (
     status: "APPROVED" | "REJECTED"
   ) => {
-    if (!id || !employee?.id) return;
+    if (
+      !id ||
+      !canProcessLeave ||
+      processing
+    ) {
+      return;
+    }
 
     const confirmed =
       window.confirm(
@@ -93,11 +109,7 @@ export default function LeaveDetailsPage() {
 
       await approveRejectLeave(
         id,
-        {
-          status,
-          approvedById:
-            employee.id,
-        }
+        status
       );
 
       await loadLeave();
@@ -174,8 +186,7 @@ export default function LeaveDetailsPage() {
           </div>
         </div>
 
-        {leave.status ===
-          "PENDING" && (
+        {canProcessLeave && (
           <div className="flex gap-3">
             <button
               type="button"

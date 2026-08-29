@@ -42,6 +42,19 @@ export const changePassword = async (
   res: Response
 ): Promise<void> => {
   try {
+    if (
+      req.authPayload
+        ?.impersonatorId
+    ) {
+      res.status(403).json({
+        success: false,
+        message:
+          "Password cannot be changed during an impersonated session",
+      });
+
+      return;
+    }
+
     const { oldPassword, newPassword } = req.body;
 
     const result = await authService.changePassword(
@@ -86,6 +99,69 @@ export const resetEmployeePassword =
           success: false,
           message:
             error.message,
+        });
+    }
+  };
+
+export const impersonateEmployee =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
+
+        return;
+      }
+
+      if (
+        req.authPayload
+          ?.impersonatorId
+      ) {
+        res.status(403).json({
+          success: false,
+          message:
+            "Nested impersonation is not allowed",
+        });
+
+        return;
+      }
+
+      const employeeId =
+        req.params
+          .employeeId as string;
+
+      const result =
+        await authService.impersonateEmployee(
+          req.employee.id,
+          employeeId,
+          {
+            ipAddress:
+              req.ip,
+
+            userAgent:
+              req.get(
+                "user-agent"
+              ),
+          }
+        );
+
+      res
+        .status(200)
+        .json(result);
+    } catch (error: any) {
+      res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            error.message ||
+            "Login as employee failed",
         });
     }
   };

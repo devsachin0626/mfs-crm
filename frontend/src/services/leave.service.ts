@@ -72,7 +72,6 @@ export const updateLeave =
       fromDate?: string;
       toDate?: string;
       reason?: string;
-      status?: string;
     }
   ) => {
     const response =

@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Eye,
   Filter,
+  Layers3,
   Phone,
   Plus,
   RefreshCw,
@@ -61,6 +62,8 @@ import LeadAgingBadge from "../../features/lead/LeadAgingBadge";
 
 import LeadBulkActionBar from "../../features/lead/LeadBulkActionBar";
 
+import LeadAllocationModal from "../../features/lead/LeadAllocationModal";
+
 export default function LeadListPage() {
   const dispatch =
     useAppDispatch();
@@ -104,6 +107,10 @@ const canFilterEmployee =
   roleName === "HR" ||
   roleName === "TEAM_LEADER";
 
+const canAllocatePool =
+  roleName === "ADMIN" ||
+  roleName === "HR";
+
 
 
   const {
@@ -143,6 +150,11 @@ const [
   bulkMessage,
   setBulkMessage,
 ] = useState("");
+
+const [
+  showAllocation,
+  setShowAllocation,
+] = useState(false);
 
 const [
   refreshKey,
@@ -472,6 +484,43 @@ canFilterEmployee,
 
   return (
     <div className="space-y-5">
+      {showAllocation && (
+        <LeadAllocationModal
+          employees={
+            employees
+          }
+          availableCount={
+            leadSummary
+              ?.unassigned ??
+            0
+          }
+          onClose={() =>
+            setShowAllocation(
+              false
+            )
+          }
+          onSuccess={(
+            response
+          ) => {
+            setShowAllocation(
+              false
+            );
+
+            setBulkMessage(
+              response.message
+            );
+
+            setSelectedIds(
+              []
+            );
+
+            setRefreshKey(
+              (current) =>
+                current + 1
+            );
+          }}
+        />
+      )}
       {/* ======================
           PAGE HEADER
       ====================== */}
@@ -526,7 +575,22 @@ canFilterEmployee,
             New Lead
           </button>
 
-          <button
+          {canAllocatePool && (
+  <button
+    type="button"
+    onClick={() =>
+      setShowAllocation(
+        true
+      )
+    }
+    className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+  >
+    <Layers3 size={17} />
+    Allocate Leads
+  </button>
+)}
+
+<button
   type="button"
   onClick={() =>
     navigate(

@@ -11,7 +11,7 @@ import {
 import {
   LayoutDashboard,
   Users,
-  IndianRupee,
+
   UserCog,
   FileBarChart,
   Settings,
@@ -220,23 +220,7 @@ export default function Sidebar() {
           FlaskConical,
       },
 
-      {
-        label:
-          "Payments",
-
-        path:
-          "/payments",
-
-        icon:
-          IndianRupee,
-
-        roles: [
-          "ADMIN",
-          "HR",
-          "TEAM_LEADER",
-        ],
-      },
-
+     
       {
         label:
           "Employees",

@@ -1,23 +1,32 @@
 import prisma from "../../config/prisma";
 
+import {
+  AttendanceStatus,
+} from "@prisma/client";
+
 import type {
   CurrentEmployee,
 } from "../../types/current-employee.types";
+
+import {
+  getSettingValue,
+} from "../settings/settings.service";
 
 /* ============================
    TYPES
 ============================ */
 
-
-
 interface PayrollPolicyInput {
   employeeId: string;
 
   month: number;
+
   year: number;
 
   incentive?: number;
+
   bonus?: number;
+
   deduction?: number;
 
   currentEmployee:
@@ -26,9 +35,14 @@ interface PayrollPolicyInput {
 
 /* ============================
    PAYROLL CYCLE
+
    Example:
-   Aug 2026
-   => 26 Jul 2026 - 25 Aug 2026
+
+   August 2026
+   =
+   26 Jul 2026
+      →
+   25 Aug 2026
 ============================ */
 
 export const getPayrollCycle =
@@ -37,6 +51,7 @@ export const getPayrollCycle =
     year: number
   ) => {
     if (
+      !Number.isInteger(month) ||
       month < 1 ||
       month > 12
     ) {
@@ -44,6 +59,30 @@ export const getPayrollCycle =
         "Invalid Payroll Month"
       );
     }
+
+    if (
+      !Number.isInteger(year) ||
+      year < 2000 ||
+      year > 2200
+    ) {
+      throw new Error(
+        "Invalid Payroll Year"
+      );
+    }
+
+    const periodStart =
+      new Date(
+        year,
+        month - 2,
+        26
+      );
+
+    periodStart.setHours(
+      0,
+      0,
+      0,
+      0
+    );
 
     const periodEnd =
       new Date(
@@ -59,30 +98,6 @@ export const getPayrollCycle =
       999
     );
 
-    const previousMonth =
-      month === 1
-        ? 12
-        : month - 1;
-
-    const previousYear =
-      month === 1
-        ? year - 1
-        : year;
-
-    const periodStart =
-      new Date(
-        previousYear,
-        previousMonth - 1,
-        26
-      );
-
-    periodStart.setHours(
-      0,
-      0,
-      0,
-      0
-    );
-
     return {
       periodStart,
       periodEnd,
@@ -95,25 +110,28 @@ export const getPayrollCycle =
 
 const normalizeDate =
   (
-    date: Date
+    value: Date
   ) => {
-    const result =
-      new Date(date);
+    const date =
+      new Date(value);
 
-    result.setHours(
+    date.setHours(
       0,
       0,
       0,
       0
     );
 
-    return result;
+    return date;
   };
 
 const dateKey =
   (
-    date: Date
+    value: Date
   ) => {
+    const date =
+      new Date(value);
+
     return `${date.getFullYear()}-${String(
       date.getMonth() + 1
     ).padStart(
@@ -125,6 +143,91 @@ const dateKey =
       2,
       "0"
     )}`;
+  };
+
+/* ============================
+   TIME HELPER
+============================ */
+
+const applyTimeToDate =
+  (
+    baseDate: Date,
+    time: string
+  ) => {
+    const [
+      hourText,
+      minuteText,
+    ] =
+      time.split(":");
+
+    const hour =
+      Number(hourText);
+
+    const minute =
+      Number(minuteText);
+
+    if (
+      !Number.isInteger(hour) ||
+      !Number.isInteger(minute) ||
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59
+    ) {
+      throw new Error(
+        `Invalid Attendance Time Setting: ${time}`
+      );
+    }
+
+    const result =
+      new Date(baseDate);
+
+    result.setHours(
+      hour,
+      minute,
+      0,
+      0
+    );
+
+    return result;
+  };
+
+/* ============================
+   ATTENDANCE SETTINGS
+============================ */
+
+const getAttendanceSettings =
+  async () => {
+    const [
+      officeStartTime,
+      officeEndTime,
+      lateAfterTime,
+      halfDayAfterTime,
+    ] =
+      await Promise.all([
+        getSettingValue(
+          "OFFICE_START_TIME"
+        ),
+
+        getSettingValue(
+          "OFFICE_END_TIME"
+        ),
+
+        getSettingValue(
+          "LATE_AFTER_TIME"
+        ),
+
+        getSettingValue(
+          "HALF_DAY_AFTER_TIME"
+        ),
+      ]);
+
+    return {
+      officeStartTime,
+      officeEndTime,
+      lateAfterTime,
+      halfDayAfterTime,
+    };
   };
 
 /* ============================
@@ -142,12 +245,12 @@ const isFirstSaturday =
   };
 
 /* ============================
-   WORKING DAY CHECK
+   SCHEDULED WORKING DAY
 
-   OFF DAYS:
-   Sunday
-   First Saturday
-   Company Holiday
+   OFF:
+   - Sunday
+   - First Saturday
+   - Company Holiday
 ============================ */
 
 const isScheduledWorkingDay =
@@ -160,24 +263,19 @@ const isScheduledWorkingDay =
       dateKey(date);
 
     if (
-      date.getDay() ===
-      0
+      date.getDay() === 0
     ) {
       return false;
     }
 
     if (
-      isFirstSaturday(
-        date
-      )
+      isFirstSaturday(date)
     ) {
       return false;
     }
 
     if (
-      holidayKeys.has(
-        key
-      )
+      holidayKeys.has(key)
     ) {
       return false;
     }
@@ -186,7 +284,7 @@ const isScheduledWorkingDay =
   };
 
 /* ============================
-   LEAVE BALANCE
+   OPENING LEAVE BALANCE
 ============================ */
 
 const getOpeningLeaveBalance =
@@ -229,7 +327,7 @@ const getOpeningLeaveBalance =
   };
 
 /* ============================
-   CALCULATE POLICY
+   PAYROLL POLICY
 ============================ */
 
 export const calculatePayrollPolicy =
@@ -256,6 +354,13 @@ export const calculatePayrollPolicy =
       );
 
     /* ============================
+       SETTINGS
+    ============================ */
+
+    const settings =
+      await getAttendanceSettings();
+
+    /* ============================
        EMPLOYEE
     ============================ */
 
@@ -268,11 +373,16 @@ export const calculatePayrollPolicy =
 
         select: {
           id: true,
+
           employeeCode:
             true,
+
           name: true,
+
           salary: true,
+
           isActive: true,
+
           status: true,
 
           role: {
@@ -306,7 +416,7 @@ export const calculatePayrollPolicy =
     }
 
     /* ============================
-       DATA
+       FETCH DATA
     ============================ */
 
     const [
@@ -372,7 +482,7 @@ export const calculatePayrollPolicy =
       ]);
 
     /* ============================
-       MAPS
+       ATTENDANCE MAP
     ============================ */
 
     const attendanceMap =
@@ -393,6 +503,10 @@ export const calculatePayrollPolicy =
         );
       }
     );
+
+    /* ============================
+       HOLIDAY MAP
+    ============================ */
 
     const holidayKeys =
       new Set<string>();
@@ -419,6 +533,12 @@ export const calculatePayrollPolicy =
         month,
         year
       );
+
+    /*
+     * Current company rule:
+     * 1 paid leave credited
+     * per payroll cycle.
+     */
 
     const creditedLeave =
       1;
@@ -452,8 +572,14 @@ export const calculatePayrollPolicy =
     let earlyGoingCount =
       0;
 
+    let weeklyOffDays =
+      0;
+
+    let holidayDays =
+      0;
+
     /* ============================
-       CURRENT DAY ITERATION
+       PERIOD LOOP
     ============================ */
 
     const current =
@@ -475,15 +601,42 @@ export const calculatePayrollPolicy =
       const key =
         dateKey(date);
 
-      const workingDay =
-        isScheduledWorkingDay(
-          date,
-          holidayKeys
+      /* ============================
+         WEEKLY / HOLIDAY
+      ============================ */
+
+      const isSunday =
+        date.getDay() === 0;
+
+      const firstSaturday =
+        isFirstSaturday(
+          date
+        );
+
+      const companyHoliday =
+        holidayKeys.has(
+          key
         );
 
       if (
-        !workingDay
+        isSunday ||
+        firstSaturday
       ) {
+        weeklyOffDays++;
+
+        current.setDate(
+          current.getDate() +
+            1
+        );
+
+        continue;
+      }
+
+      if (
+        companyHoliday
+      ) {
+        holidayDays++;
+
         current.setDate(
           current.getDate() +
             1
@@ -494,13 +647,8 @@ export const calculatePayrollPolicy =
 
       scheduledWorkingDays++;
 
-      const attendance =
-        attendanceMap.get(
-          key
-        );
-
       /* ============================
-         LEAVE CHECK
+         APPROVED LEAVE
       ============================ */
 
       const approvedLeave =
@@ -539,12 +687,15 @@ export const calculatePayrollPolicy =
       }
 
       /* ============================
-         NO ATTENDANCE
+         ATTENDANCE
       ============================ */
 
-      if (
-        !attendance
-      ) {
+      const attendance =
+        attendanceMap.get(
+          key
+        );
+
+      if (!attendance) {
         absentDays++;
 
         current.setDate(
@@ -556,7 +707,13 @@ export const calculatePayrollPolicy =
       }
 
       /* ============================
-         CHECK-IN RULE
+         STATUS
+
+         Prefer actual Check-In
+         against current Settings.
+
+         If Check-In not present,
+         fallback to saved status.
       ============================ */
 
       if (
@@ -567,64 +724,79 @@ export const calculatePayrollPolicy =
             attendance.checkIn
           );
 
-        const officeStart =
-          new Date(date);
+        const lateAfter =
+          applyTimeToDate(
+            date,
+            settings.lateAfterTime
+          );
 
-        officeStart.setHours(
-          9,
-          15,
-          0,
-          0
-        );
-
-        const halfDayCutoff =
-          new Date(date);
-
-        halfDayCutoff.setHours(
-          10,
-          30,
-          0,
-          0
-        );
+        const halfDayAfter =
+          applyTimeToDate(
+            date,
+            settings.halfDayAfterTime
+          );
 
         if (
           checkIn >
-          halfDayCutoff
+          halfDayAfter
         ) {
           halfDays++;
         } else if (
           checkIn >
-          officeStart
+          lateAfter
         ) {
           lateDays++;
         } else {
           presentDays++;
         }
       } else {
-        /* fallback based on saved status */
+        switch (
+          attendance.status
+        ) {
+          case AttendanceStatus.HALF_DAY:
+            halfDays++;
+            break;
 
-        if (
-          attendance.status ===
-          "HALF_DAY"
-        ) {
-          halfDays++;
-        } else if (
-          attendance.status ===
-          "LATE"
-        ) {
-          lateDays++;
-        } else {
-          presentDays++;
+          case AttendanceStatus.LATE:
+            lateDays++;
+            break;
+
+          case AttendanceStatus.ABSENT:
+            absentDays++;
+            break;
+
+          case AttendanceStatus.LEAVE:
+            approvedLeaveDays++;
+            break;
+
+          case AttendanceStatus.HOLIDAY:
+            /*
+             * Manual holiday record
+             * should not reduce salary.
+             */
+            holidayDays++;
+            scheduledWorkingDays--;
+
+            break;
+
+          case AttendanceStatus.PRESENT:
+          default:
+            presentDays++;
+            break;
         }
       }
 
       /* ============================
          EARLY GOING
 
-         Allowed 1 per cycle.
-         Leaving before 6:30 PM
-         but at/after 5:00 PM counts
-         as early going.
+         Current policy:
+         Check-Out within 90 minutes
+         before office closing
+         counts as Early Going.
+
+         Example:
+         Office End 18:30
+         Early window begins 17:00.
       ============================ */
 
       if (
@@ -635,29 +807,25 @@ export const calculatePayrollPolicy =
             attendance.checkOut
           );
 
-        const earlyStart =
-          new Date(date);
-
-        earlyStart.setHours(
-          17,
-          0,
-          0,
-          0
-        );
-
         const officeEnd =
-          new Date(date);
+          applyTimeToDate(
+            date,
+            settings.officeEndTime
+          );
 
-        officeEnd.setHours(
-          18,
-          30,
-          0,
-          0
+        const earlyWindowStart =
+          new Date(
+            officeEnd
+          );
+
+        earlyWindowStart.setMinutes(
+          earlyWindowStart.getMinutes() -
+            90
         );
 
         if (
           checkOut >=
-            earlyStart &&
+            earlyWindowStart &&
           checkOut <
             officeEnd
         ) {
@@ -712,6 +880,12 @@ export const calculatePayrollPolicy =
         0
       );
 
+    /*
+     * Current existing rule:
+     * ₹100 deduction for each
+     * excess late.
+     */
+
     const lateDeduction =
       excessLateCount *
       100;
@@ -733,6 +907,16 @@ export const calculatePayrollPolicy =
           0
       );
 
+    /*
+     * Monthly salary is divided
+     * only by scheduled working
+     * days.
+     *
+     * Sundays / First Saturday /
+     * Company Holidays are part
+     * of monthly fixed salary.
+     */
+
     const perDaySalary =
       scheduledWorkingDays >
       0
@@ -741,29 +925,50 @@ export const calculatePayrollPolicy =
         : 0;
 
     /*
-     * Paid attendance:
-     *
-     * Present
-     * Late
-     * Half day = 0.5
-     * Paid Leave
-     *
-     * Sundays / First Saturday /
-     * Holidays are NOT paid
+     * Effective paid working days.
      */
 
-    const payableDays =
+    const paidWorkingDays =
       presentDays +
       lateDays +
       halfDays *
         0.5 +
       paidLeaveDays;
 
-    const grossSalary =
+    /*
+     * Salary-loss days:
+     *
+     * - Absent
+     * - Unpaid Leave
+     * - Half Day unpaid portion
+     *
+     * Using scheduled days as
+     * denominator ensures full
+     * attendance = full monthly
+     * basic salary.
+     */
+
+    const unpaidDayEquivalent =
+      Math.max(
+        scheduledWorkingDays -
+          paidWorkingDays,
+        0
+      );
+
+    const attendanceDeduction =
       Number(
         (
-          payableDays *
+          unpaidDayEquivalent *
           perDaySalary
+        ).toFixed(2)
+      );
+
+    const grossSalary =
+      Number(
+        Math.max(
+          basicSalary -
+            attendanceDeduction,
+          0
         ).toFixed(2)
       );
 
@@ -799,7 +1004,6 @@ export const calculatePayrollPolicy =
             safeBonus -
             safeDeduction -
             lateDeduction,
-
           0
         ).toFixed(2)
       );
@@ -812,6 +1016,7 @@ export const calculatePayrollPolicy =
       employee,
 
       month,
+
       year,
 
       period: {
@@ -824,6 +1029,10 @@ export const calculatePayrollPolicy =
 
       attendance: {
         scheduledWorkingDays,
+
+        weeklyOffDays,
+
+        holidayDays,
 
         presentDays,
 
@@ -868,12 +1077,30 @@ export const calculatePayrollPolicy =
 
         perDaySalary:
           Number(
-            perDaySalary.toFixed(
-              2
-            )
+            perDaySalary.toFixed(2)
           ),
 
-        payableDays,
+        /*
+         * Backward-compatible
+         * payableDays field.
+         */
+
+        payableDays:
+          Number(
+            paidWorkingDays.toFixed(2)
+          ),
+
+        paidWorkingDays:
+          Number(
+            paidWorkingDays.toFixed(2)
+          ),
+
+        unpaidDayEquivalent:
+          Number(
+            unpaidDayEquivalent.toFixed(2)
+          ),
+
+        attendanceDeduction,
 
         grossSalary,
 

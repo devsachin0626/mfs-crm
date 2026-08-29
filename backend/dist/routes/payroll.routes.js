@@ -36,4 +36,11 @@ router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authori
    ADMIN / HR
 ============================ */
 router.put("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR"), payroll_controller_1.updatePayrollController);
+/* ============================
+   RECALCULATE PAYROLL
+
+   ADMIN / HR
+   PENDING ONLY
+============================ */
+router.put("/:id/recalculate", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR"), payroll_controller_1.recalculatePayrollController);
 exports.default = router;

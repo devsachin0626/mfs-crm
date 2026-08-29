@@ -12,186 +12,488 @@ import type {
 
 import PayrollStatusBadge from "./PayrollStatusBadge";
 
+/* ============================
+   TYPES
+============================ */
+
 type Props = {
   payrolls: Payroll[];
 };
 
+/* ============================
+   TABLE
+============================ */
+
 export default function PayrollTable({
   payrolls,
 }: Props) {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
+
+  /* ============================
+     EMPTY
+  ============================ */
+
+  if (
+    payrolls.length === 0
+  ) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="p-10 text-center">
+          <p className="text-sm font-medium text-slate-600">
+            No payroll records found
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            Try changing the payroll
+            month, year or status
+            filter.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full min-w-300">
+          {/* ============================
+              HEADER
+          ============================ */}
+
           <thead className="bg-slate-50">
             <tr>
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <TableHeader>
                 Employee
-              </th>
+              </TableHeader>
 
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
-                Month
-              </th>
+              <TableHeader>
+                Payroll Period
+              </TableHeader>
 
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <TableHeader>
                 Basic
-              </th>
+              </TableHeader>
 
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <TableHeader>
                 Gross
-              </th>
+              </TableHeader>
 
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <TableHeader>
                 Incentive
-              </th>
+              </TableHeader>
 
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <TableHeader>
+                Bonus
+              </TableHeader>
+
+              <TableHeader>
                 Deduction
-              </th>
+              </TableHeader>
 
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <TableHeader>
                 Net Salary
-              </th>
+              </TableHeader>
 
-              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+              <TableHeader>
                 Status
-              </th>
+              </TableHeader>
 
-              <th className="px-5 py-4 text-right text-xs font-semibold uppercase text-slate-500">
+              <th className="whitespace-nowrap px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Action
               </th>
             </tr>
           </thead>
 
+          {/* ============================
+              BODY
+          ============================ */}
+
           <tbody>
             {payrolls.map(
-              (payroll) => (
-                <tr
-                  key={payroll.id}
-                  className="border-t border-slate-100 hover:bg-slate-50"
-                >
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-slate-900">
-                      {
-                        payroll.employee
-                          .name
-                      }
-                    </p>
+              (
+                payroll
+              ) => {
+                const totalDeduction =
+                  Number(
+                    payroll.deduction ||
+                      0
+                  ) +
+                  Number(
+                    payroll.lateDeduction ||
+                      0
+                  );
 
-                    <p className="text-sm text-slate-500">
-                      {
-                        payroll.employee
-                          .employeeCode
-                      }
-                    </p>
-                  </td>
-
-                  <td className="px-5 py-4 text-sm text-slate-700">
-                    {getMonthName(
-                      payroll.month
-                    )}{" "}
-                    {payroll.year}
-                  </td>
-
-                  <MoneyCell
-                    value={
-                      payroll.basicSalary
+                return (
+                  <tr
+                    key={
+                      payroll.id
                     }
-                  />
+                    className="border-t border-slate-100 transition hover:bg-slate-50"
+                  >
+                    {/* ============================
+                        EMPLOYEE
+                    ============================ */}
 
-                  <MoneyCell
-                    value={
-                      payroll.grossSalary
-                    }
-                  />
+                    <td className="px-5 py-4">
+                      <div className="min-w-42.5">
+                        <p className="font-semibold text-slate-900">
+                          {payroll
+                            .employee
+                            ?.name ||
+                            "-"}
+                        </p>
 
-                  <MoneyCell
-                    value={
-                      payroll.incentive
-                    }
-                  />
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {payroll
+                            .employee
+                            ?.employeeCode ||
+                            "-"}
+                        </p>
 
-                  <MoneyCell
-                    value={
-                      payroll.deduction
-                    }
-                  />
+                        {payroll
+                          .employee
+                          ?.role
+                          ?.name && (
+                          <p className="mt-1 text-xs text-slate-400">
+                            {
+                              payroll
+                                .employee
+                                .role
+                                .name
+                            }
+                          </p>
+                        )}
+                      </div>
+                    </td>
 
-                  <MoneyCell
-                    value={
-                      payroll.netSalary
-                    }
-                    bold
-                  />
+                    {/* ============================
+                        PAYROLL PERIOD
+                    ============================ */}
 
-                  <td className="px-5 py-4">
-                    <PayrollStatusBadge
-                      status={
-                        payroll.status
+                    <td className="px-5 py-4">
+                      <div className="min-w-36.25">
+                        <p className="text-sm font-medium text-slate-700">
+                          {getMonthName(
+                            payroll.month
+                          )}{" "}
+                          {
+                            payroll.year
+                          }
+                        </p>
+
+                        <p className="mt-1 text-xs font-medium text-blue-600">
+                          26th → 25th
+                        </p>
+
+                        {payroll.periodStart &&
+                          payroll.periodEnd && (
+                            <p className="mt-1 whitespace-nowrap text-xs text-slate-400">
+                              {formatShortDate(
+                                payroll.periodStart
+                              )}{" "}
+                              -{" "}
+                              {formatShortDate(
+                                payroll.periodEnd
+                              )}
+                            </p>
+                          )}
+                      </div>
+                    </td>
+
+                    {/* ============================
+                        BASIC
+                    ============================ */}
+
+                    <MoneyCell
+                      value={
+                        payroll.basicSalary
                       }
                     />
-                  </td>
 
-                  <td className="px-5 py-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(
-                          `/payroll/${payroll.id}`
-                        )
+                    {/* ============================
+                        GROSS
+                    ============================ */}
+
+                    <MoneyCell
+                      value={
+                        payroll.grossSalary
                       }
-                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-                    >
-                      <Eye size={16} />
-                      View
-                    </button>
-                  </td>
-                </tr>
-              )
+                    />
+
+                    {/* ============================
+                        INCENTIVE
+                    ============================ */}
+
+                    <MoneyCell
+                      value={
+                        payroll.incentive
+                      }
+                      positive={
+                        Number(
+                          payroll.incentive ||
+                            0
+                        ) > 0
+                      }
+                    />
+
+                    {/* ============================
+                        BONUS
+                    ============================ */}
+
+                    <MoneyCell
+                      value={
+                        payroll.bonus ||
+                        0
+                      }
+                      positive={
+                        Number(
+                          payroll.bonus ||
+                            0
+                        ) > 0
+                      }
+                    />
+
+                    {/* ============================
+                        DEDUCTION
+                    ============================ */}
+
+                    <td className="px-5 py-4">
+                      <div className="min-w-26.25">
+                        <p
+                          className={`whitespace-nowrap text-sm font-medium ${
+                            totalDeduction >
+                            0
+                              ? "text-red-600"
+                              : "text-slate-700"
+                          }`}
+                        >
+                          ₹
+                          {formatMoney(
+                            totalDeduction
+                          )}
+                        </p>
+
+                        {Number(
+                          payroll.lateDeduction ||
+                            0
+                        ) > 0 && (
+                          <p className="mt-1 whitespace-nowrap text-xs text-slate-400">
+                            Late: ₹
+                            {formatMoney(
+                              payroll.lateDeduction ||
+                                0
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* ============================
+                        NET SALARY
+                    ============================ */}
+
+                    <MoneyCell
+                      value={
+                        payroll.netSalary
+                      }
+                      bold
+                    />
+
+                    {/* ============================
+                        STATUS
+                    ============================ */}
+
+                    <td className="px-5 py-4">
+                      <PayrollStatusBadge
+                        status={
+                          payroll.status
+                        }
+                      />
+                    </td>
+
+                    {/* ============================
+                        ACTION
+                    ============================ */}
+
+                    <td className="px-5 py-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(
+                            `/payroll/${payroll.id}`
+                          )
+                        }
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        <Eye
+                          size={16}
+                        />
+
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }
             )}
           </tbody>
         </table>
       </div>
-
-      {payrolls.length === 0 && (
-        <div className="p-10 text-center text-sm text-slate-500">
-          No payroll records found
-        </div>
-      )}
     </div>
   );
 }
 
+/* ============================
+   TABLE HEADER
+============================ */
+
+function TableHeader({
+  children,
+}: {
+  children:
+    React.ReactNode;
+}) {
+  return (
+    <th className="whitespace-nowrap px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+      {children}
+    </th>
+  );
+}
+
+/* ============================
+   MONEY CELL
+============================ */
+
 function MoneyCell({
   value,
   bold = false,
+  positive = false,
 }: {
-  value: number | string;
+  value:
+    | number
+    | string
+    | null
+    | undefined;
+
   bold?: boolean;
+
+  positive?: boolean;
 }) {
+  const amount =
+    Number(
+      value ||
+        0
+    );
+
   return (
-    <td
-      className={`px-5 py-4 text-sm text-slate-700 ${
-        bold ? "font-bold" : ""
-      }`}
-    >
-      ₹
-      {Number(
-        value
-      ).toLocaleString("en-IN")}
+    <td className="whitespace-nowrap px-5 py-4">
+      <span
+        className={`text-sm ${
+          bold
+            ? "font-bold text-slate-950"
+            : positive
+              ? "font-semibold text-emerald-700"
+              : "font-medium text-slate-700"
+        }`}
+      >
+        ₹
+        {formatMoney(
+          amount
+        )}
+      </span>
     </td>
   );
 }
 
+/* ============================
+   MONEY FORMAT
+============================ */
+
+function formatMoney(
+  value:
+    | number
+    | string
+) {
+  const amount =
+    Number(
+      value ||
+        0
+    );
+
+  if (
+    !Number.isFinite(
+      amount
+    )
+  ) {
+    return "0";
+  }
+
+  return amount.toLocaleString(
+    "en-IN",
+    {
+      minimumFractionDigits:
+        0,
+
+      maximumFractionDigits:
+        2,
+    }
+  );
+}
+
+/* ============================
+   MONTH
+============================ */
+
 function getMonthName(
   month: number
 ) {
+  if (
+    month < 1 ||
+    month > 12
+  ) {
+    return "-";
+  }
+
   return new Date(
     2000,
-    month - 1
-  ).toLocaleString("en-IN", {
-    month: "long",
-  });
+    month - 1,
+    1
+  ).toLocaleString(
+    "en-IN",
+    {
+      month: "long",
+    }
+  );
+}
+
+/* ============================
+   DATE
+============================ */
+
+function formatShortDate(
+  value: string
+) {
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "-";
+  }
+
+  return date.toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+
+      month: "short",
+
+      year: "2-digit",
+    }
+  );
 }

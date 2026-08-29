@@ -1,56 +1,105 @@
-import { PayrollStatus } from "@prisma/client";
+import {
+  PayrollStatus,
+} from "@prisma/client";
 
+/* ============================
+   CREATE PAYROLL
+
+   IMPORTANT:
+   Salary + Attendance values
+   client se accept nahi honge.
+
+   Backend calculate karega.
+============================ */
 
 export interface CreatePayrollRequest {
   employeeId: string;
 
   month: number;
+
   year: number;
 
-  basicSalary: number;
+  /*
+   * Manual additions
+   */
 
-  workingDays: number;
-  presentDays: number;
-  lateDays: number;
-  halfDays: number;
-  leaveDays: number;
-  absentDays: number;
+  incentive?: number;
 
-  grossSalary: number;
+  bonus?: number;
 
-  incentive: number;
-  bonus: number;
-  deduction: number;
+  /*
+   * Manual deduction
+   */
 
-  netSalary: number;
+  deduction?: number;
 
-  status?: PayrollStatus;
+  /*
+   * Optional payroll status
+   */
+
+  status?:
+    PayrollStatus;
 
   remarks?: string;
 }
 
+/* ============================
+   UPDATE PAYROLL
+
+   Calculated fields:
+   - basicSalary
+   - workingDays
+   - presentDays
+   - lateDays
+   - halfDays
+   - leaveDays
+   - absentDays
+   - grossSalary
+   - netSalary
+
+   directly update nahi honge.
+============================ */
+
 export interface UpdatePayrollRequest {
-  month?: number;
-  year?: number;
+  /*
+   * Normally month/year should
+   * remain fixed after payroll
+   * creation.
 
-  basicSalary?: number;
+   * Keeping optional support only
+   * if current service requires it.
+   */
 
-  workingDays?: number;
-  presentDays?: number;
-  lateDays?: number;
-  halfDays?: number;
-  leaveDays?: number;
-  absentDays?: number;
-
-  grossSalary?: number;
 
   incentive?: number;
+
   bonus?: number;
+
   deduction?: number;
 
-  netSalary?: number;
-
-  status?: PayrollStatus;
+  status?:
+    PayrollStatus;
 
   remarks?: string;
+}
+
+/* ============================
+   PAYROLL QUERY
+============================ */
+
+export interface PayrollQuery {
+  page?: number;
+
+  limit?: number;
+
+  month?: number;
+
+  year?: number;
+
+  employeeId?: string;
+
+  status?:
+    PayrollStatus;
+
+  search?: string;
 }

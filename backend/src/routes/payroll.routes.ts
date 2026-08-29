@@ -6,6 +6,7 @@ import {
   getPayrollByIdController,
   updatePayrollController,
   previewPayrollController,
+  recalculatePayrollController,
 } from "../controllers/payroll/payroll.controller";
 
 import {
@@ -102,6 +103,23 @@ router.put(
     "HR"
   ),
   updatePayrollController
+);
+
+/* ============================
+   RECALCULATE PAYROLL
+
+   ADMIN / HR
+   PENDING ONLY
+============================ */
+
+router.put(
+  "/:id/recalculate",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR"
+  ),
+  recalculatePayrollController
 );
 
 export default router;

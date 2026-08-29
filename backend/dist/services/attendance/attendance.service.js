@@ -6,23 +6,151 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.monthlyAttendanceReport = exports.updateAttendance = exports.getAttendanceById = exports.getAttendances = exports.checkOut = exports.checkIn = void 0;
 const prisma_1 = __importDefault(require("../../config/prisma"));
 const client_1 = require("@prisma/client");
+const settings_service_1 = require("../settings/settings.service");
+/* ============================
+   DATE HELPERS
+============================ */
+const startOfDay = (value) => {
+    const date = new Date(value);
+    date.setHours(0, 0, 0, 0);
+    return date;
+};
+const addDays = (value, days) => {
+    const date = new Date(value);
+    date.setDate(date.getDate() +
+        days);
+    return date;
+};
+/* ============================
+   DATE KEY
+============================ */
+const dateKey = (value) => {
+    const date = new Date(value);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+/* ============================
+   PAYROLL CYCLE
+
+   Example:
+   month = 8
+   year  = 2026
+
+   26 Jul 2026
+      →
+   25 Aug 2026
+
+   endExclusive = 26 Aug
+============================ */
+const getAttendanceCycle = (month, year) => {
+    if (!Number.isInteger(month) ||
+        month < 1 ||
+        month > 12) {
+        throw new Error("Invalid Month");
+    }
+    if (!Number.isInteger(year) ||
+        year < 2000 ||
+        year > 2200) {
+        throw new Error("Invalid Year");
+    }
+    const startDate = new Date(year, month - 2, 26);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(year, month - 1, 25);
+    endDate.setHours(23, 59, 59, 999);
+    const endExclusive = new Date(year, month - 1, 26);
+    endExclusive.setHours(0, 0, 0, 0);
+    return {
+        startDate,
+        endDate,
+        endExclusive,
+    };
+};
+/* ============================
+   TIME SETTING HELPER
+
+   "09:45"
+      ↓
+   Date with 09:45
+============================ */
+const applyTimeToDate = (baseDate, time) => {
+    const [hourText, minuteText,] = time.split(":");
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    if (!Number.isInteger(hour) ||
+        !Number.isInteger(minute) ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+        throw new Error(`Invalid Attendance Time Setting: ${time}`);
+    }
+    const result = new Date(baseDate);
+    result.setHours(hour, minute, 0, 0);
+    return result;
+};
+/* ============================
+   ATTENDANCE SETTINGS
+============================ */
+const getAttendanceSettings = async () => {
+    const [officeStartTime, officeEndTime, lateAfterTime, halfDayAfterTime,] = await Promise.all([
+        (0, settings_service_1.getSettingValue)("OFFICE_START_TIME"),
+        (0, settings_service_1.getSettingValue)("OFFICE_END_TIME"),
+        (0, settings_service_1.getSettingValue)("LATE_AFTER_TIME"),
+        (0, settings_service_1.getSettingValue)("HALF_DAY_AFTER_TIME"),
+    ]);
+    return {
+        officeStartTime,
+        officeEndTime,
+        lateAfterTime,
+        halfDayAfterTime,
+    };
+};
+/* ============================
+   AUTO ATTENDANCE STATUS
+
+   Before / at late time
+   → PRESENT
+
+   After late time
+   → LATE
+
+   After half-day time
+   → HALF_DAY
+============================ */
+const getCheckInStatus = (now, lateAfterTime, halfDayAfterTime) => {
+    const day = startOfDay(now);
+    const lateTime = applyTimeToDate(day, lateAfterTime);
+    const halfDayTime = applyTimeToDate(day, halfDayAfterTime);
+    if (now >
+        halfDayTime) {
+        return client_1.AttendanceStatus.HALF_DAY;
+    }
+    if (now >
+        lateTime) {
+        return client_1.AttendanceStatus.LATE;
+    }
+    return client_1.AttendanceStatus.PRESENT;
+};
 /* ============================
    ATTENDANCE ACCESS
 ============================ */
 const getAttendanceEmployeeIds = async (currentEmployee) => {
-    const roleName = currentEmployee.role?.name;
-    /* ADMIN / HR → ALL */
-    if (roleName === "ADMIN" ||
-        roleName === "HR") {
+    const roleName = currentEmployee.role
+        ?.name;
+    /* ADMIN / HR */
+    if (roleName ===
+        "ADMIN" ||
+        roleName ===
+            "HR") {
         return null;
     }
-    /* EMPLOYEE → SELF */
-    if (roleName === "EMPLOYEE") {
+    /* EMPLOYEE */
+    if (roleName ===
+        "EMPLOYEE") {
         return [
             currentEmployee.id,
         ];
     }
-    /* TEAM LEADER → SELF + TEAM */
+    /* TEAM LEADER */
     if (roleName ===
         "TEAM_LEADER") {
         const teamMembers = await prisma_1.default.employee.findMany({
@@ -38,7 +166,6 @@ const getAttendanceEmployeeIds = async (currentEmployee) => {
             ...teamMembers.map((item) => item.id),
         ];
     }
-    /* UNKNOWN ROLE → NO ACCESS */
     return [];
 };
 /* ============================
@@ -46,7 +173,6 @@ const getAttendanceEmployeeIds = async (currentEmployee) => {
 ============================ */
 const checkAttendanceEmployeeAccess = async (employeeId, currentEmployee) => {
     const allowedIds = await getAttendanceEmployeeIds(currentEmployee);
-    /* ADMIN / HR */
     if (allowedIds === null) {
         return;
     }
@@ -81,11 +207,9 @@ const checkIn = async (data) => {
     /* ============================
        TODAY
     ============================ */
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() +
-        1);
+    const now = new Date();
+    const today = startOfDay(now);
+    const tomorrow = addDays(today, 1);
     /* ============================
        DUPLICATE CHECK
     ============================ */
@@ -102,21 +226,15 @@ const checkIn = async (data) => {
         throw new Error("Employee Already Checked In Today");
     }
     /* ============================
-       CURRENT TIME
+       SETTINGS
     ============================ */
-    const now = new Date();
+    const settings = await getAttendanceSettings();
     /* ============================
-       LATE RULE - 09:15
+       STATUS
     ============================ */
-    const lateTime = new Date(today);
-    lateTime.setHours(9, 15, 0, 0);
-    let status = client_1.AttendanceStatus.PRESENT;
-    if (now > lateTime) {
-        status =
-            client_1.AttendanceStatus.LATE;
-    }
+    const status = getCheckInStatus(now, settings.lateAfterTime, settings.halfDayAfterTime);
     /* ============================
-       CREATE ATTENDANCE
+       CREATE
     ============================ */
     const attendance = await prisma_1.default.attendance.create({
         data: {
@@ -138,7 +256,13 @@ const checkIn = async (data) => {
     });
     return {
         success: true,
-        message: "Check In Successful",
+        message: status ===
+            client_1.AttendanceStatus.HALF_DAY
+            ? "Check In Successful - Half Day"
+            : status ===
+                client_1.AttendanceStatus.LATE
+                ? "Check In Successful - Late"
+                : "Check In Successful",
         attendance,
     };
 };
@@ -165,11 +289,9 @@ const checkOut = async (data) => {
             "ACTIVE") {
         throw new Error("Employee Account Inactive");
     }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() +
-        1);
+    const now = new Date();
+    const today = startOfDay(now);
+    const tomorrow = addDays(today, 1);
     const attendance = await prisma_1.default.attendance.findFirst({
         where: {
             employeeId: data.employeeId,
@@ -188,7 +310,10 @@ const checkOut = async (data) => {
     if (attendance.checkOut) {
         throw new Error("Employee Already Checked Out");
     }
-    const now = new Date();
+    if (now <
+        attendance.checkIn) {
+        throw new Error("Invalid Check-Out Time");
+    }
     /* ============================
        WORKING HOURS
     ============================ */
@@ -198,14 +323,16 @@ const checkOut = async (data) => {
         (1000 *
             60 *
             60)).toFixed(2));
-    let status = attendance.status;
-    /* ============================
-       HALF DAY RULE
-    ============================ */
-    if (workingHours < 4) {
-        status =
-            client_1.AttendanceStatus.HALF_DAY;
-    }
+    /*
+     * IMPORTANT
+     *
+     * Half-day is decided from
+     * HALF_DAY_AFTER_TIME during
+     * check-in.
+     *
+     * We do NOT use the old
+     * hard-coded < 4 hours rule.
+     */
     const updatedAttendance = await prisma_1.default.attendance.update({
         where: {
             id: attendance.id,
@@ -213,7 +340,6 @@ const checkOut = async (data) => {
         data: {
             checkOut: now,
             workingHours: new client_1.Prisma.Decimal(workingHours),
-            status,
             remarks: data.remarks ??
                 attendance.remarks,
         },
@@ -285,29 +411,33 @@ const getAttendances = async (page, limit, search, status, month, year, employee
         };
     }
     /* ============================
-       STATUS FILTER
+       STATUS
     ============================ */
     if (status) {
         where.status =
             status;
     }
     /* ============================
-       MONTH / YEAR FILTER
+       PAYROLL CYCLE FILTER
     ============================ */
+    let cycleStart = null;
+    let cycleEnd = null;
     if (month &&
         year) {
-        if (month < 1 ||
-            month > 12) {
-            throw new Error("Invalid Month");
-        }
-        const startDate = new Date(year, month - 1, 1);
-        const endDate = new Date(year, month, 1);
+        const cycle = getAttendanceCycle(month, year);
+        cycleStart =
+            cycle.startDate;
+        cycleEnd =
+            cycle.endDate;
         where.attendanceDate =
             {
-                gte: startDate,
-                lt: endDate,
+                gte: cycle.startDate,
+                lt: cycle.endExclusive,
             };
     }
+    /* ============================
+       FETCH
+    ============================ */
     const [attendances, total,] = await Promise.all([
         prisma_1.default.attendance.findMany({
             where,
@@ -354,6 +484,10 @@ const getAttendances = async (page, limit, search, status, month, year, employee
         limit,
         totalPages: Math.ceil(total /
             limit),
+        month: month ?? null,
+        year: year ?? null,
+        cycleStart,
+        cycleEnd,
         attendances,
     };
 };
@@ -400,7 +534,7 @@ const getAttendanceById = async (id, currentEmployee) => {
 exports.getAttendanceById = getAttendanceById;
 /* ============================
    UPDATE ATTENDANCE
-   ADMIN / HR ONLY
+   ADMIN / HR
 ============================ */
 const updateAttendance = async (id, data) => {
     const attendance = await prisma_1.default.attendance.findUnique({
@@ -411,9 +545,6 @@ const updateAttendance = async (id, data) => {
     if (!attendance) {
         throw new Error("Attendance Not Found");
     }
-    /* ============================
-       DATE CONVERSION
-    ============================ */
     const checkIn = data.checkIn
         ? new Date(data.checkIn)
         : attendance.checkIn;
@@ -437,7 +568,7 @@ const updateAttendance = async (id, data) => {
     let workingHours = attendance.workingHours;
     let attendanceStatus = attendance.status;
     /* ============================
-       CALCULATE HOURS
+       RECALCULATE HOURS
     ============================ */
     if (checkIn &&
         checkOut) {
@@ -449,13 +580,21 @@ const updateAttendance = async (id, data) => {
                 60)).toFixed(2));
         workingHours =
             new client_1.Prisma.Decimal(hours);
-        if (hours < 4) {
-            attendanceStatus =
-                client_1.AttendanceStatus.HALF_DAY;
-        }
     }
     /* ============================
-       MANUAL STATUS
+       AUTO STATUS FROM CHECK-IN
+
+       Only when admin has NOT
+       manually supplied status.
+    ============================ */
+    if (checkIn &&
+        !data.status) {
+        const settings = await getAttendanceSettings();
+        attendanceStatus =
+            getCheckInStatus(checkIn, settings.lateAfterTime, settings.halfDayAfterTime);
+    }
+    /* ============================
+       MANUAL STATUS WINS
     ============================ */
     if (data.status) {
         attendanceStatus =
@@ -492,16 +631,24 @@ const updateAttendance = async (id, data) => {
 exports.updateAttendance = updateAttendance;
 /* ============================
    MONTHLY ATTENDANCE REPORT
+
+   month/year represent
+   PAYROLL MONTH.
+
+   Example:
+   August 2026
+   =
+   26 Jul → 25 Aug
 ============================ */
 const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee) => {
+    const { startDate, endDate, endExclusive, } = getAttendanceCycle(month, year);
     /* ============================
-       VALIDATION
+       ACCESS
     ============================ */
-    if (month < 1 ||
-        month > 12) {
-        throw new Error("Invalid Month");
-    }
     await checkAttendanceEmployeeAccess(employeeId, currentEmployee);
+    /* ============================
+       EMPLOYEE
+    ============================ */
     const employee = await prisma_1.default.employee.findUnique({
         where: {
             id: employeeId,
@@ -526,15 +673,7 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
         throw new Error("Employee Not Found");
     }
     /* ============================
-       MONTH RANGE
-    ============================ */
-    const startDate = new Date(year, month - 1, 1);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(year, month, 1);
-    endDate.setHours(0, 0, 0, 0);
-    const daysInMonth = new Date(year, month, 0).getDate();
-    /* ============================
-       FETCH DATA
+       FETCH CYCLE DATA
     ============================ */
     const [attendances, holidays, approvedLeaves,] = await Promise.all([
         prisma_1.default.attendance.findMany({
@@ -542,7 +681,7 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
                 employeeId,
                 attendanceDate: {
                     gte: startDate,
-                    lt: endDate,
+                    lt: endExclusive,
                 },
             },
             orderBy: {
@@ -553,7 +692,7 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
             where: {
                 holidayDate: {
                     gte: startDate,
-                    lt: endDate,
+                    lt: endExclusive,
                 },
             },
         }),
@@ -562,7 +701,7 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
                 employeeId,
                 status: "APPROVED",
                 fromDate: {
-                    lt: endDate,
+                    lt: endExclusive,
                 },
                 toDate: {
                     gte: startDate,
@@ -573,13 +712,6 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
             },
         }),
     ]);
-    /* ============================
-       DATE KEY HELPER
-    ============================ */
-    const dateKey = (date) => {
-        const localDate = new Date(date);
-        return `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, "0")}-${String(localDate.getDate()).padStart(2, "0")}`;
-    };
     /* ============================
        ATTENDANCE MAP
     ============================ */
@@ -595,16 +727,13 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
         holidayMap.set(dateKey(item.holidayDate), item);
     });
     /* ============================
-       LEAVE FINDER
+       APPROVED LEAVE FINDER
     ============================ */
-    const findApprovedLeave = (date) => {
-        const currentDate = new Date(date);
-        currentDate.setHours(0, 0, 0, 0);
+    const findApprovedLeave = (value) => {
+        const currentDate = startOfDay(value);
         return approvedLeaves.find((leaveItem) => {
-            const fromDate = new Date(leaveItem.fromDate);
-            const toDate = new Date(leaveItem.toDate);
-            fromDate.setHours(0, 0, 0, 0);
-            toDate.setHours(23, 59, 59, 999);
+            const fromDate = startOfDay(leaveItem.fromDate);
+            const toDate = startOfDay(leaveItem.toDate);
             return (currentDate >=
                 fromDate &&
                 currentDate <=
@@ -614,8 +743,7 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
     /* ============================
        TODAY
     ============================ */
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = startOfDay(new Date());
     /* ============================
        COUNTERS
     ============================ */
@@ -629,21 +757,27 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
     let totalWorkingHours = 0;
     const calendar = [];
     /* ============================
-       BUILD MONTH
+       BUILD COMPLETE 26 → 25
+       CALENDAR
     ============================ */
-    for (let day = 1; day <= daysInMonth; day++) {
-        const date = new Date(year, month - 1, day);
-        date.setHours(0, 0, 0, 0);
+    let currentDate = new Date(startDate);
+    while (currentDate <
+        endExclusive) {
+        const date = startOfDay(currentDate);
         const key = dateKey(date);
         const attendance = attendanceMap.get(key);
         const companyHoliday = holidayMap.get(key);
         const approvedLeave = findApprovedLeave(date);
         const isSunday = date.getDay() ===
             0;
+        const isFirstSaturday = date.getDay() === 6 &&
+            date.getDate() <= 7;
+        const isWeeklyOff = isSunday ||
+            isFirstSaturday;
         const isFuture = date >
             today;
         /* ============================
-           PRIORITY 1
+           PRIORITY 1:
            ACTUAL ATTENDANCE
         ============================ */
         if (attendance) {
@@ -672,7 +806,10 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
                     holiday++;
                     break;
             }
-            if (attendance.workingHours) {
+            if (attendance.workingHours !==
+                null &&
+                attendance.workingHours !==
+                    undefined) {
                 totalWorkingHours +=
                     Number(attendance.workingHours);
             }
@@ -680,10 +817,12 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
                 ...attendance,
                 source: "ATTENDANCE",
             });
+            currentDate =
+                addDays(currentDate, 1);
             continue;
         }
         /* ============================
-           PRIORITY 2
+           PRIORITY 2:
            COMPANY HOLIDAY
         ============================ */
         if (companyHoliday) {
@@ -699,13 +838,15 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
                 remarks: companyHoliday.title,
                 source: "HOLIDAY",
             });
+            currentDate =
+                addDays(currentDate, 1);
             continue;
         }
         /* ============================
-           PRIORITY 3
+           PRIORITY 3:
            WEEKLY OFF
         ============================ */
-        if (isSunday) {
+        if (isWeeklyOff) {
             holiday++;
             calendar.push({
                 id: `weekoff-${key}`,
@@ -715,18 +856,18 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
                 checkIn: null,
                 checkOut: null,
                 workingHours: null,
-                remarks: "Weekly Off",
+                remarks: isFirstSaturday
+                    ? "First Saturday Off"
+                    : "Sunday Weekly Off",
                 source: "WEEK_OFF",
             });
+            currentDate =
+                addDays(currentDate, 1);
             continue;
         }
         /* ============================
-           PRIORITY 4
+           PRIORITY 4:
            APPROVED LEAVE
-  
-           Important:
-           future approved leave bhi
-           yahin show hogi.
         ============================ */
         if (approvedLeave) {
             leave++;
@@ -742,11 +883,13 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
                 remarks: approvedLeave.reason,
                 source: "LEAVE",
             });
+            currentDate =
+                addDays(currentDate, 1);
             continue;
         }
         /* ============================
-           PRIORITY 5
-           FUTURE DATE
+           PRIORITY 5:
+           FUTURE
         ============================ */
         if (isFuture) {
             calendar.push({
@@ -760,10 +903,12 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
                 remarks: null,
                 source: "FUTURE",
             });
+            currentDate =
+                addDays(currentDate, 1);
             continue;
         }
         /* ============================
-           PRIORITY 6
+           PRIORITY 6:
            ABSENT
         ============================ */
         absent++;
@@ -779,6 +924,8 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
             remarks: "No Attendance Record",
             source: "SYSTEM",
         });
+        currentDate =
+            addDays(currentDate, 1);
     }
     /* ============================
        PAYABLE DAYS
@@ -795,8 +942,16 @@ const monthlyAttendanceReport = async (employeeId, month, year, currentEmployee)
     return {
         success: true,
         employee,
+        /*
+         * Selected payroll month
+         */
         month,
         year,
+        /*
+         * Actual attendance cycle
+         */
+        cycleStart: startDate,
+        cycleEnd: endDate,
         summary: {
             totalRecords: calendar.length,
             workingDays,

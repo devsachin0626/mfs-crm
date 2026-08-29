@@ -9,105 +9,227 @@ import {
 
 import type {
   Payroll,
+  PayrollListResponse,
   PayrollQuery,
 } from "../../types/payroll.types";
 
+/* ============================
+   STATE
+============================ */
+
 interface PayrollState {
-  payrolls: Payroll[];
+  payrolls:
+    Payroll[];
 
-  loading: boolean;
-  error: string | null;
+  loading:
+    boolean;
 
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  error:
+    | string
+    | null;
+
+  total:
+    number;
+
+  page:
+    number;
+
+  limit:
+    number;
+
+  totalPages:
+    number;
 }
+
+/* ============================
+   INITIAL STATE
+============================ */
 
 const initialState: PayrollState = {
   payrolls: [],
 
   loading: false,
+
   error: null,
 
   total: 0,
+
   page: 1,
+
   limit: 10,
+
   totalPages: 0,
 };
 
+/* ============================
+   FETCH PAYROLLS
+============================ */
+
 export const fetchPayrolls =
-  createAsyncThunk(
+  createAsyncThunk<
+    PayrollListResponse,
+    PayrollQuery,
+    {
+      rejectValue: string;
+    }
+  >(
     "payroll/fetchPayrolls",
 
     async (
-      params: PayrollQuery,
-      { rejectWithValue }
+      params,
+      {
+        rejectWithValue,
+      }
     ) => {
       try {
-        const response =
-          await getPayrolls(params);
-
-        return response;
-      } catch (error: any) {
+        return await getPayrolls(
+          params
+        );
+      } catch (
+        error: any
+      ) {
         return rejectWithValue(
-          error?.response?.data?.message ||
+          error?.response
+            ?.data
+            ?.message ||
+            error?.message ||
             "Failed to load payrolls"
         );
       }
     }
   );
 
-const payrollSlice = createSlice({
-  name: "payroll",
+/* ============================
+   SLICE
+============================ */
 
-  initialState,
+const payrollSlice =
+  createSlice({
+    name:
+      "payroll",
 
-  reducers: {},
+    initialState,
 
-  extraReducers: (builder) => {
-    builder
-      .addCase(
-        fetchPayrolls.pending,
-        (state) => {
-          state.loading = true;
-          state.error = null;
-        }
-      )
+    reducers: {
+      clearPayrollError:
+        (
+          state
+        ) => {
+          state.error =
+            null;
+        },
 
-      .addCase(
-        fetchPayrolls.fulfilled,
-        (state, action) => {
-          state.loading = false;
-
+      resetPayroll:
+        (
+          state
+        ) => {
           state.payrolls =
-            action.payload.payrolls;
+            [];
 
-          state.total =
-            action.payload.total;
-
-          state.page =
-            action.payload.page;
-
-          state.limit =
-            action.payload.limit;
-
-          state.totalPages =
-            action.payload.totalPages;
-        }
-      )
-
-      .addCase(
-        fetchPayrolls.rejected,
-        (state, action) => {
-          state.loading = false;
+          state.loading =
+            false;
 
           state.error =
-            (action.payload as string) ||
-            "Failed to load payrolls";
-        }
-      );
-  },
-});
+            null;
+
+          state.total =
+            0;
+
+          state.page =
+            1;
+
+          state.limit =
+            10;
+
+          state.totalPages =
+            0;
+        },
+    },
+
+    extraReducers:
+      (
+        builder
+      ) => {
+        builder
+          .addCase(
+            fetchPayrolls.pending,
+
+            (
+              state
+            ) => {
+              state.loading =
+                true;
+
+              state.error =
+                null;
+            }
+          )
+
+          .addCase(
+            fetchPayrolls.fulfilled,
+
+            (
+              state,
+              action
+            ) => {
+              state.loading =
+                false;
+
+              state.error =
+                null;
+
+              state.payrolls =
+                action.payload
+                  .payrolls;
+
+              state.total =
+                action.payload
+                  .total;
+
+              state.page =
+                action.payload
+                  .page;
+
+              state.limit =
+                action.payload
+                  .limit;
+
+              state.totalPages =
+                action.payload
+                  .totalPages;
+            }
+          )
+
+          .addCase(
+            fetchPayrolls.rejected,
+
+            (
+              state,
+              action
+            ) => {
+              state.loading =
+                false;
+
+              state.error =
+                action.payload ||
+                "Failed to load payrolls";
+            }
+          );
+      },
+  });
+
+/* ============================
+   ACTIONS
+============================ */
+
+export const {
+  clearPayrollError,
+  resetPayroll,
+} =
+  payrollSlice.actions;
+
+/* ============================
+   REDUCER
+============================ */
 
 export default payrollSlice.reducer;

@@ -15,7 +15,8 @@ import {
   getPayrolls,
   getPayrollById,
   updatePayroll,
-  previewPayroll
+  previewPayroll,
+  recalculatePayroll,
 } from "../../services/payroll/payroll.service";
 
 /* ============================
@@ -323,6 +324,66 @@ export const previewPayrollController =
         message:
           error.message ||
           "Payroll Preview Failed",
+      });
+    }
+  };
+
+  /* ============================
+   RECALCULATE PAYROLL
+============================ */
+
+export const recalculatePayrollController =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+
+          message:
+            "Authenticated Employee Not Found",
+        });
+
+        return;
+      }
+
+      const id =
+        String(
+          req.params.id ||
+            ""
+        ).trim();
+
+      if (!id) {
+        res.status(400).json({
+          success: false,
+
+          message:
+            "Payroll ID is required",
+        });
+
+        return;
+      }
+
+      const result =
+        await recalculatePayroll(
+          id,
+          req.employee
+        );
+
+      res.status(200).json(
+        result
+      );
+    } catch (
+      error: any
+    ) {
+      res.status(400).json({
+        success: false,
+
+        message:
+          error.message ||
+          "Payroll Recalculation Failed",
       });
     }
   };

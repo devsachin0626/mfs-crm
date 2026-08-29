@@ -28,6 +28,10 @@ import {
 import PayrollFilters from "../../features/payroll/PayrollFilters";
 import PayrollTable from "../../features/payroll/PayrollTable";
 
+/* ============================
+   PAGE
+============================ */
+
 export default function PayrollListPage() {
   const dispatch =
     useAppDispatch();
@@ -35,47 +39,133 @@ export default function PayrollListPage() {
   const navigate =
     useNavigate();
 
-  const now = new Date();
+  const now =
+    new Date();
 
-  const [page, setPage] =
+  /* ============================
+     AUTH
+  ============================ */
+
+  const employee =
+    useAppSelector(
+      (state) =>
+        state.auth.employee
+    );
+
+  const roleName =
+    useMemo(() => {
+      const role =
+        employee?.role as unknown;
+
+      if (
+        typeof role ===
+        "string"
+      ) {
+        return role;
+      }
+
+      if (
+        role &&
+        typeof role ===
+          "object" &&
+        "name" in role
+      ) {
+        return String(
+          (
+            role as {
+              name: string;
+            }
+          ).name
+        );
+      }
+
+      return "";
+    }, [
+      employee,
+    ]);
+
+  const canManagePayroll =
+    roleName ===
+      "ADMIN" ||
+    roleName ===
+      "HR";
+
+  /* ============================
+     FILTER STATE
+  ============================ */
+
+  const [
+    page,
+    setPage,
+  ] =
     useState(1);
 
-  const [search, setSearch] =
+  const [
+    search,
+    setSearch,
+  ] =
     useState("");
 
-  const [month, setMonth] =
+  const [
+    month,
+    setMonth,
+  ] =
     useState(
       now.getMonth() + 1
     );
 
-  const [year, setYear] =
+  const [
+    year,
+    setYear,
+  ] =
     useState(
       now.getFullYear()
     );
 
-  const [status, setStatus] =
+  const [
+    status,
+    setStatus,
+  ] =
     useState("");
+
+  /* ============================
+     REDUX
+  ============================ */
 
   const {
     payrolls,
     loading,
     error,
+    total,
     totalPages,
-  } = useAppSelector(
-    (state) => state.payroll
-  );
+  } =
+    useAppSelector(
+      (state) =>
+        state.payroll
+    );
+
+  /* ============================
+     LOAD PAYROLLS
+  ============================ */
 
   useEffect(() => {
     dispatch(
       fetchPayrolls({
         page,
+
         limit: 10,
+
         search:
-          search || undefined,
+          search.trim() ||
+          undefined,
+
         month,
+
         year,
+
         status:
-          status || undefined,
+          status ||
+          undefined,
       })
     );
   }, [
@@ -87,40 +177,71 @@ export default function PayrollListPage() {
     status,
   ]);
 
+  /* ============================
+     SUMMARY
+  ============================ */
+
   const summary =
     useMemo(() => {
       return payrolls.reduce(
-        (acc, item) => {
-          acc.gross += Number(
-            item.grossSalary
-          );
+        (
+          acc,
+          item
+        ) => {
+          acc.gross +=
+            Number(
+              item.grossSalary ||
+                0
+            );
 
-          acc.incentive += Number(
-            item.incentive
-          );
+          acc.incentive +=
+            Number(
+              item.incentive ||
+                0
+            );
 
-          acc.deduction += Number(
-            item.deduction
-          );
+          acc.deduction +=
+            Number(
+              item.deduction ||
+                0
+            ) +
+            Number(
+              item.lateDeduction ||
+                0
+            );
 
-          acc.net += Number(
-            item.netSalary
-          );
+          acc.net +=
+            Number(
+              item.netSalary ||
+                0
+            );
 
           return acc;
         },
+
         {
           gross: 0,
+
           incentive: 0,
+
           deduction: 0,
+
           net: 0,
         }
       );
-    }, [payrolls]);
+    }, [
+      payrolls,
+    ]);
+
+  /* ============================
+     RENDER
+  ============================ */
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* ============================
+          HEADER
+      ============================ */}
 
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="flex items-center gap-3">
@@ -135,32 +256,62 @@ export default function PayrollListPage() {
               Payroll
             </h1>
 
-            <p className="text-sm text-slate-500">
-              Manage monthly employee payroll
+            <p className="mt-1 text-sm text-slate-500">
+              Manage employee payroll
+              • Cycle 26th → 25th
             </p>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            navigate(
-              "/payroll/create"
-            )
-          }
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800"
-        >
-          <Plus size={18} />
-          Create Payroll
-        </button>
+        {/* CREATE */}
+
+        {canManagePayroll && (
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                "/payroll/create"
+              )
+            }
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-800"
+          >
+            <Plus
+              size={18}
+            />
+
+            Create Payroll
+          </button>
+        )}
       </div>
 
-      {/* Summary */}
+      {/* ============================
+          VIEW ONLY NOTICE
+      ============================ */}
+
+      {!canManagePayroll && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-sm font-medium text-slate-700">
+            Payroll View Only
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            Payroll creation and
+            management are available
+            only to Admin and HR.
+          </p>
+        </div>
+      )}
+
+      {/* ============================
+          SUMMARY
+      ============================ */}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Gross Salary"
-          value={summary.gross}
+          value={
+            summary.gross
+          }
           icon={
             <WalletCards
               size={20}
@@ -181,7 +332,7 @@ export default function PayrollListPage() {
         />
 
         <StatCard
-          title="Deduction"
+          title="Total Deduction"
           value={
             summary.deduction
           }
@@ -194,7 +345,9 @@ export default function PayrollListPage() {
 
         <StatCard
           title="Net Payroll"
-          value={summary.net}
+          value={
+            summary.net
+          }
           icon={
             <Banknote
               size={20}
@@ -203,48 +356,133 @@ export default function PayrollListPage() {
         />
       </div>
 
+      {/* ============================
+          SUMMARY INFO
+      ============================ */}
+
+      <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-blue-800">
+            Selected Payroll Month
+          </p>
+
+          <p className="text-xs text-blue-600">
+            {monthNames[
+              month - 1
+            ]}{" "}
+            {year}
+          </p>
+        </div>
+
+        <p className="mt-1 text-xs leading-5 text-blue-700">
+          Payroll uses the 26th of
+          the previous month through
+          the 25th of the selected
+          payroll month.
+        </p>
+      </div>
+
+      {/* ============================
+          FILTERS
+      ============================ */}
+
       <PayrollFilters
-        search={search}
-        month={month}
-        year={year}
-        status={status}
+        search={
+          search
+        }
+        month={
+          month
+        }
+        year={
+          year
+        }
+        status={
+          status
+        }
         onSearchChange={(
           value
         ) => {
           setPage(1);
-          setSearch(value);
+
+          setSearch(
+            value
+          );
         }}
         onMonthChange={(
           value
         ) => {
           setPage(1);
-          setMonth(value);
+
+          setMonth(
+            value
+          );
         }}
         onYearChange={(
           value
         ) => {
           setPage(1);
-          setYear(value);
+
+          setYear(
+            value
+          );
         }}
         onStatusChange={(
           value
         ) => {
           setPage(1);
-          setStatus(value);
+
+          setStatus(
+            value
+          );
         }}
       />
 
+      {/* ============================
+          RESULT COUNT
+      ============================ */}
+
+      {!loading &&
+        !error && (
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-500">
+              Total Payroll Records:{" "}
+              <span className="font-semibold text-slate-700">
+                {
+                  total
+                }
+              </span>
+            </p>
+          </div>
+        )}
+
+      {/* ============================
+          LOADING
+      ============================ */}
+
       {loading && (
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-          Loading payroll...
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-700" />
+
+          <p className="mt-3 text-sm font-medium text-slate-500">
+            Loading payroll...
+          </p>
         </div>
       )}
 
-      {!loading && error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
-          {error}
-        </div>
-      )}
+      {/* ============================
+          ERROR
+      ============================ */}
+
+      {!loading &&
+        error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+            {error}
+          </div>
+        )}
+
+      {/* ============================
+          TABLE
+      ============================ */}
 
       {!loading &&
         !error && (
@@ -255,43 +493,67 @@ export default function PayrollListPage() {
           />
         )}
 
+      {/* ============================
+          PAGINATION
+      ============================ */}
+
       {!loading &&
         !error &&
-        totalPages > 0 && (
-          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-5 py-4">
+        totalPages >
+          0 && (
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-slate-500">
-              Page {page} of{" "}
-              {totalPages}
+              Page{" "}
+              <span className="font-semibold text-slate-700">
+                {page}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-slate-700">
+                {
+                  totalPages
+                }
+              </span>
             </p>
 
             <div className="flex gap-2">
               <button
+                type="button"
                 disabled={
                   page <= 1
                 }
                 onClick={() =>
                   setPage(
-                    (current) =>
-                      current - 1
+                    (
+                      current
+                    ) =>
+                      Math.max(
+                        current -
+                          1,
+                        1
+                      )
                   )
                 }
-                className="rounded-lg border border-slate-200 px-4 py-2 disabled:opacity-40"
+                className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Previous
               </button>
 
               <button
+                type="button"
                 disabled={
                   page >=
                   totalPages
                 }
                 onClick={() =>
                   setPage(
-                    (current) =>
-                      current + 1
+                    (
+                      current
+                    ) =>
+                      current +
+                      1
                   )
                 }
-                className="rounded-lg bg-blue-700 px-4 py-2 text-white disabled:opacity-40"
+                className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next
               </button>
@@ -302,18 +564,25 @@ export default function PayrollListPage() {
   );
 }
 
+/* ============================
+   STAT CARD
+============================ */
+
 function StatCard({
   title,
   value,
   icon,
 }: {
   title: string;
+
   value: number;
-  icon: React.ReactNode;
+
+  icon:
+    React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <div className="flex items-center justify-between">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <p className="text-sm text-slate-500">
             {title}
@@ -321,8 +590,8 @@ function StatCard({
 
           <p className="mt-2 text-2xl font-bold text-slate-900">
             ₹
-            {value.toLocaleString(
-              "en-IN"
+            {formatMoney(
+              value
             )}
           </p>
         </div>
@@ -334,3 +603,54 @@ function StatCard({
     </div>
   );
 }
+
+/* ============================
+   MONEY
+============================ */
+
+function formatMoney(
+  value: number
+) {
+  return Number(
+    value || 0
+  ).toLocaleString(
+    "en-IN",
+    {
+      minimumFractionDigits:
+        0,
+
+      maximumFractionDigits:
+        2,
+    }
+  );
+}
+
+/* ============================
+   MONTHS
+============================ */
+
+const monthNames = [
+  "January",
+
+  "February",
+
+  "March",
+
+  "April",
+
+  "May",
+
+  "June",
+
+  "July",
+
+  "August",
+
+  "September",
+
+  "October",
+
+  "November",
+
+  "December",
+];

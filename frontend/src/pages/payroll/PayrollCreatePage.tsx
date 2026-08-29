@@ -325,114 +325,35 @@ export default function PayrollCreatePage() {
          * bhej rahe hain.
          */
 
-        await createPayroll({
-          employeeId:
-            form.employeeId,
+     await createPayroll({
+  employeeId:
+    form.employeeId,
 
-          month:
-            Number(
-              form.month
-            ),
+  month:
+    Number(form.month),
 
-          year:
-            Number(
-              form.year
-            ),
+  year:
+    Number(form.year),
 
-          basicSalary:
-            Number(
-              preview.salary
-                .basicSalary ||
-                0
-            ),
+  incentive:
+    Number(
+      form.incentive || 0
+    ),
 
-          workingDays:
-            Number(
-              preview
-                .attendance
-                .scheduledWorkingDays ||
-                0
-            ),
+  bonus:
+    Number(
+      form.bonus || 0
+    ),
 
-          presentDays:
-            Number(
-              preview
-                .attendance
-                .presentDays ||
-                0
-            ),
+  deduction:
+    Number(
+      form.deduction || 0
+    ),
 
-          lateDays:
-            Number(
-              preview
-                .attendance
-                .lateDays ||
-                0
-            ),
-
-          halfDays:
-            Number(
-              preview
-                .attendance
-                .halfDays ||
-                0
-            ),
-
-          leaveDays:
-            Number(
-              preview
-                .attendance
-                .approvedLeaveDays ||
-                0
-            ),
-
-          absentDays:
-            Number(
-              preview
-                .attendance
-                .absentDays ||
-                0
-            ),
-
-          grossSalary:
-            Number(
-              preview.salary
-                .grossSalary ||
-                0
-            ),
-
-          incentive:
-            Number(
-              form.incentive ||
-                0
-            ),
-
-          bonus:
-            Number(
-              form.bonus ||
-                0
-            ),
-
-          deduction:
-            Number(
-              form.deduction ||
-                0
-            ),
-
-          netSalary:
-            Number(
-              preview.salary
-                .netSalary ||
-                0
-            ),
-
-          status:
-            "PENDING",
-
-          remarks:
-            form.remarks.trim() ||
-            undefined,
-        });
+  remarks:
+    form.remarks.trim() ||
+    undefined,
+});
 
         navigate(
           "/payroll"

@@ -1564,14 +1564,21 @@ export const monthlyAttendanceReport =
         findApprovedLeave(
           date
         );
+const isSunday =
+  date.getDay() ===
+  0;
 
-      const isSunday =
-        date.getDay() ===
-        0;
+const isFirstSaturday =
+  date.getDay() === 6 &&
+  date.getDate() <= 7;
 
-      const isFuture =
-        date >
-        today;
+const isWeeklyOff =
+  isSunday ||
+  isFirstSaturday;
+
+const isFuture =
+  date >
+  today;
 
       /* ============================
          PRIORITY 1:
@@ -1693,7 +1700,7 @@ export const monthlyAttendanceReport =
       ============================ */
 
       if (
-        isSunday
+        isWeeklyOff
       ) {
         holiday++;
 
@@ -1719,7 +1726,9 @@ export const monthlyAttendanceReport =
             null,
 
           remarks:
-            "Weekly Off",
+  isFirstSaturday
+    ? "First Saturday Off"
+    : "Sunday Weekly Off",
 
           source:
             "WEEK_OFF",

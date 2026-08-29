@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updatePayroll = exports.getPayrollById = exports.getPayrolls = exports.createPayroll = exports.previewPayroll = void 0;
+exports.recalculatePayroll = exports.updatePayroll = exports.getPayrollById = exports.getPayrolls = exports.createPayroll = exports.previewPayroll = void 0;
 const prisma_1 = __importDefault(require("../../config/prisma"));
 const client_1 = require("@prisma/client");
 const payroll_policy_service_1 = require("./payroll-policy.service");
@@ -651,3 +651,176 @@ const updatePayroll = async (id, data, currentEmployee) => {
     };
 };
 exports.updatePayroll = updatePayroll;
+/* ============================
+ RECALCULATE PAYROLL
+
+ Only PENDING payroll can be
+ recalculated from latest:
+ - Attendance
+ - Leave
+ - Settings
+ - Employee Salary
+============================ */
+const recalculatePayroll = async (id, currentEmployee) => {
+    checkPayrollManageAccess(currentEmployee);
+    const existingPayroll = await prisma_1.default.payroll.findUnique({
+        where: {
+            id,
+        },
+    });
+    if (!existingPayroll) {
+        throw new Error("Payroll Not Found");
+    }
+    /* ============================
+       ONLY PENDING
+    ============================ */
+    if (existingPayroll.status !==
+        client_1.PayrollStatus.PENDING) {
+        throw new Error("Only Pending Payroll Can Be Recalculated");
+    }
+    /* ============================
+       POLICY ENGINE
+
+       Preserve manual:
+       - Incentive
+       - Bonus
+       - Deduction
+    ============================ */
+    const policy = await (0, payroll_policy_service_1.calculatePayrollPolicy)({
+        employeeId: existingPayroll.employeeId,
+        month: existingPayroll.month,
+        year: existingPayroll.year,
+        incentive: Number(existingPayroll.incentive),
+        bonus: Number(existingPayroll.bonus),
+        deduction: Number(existingPayroll.deduction),
+        currentEmployee,
+    });
+    /* ============================
+       TRANSACTION
+    ============================ */
+    const payroll = await prisma_1.default.$transaction(async (tx) => {
+        /* ============================
+           UPDATE LEAVE BALANCE
+        ============================ */
+        await tx.employeeLeaveBalance.upsert({
+            where: {
+                employeeId_month_year: {
+                    employeeId: existingPayroll.employeeId,
+                    month: existingPayroll.month,
+                    year: existingPayroll.year,
+                },
+            },
+            create: {
+                employeeId: existingPayroll.employeeId,
+                month: existingPayroll.month,
+                year: existingPayroll.year,
+                openingBalance: policy.leaveBalance
+                    .openingBalance,
+                creditedLeave: policy.leaveBalance
+                    .creditedLeave,
+                usedPaidLeave: policy.leaveBalance
+                    .usedPaidLeave,
+                closingBalance: policy.leaveBalance
+                    .closingBalance,
+            },
+            update: {
+                openingBalance: policy.leaveBalance
+                    .openingBalance,
+                creditedLeave: policy.leaveBalance
+                    .creditedLeave,
+                usedPaidLeave: policy.leaveBalance
+                    .usedPaidLeave,
+                closingBalance: policy.leaveBalance
+                    .closingBalance,
+            },
+        });
+        /* ============================
+           UPDATE PAYROLL SNAPSHOT
+        ============================ */
+        return tx.payroll.update({
+            where: {
+                id,
+            },
+            data: {
+                periodStart: policy.period.start,
+                periodEnd: policy.period.end,
+                basicSalary: policy.salary
+                    .basicSalary,
+                workingDays: policy.attendance
+                    .scheduledWorkingDays,
+                scheduledWorkingDays: policy.attendance
+                    .scheduledWorkingDays,
+                presentDays: policy.attendance
+                    .presentDays,
+                lateDays: policy.attendance
+                    .lateDays,
+                halfDays: policy.attendance
+                    .halfDays,
+                leaveDays: policy.attendance
+                    .approvedLeaveDays,
+                absentDays: policy.attendance
+                    .absentDays,
+                paidLeaveDays: policy.attendance
+                    .paidLeaveDays,
+                unpaidLeaveDays: policy.attendance
+                    .unpaidLeaveDays,
+                actualLateCount: policy.attendance
+                    .actualLateCount,
+                allowedLateCount: policy.attendance
+                    .allowedLateCount,
+                excessLateCount: policy.attendance
+                    .excessLateCount,
+                earlyGoingCount: policy.attendance
+                    .earlyGoingCount,
+                allowedEarlyGoingCount: policy.attendance
+                    .allowedEarlyGoingCount,
+                grossSalary: policy.salary
+                    .grossSalary,
+                /*
+                 * Preserve manual
+                 * adjustment values,
+                 * but use policy output.
+                 */
+                incentive: policy.salary
+                    .incentive,
+                bonus: policy.salary
+                    .bonus,
+                deduction: policy.salary
+                    .otherDeduction,
+                lateDeduction: policy.salary
+                    .lateDeduction,
+                netSalary: policy.salary
+                    .netSalary,
+            },
+            include: {
+                employee: {
+                    select: {
+                        id: true,
+                        employeeCode: true,
+                        name: true,
+                        mobile: true,
+                        email: true,
+                        salary: true,
+                        role: {
+                            select: {
+                                name: true,
+                            },
+                        },
+                        branch: {
+                            select: {
+                                name: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+    });
+    return {
+        success: true,
+        message: "Payroll Recalculated Successfully",
+        payroll,
+        leaveBalance: policy.leaveBalance,
+    };
+};
+exports.recalculatePayroll = recalculatePayroll;

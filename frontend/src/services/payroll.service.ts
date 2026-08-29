@@ -61,6 +61,23 @@ export const updatePayroll =
     return response.data;
   };
 
+
+  /* ============================
+   RECALCULATE PAYROLL
+============================ */
+
+export const recalculatePayroll =
+  async (
+    id: string
+  ) => {
+    const response =
+      await api.put(
+        `/payroll/${id}/recalculate`
+      );
+
+    return response.data;
+  };
+
 /* ============================
    PAYROLL PREVIEW
 ============================ */

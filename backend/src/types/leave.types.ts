@@ -1,24 +1,56 @@
+/* ============================
+   LEAVE STATUS
+============================ */
+
+export type LeaveStatusValue =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED";
+
+/* ============================
+   APPLY LEAVE
+============================ */
+
 export interface ApplyLeaveRequest {
   employeeId: string;
 
-  fromDate: Date;
+  fromDate:
+    | string
+    | Date;
 
-  toDate: Date;
+  toDate:
+    | string
+    | Date;
 
   reason: string;
 }
 
-export interface UpdateLeaveRequest {
-  fromDate?: Date;
+/* ============================
+   UPDATE LEAVE
+============================ */
 
-  toDate?: Date;
+export interface UpdateLeaveRequest {
+  fromDate?:
+    | string
+    | Date;
+
+  toDate?:
+    | string
+    | Date;
 
   reason?: string;
 
-  status?: "PENDING" | "APPROVED" | "REJECTED";
+  status?:
+    LeaveStatusValue;
 
-  approvedById?: string;
+  approvedById?:
+    | string
+    | null;
 }
+
+/* ============================
+   LEAVE QUERY
+============================ */
 
 export interface LeaveQuery {
   page?: number;
@@ -27,5 +59,8 @@ export interface LeaveQuery {
 
   search?: string;
 
-  status?: "PENDING" | "APPROVED" | "REJECTED";
+  status?:
+    LeaveStatusValue;
+
+  employeeId?: string;
 }

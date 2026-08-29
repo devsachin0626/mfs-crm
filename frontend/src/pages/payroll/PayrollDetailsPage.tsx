@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -20,6 +21,7 @@ import {
   CircleDollarSign,
   Clock3,
   FileCheck2,
+  RefreshCcw,
   Umbrella,
   User,
   UserX,
@@ -28,8 +30,13 @@ import {
 
 import {
   getPayrollById,
+  recalculatePayroll,
   updatePayroll,
 } from "../../services/payroll.service";
+
+import {
+  useAppSelector,
+} from "../../hooks/redux";
 
 import type {
   Payroll,
@@ -49,38 +56,100 @@ const statusConfig: Record<
 > = {
   PENDING: {
     label: "Pending",
+
     className:
       "border-amber-200 bg-amber-50 text-amber-700",
   },
 
   GENERATED: {
     label: "Generated",
+
     className:
       "border-blue-200 bg-blue-50 text-blue-700",
   },
 
   APPROVED: {
     label: "Approved",
+
     className:
       "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
 
   PAID: {
     label: "Paid",
+
     className:
       "border-green-200 bg-green-50 text-green-700",
   },
 };
 
+/* ============================
+   PAGE
+============================ */
+
 export default function PayrollDetailsPage() {
   const {
     id,
-  } = useParams<{
-    id: string;
-  }>();
+  } =
+    useParams<{
+      id: string;
+    }>();
 
   const navigate =
     useNavigate();
+
+  /* ============================
+     AUTH
+  ============================ */
+
+  const currentEmployee =
+    useAppSelector(
+      (state) =>
+        state.auth.employee
+    );
+
+  const roleName =
+    useMemo(() => {
+      const role =
+        currentEmployee
+          ?.role as unknown;
+
+      if (
+        typeof role ===
+        "string"
+      ) {
+        return role;
+      }
+
+      if (
+        role &&
+        typeof role ===
+          "object" &&
+        "name" in role
+      ) {
+        return String(
+          (
+            role as {
+              name: string;
+            }
+          ).name
+        );
+      }
+
+      return "";
+    }, [
+      currentEmployee,
+    ]);
+
+  const canManagePayroll =
+    roleName ===
+      "ADMIN" ||
+    roleName ===
+      "HR";
+
+  /* ============================
+     STATE
+  ============================ */
 
   const [
     payroll,
@@ -105,6 +174,12 @@ export default function PayrollDetailsPage() {
   const [
     error,
     setError,
+  ] =
+    useState("");
+
+  const [
+    success,
+    setSuccess,
   ] =
     useState("");
 
@@ -146,6 +221,10 @@ export default function PayrollDetailsPage() {
       } catch (
         error: any
       ) {
+        setPayroll(
+          null
+        );
+
         setError(
           error?.response
             ?.data
@@ -161,32 +240,42 @@ export default function PayrollDetailsPage() {
     };
 
   useEffect(() => {
-    loadPayroll();
-  }, [id]);
+    void loadPayroll();
+  }, [
+    id,
+  ]);
 
   /* ============================
-     STATUS CHANGE
+     RECALCULATE
   ============================ */
 
-  const changeStatus =
-    async (
-      status: PayrollStatus
-    ) => {
+  const handleRecalculate =
+    async () => {
       if (
         !id ||
-        !payroll
+        !payroll ||
+        !canManagePayroll
       ) {
+        return;
+      }
+
+      if (
+        payroll.status !==
+        "PENDING"
+      ) {
+        setError(
+          "Only Pending Payroll Can Be Recalculated"
+        );
+
         return;
       }
 
       const confirmed =
         window.confirm(
-          `Are you sure you want to change payroll status to ${status}?`
+          "Recalculate payroll using latest attendance, approved leave, employee salary and attendance settings?"
         );
 
-      if (
-        !confirmed
-      ) {
+      if (!confirmed) {
         return;
       }
 
@@ -196,6 +285,79 @@ export default function PayrollDetailsPage() {
         );
 
         setError(
+          ""
+        );
+
+        setSuccess(
+          ""
+        );
+
+        const response =
+          await recalculatePayroll(
+            id
+          );
+
+        setPayroll(
+          response.payroll
+        );
+
+        setSuccess(
+          response.message ||
+            "Payroll Recalculated Successfully"
+        );
+      } catch (
+        error: any
+      ) {
+        setError(
+          error?.response
+            ?.data
+            ?.message ||
+            error?.message ||
+            "Payroll recalculation failed"
+        );
+      } finally {
+        setActionLoading(
+          false
+        );
+      }
+    };
+
+  /* ============================
+     STATUS CHANGE
+  ============================ */
+
+  const changeStatus =
+    async (
+      status:
+        PayrollStatus
+    ) => {
+      if (
+        !id ||
+        !payroll ||
+        !canManagePayroll
+      ) {
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          `Are you sure you want to change payroll status to ${status}?`
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setActionLoading(
+          true
+        );
+
+        setError(
+          ""
+        );
+
+        setSuccess(
           ""
         );
 
@@ -209,6 +371,11 @@ export default function PayrollDetailsPage() {
 
         setPayroll(
           response.payroll
+        );
+
+        setSuccess(
+          response.message ||
+            `Payroll updated to ${status}`
         );
       } catch (
         error: any
@@ -279,6 +446,10 @@ export default function PayrollDetailsPage() {
   if (!payroll) {
     return null;
   }
+
+  /* ============================
+     VALUES
+  ============================ */
 
   const status =
     statusConfig[
@@ -374,104 +545,177 @@ export default function PayrollDetailsPage() {
                 payroll.year
               }
             </p>
+
+            <p className="mt-1 text-xs font-medium text-blue-600">
+              Payroll cycle:
+              26th → 25th
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          {/* EDIT */}
+        {/* ============================
+            MANAGEMENT ACTIONS
+        ============================ */}
 
-          {payroll.status !==
-            "PAID" && (
-            <button
-              type="button"
-              onClick={() =>
-                navigate(
-                  `/payroll/${payroll.id}/edit`
-                )
-              }
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Edit Adjustments
-            </button>
-          )}
+        {canManagePayroll && (
+          <div className="flex flex-wrap gap-3">
+            {/* EDIT */}
 
-          {/* WORKFLOW */}
+            {payroll.status !==
+              "PAID" && (
+              <button
+                type="button"
+                disabled={
+                  actionLoading
+                }
+                onClick={() =>
+                  navigate(
+                    `/payroll/${payroll.id}/edit`
+                  )
+                }
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Edit Adjustments
+              </button>
+            )}
 
-          {payroll.status ===
-            "PENDING" && (
-            <ActionButton
-              loading={
-                actionLoading
-              }
-              label="Generate Payroll"
-              loadingLabel="Generating..."
-              icon={
-                <FileCheck2
-                  size={18}
+            {/* RECALCULATE */}
+
+            {payroll.status ===
+              "PENDING" && (
+              <button
+                type="button"
+                disabled={
+                  actionLoading
+                }
+                onClick={() =>
+                  void handleRecalculate()
+                }
+                className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCcw
+                  size={17}
+                  className={
+                    actionLoading
+                      ? "animate-spin"
+                      : ""
+                  }
                 />
-              }
-              onClick={() =>
-                changeStatus(
-                  "GENERATED"
-                )
-              }
-            />
-          )}
 
-          {payroll.status ===
-            "GENERATED" && (
-            <ActionButton
-              loading={
-                actionLoading
-              }
-              label="Approve Payroll"
-              loadingLabel="Approving..."
-              icon={
+                Recalculate
+              </button>
+            )}
+
+            {/* GENERATE */}
+
+            {payroll.status ===
+              "PENDING" && (
+              <ActionButton
+                loading={
+                  actionLoading
+                }
+                label="Generate Payroll"
+                loadingLabel="Generating..."
+                icon={
+                  <FileCheck2
+                    size={18}
+                  />
+                }
+                onClick={() =>
+                  void changeStatus(
+                    "GENERATED"
+                  )
+                }
+              />
+            )}
+
+            {/* APPROVE */}
+
+            {payroll.status ===
+              "GENERATED" && (
+              <ActionButton
+                loading={
+                  actionLoading
+                }
+                label="Approve Payroll"
+                loadingLabel="Approving..."
+                icon={
+                  <CheckCircle2
+                    size={18}
+                  />
+                }
+                onClick={() =>
+                  void changeStatus(
+                    "APPROVED"
+                  )
+                }
+              />
+            )}
+
+            {/* PAID */}
+
+            {payroll.status ===
+              "APPROVED" && (
+              <ActionButton
+                loading={
+                  actionLoading
+                }
+                label="Mark as Paid"
+                loadingLabel="Processing..."
+                icon={
+                  <CircleDollarSign
+                    size={18}
+                  />
+                }
+                onClick={() =>
+                  void changeStatus(
+                    "PAID"
+                  )
+                }
+              />
+            )}
+
+            {payroll.status ===
+              "PAID" && (
+              <div className="inline-flex items-center gap-2 rounded-xl bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700">
                 <CheckCircle2
                   size={18}
                 />
-              }
-              onClick={() =>
-                changeStatus(
-                  "APPROVED"
-                )
-              }
-            />
-          )}
 
-          {payroll.status ===
-            "APPROVED" && (
-            <ActionButton
-              loading={
-                actionLoading
-              }
-              label="Mark as Paid"
-              loadingLabel="Processing..."
-              icon={
-                <CircleDollarSign
-                  size={18}
-                />
-              }
-              onClick={() =>
-                changeStatus(
-                  "PAID"
-                )
-              }
-            />
-          )}
-
-          {payroll.status ===
-            "PAID" && (
-            <div className="inline-flex items-center gap-2 rounded-xl bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-700">
-              <CheckCircle2
-                size={18}
-              />
-
-              Payroll Paid
-            </div>
-          )}
-        </div>
+                Payroll Paid
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* ============================
+          VIEW ONLY INFO
+      ============================ */}
+
+      {!canManagePayroll && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-sm font-medium text-slate-700">
+            Payroll View Only
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            Payroll generation,
+            recalculation and approval
+            are managed by Admin or HR.
+          </p>
+        </div>
+      )}
+
+      {/* ============================
+          SUCCESS
+      ============================ */}
+
+      {success && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-700">
+          {success}
+        </div>
+      )}
 
       {/* ============================
           ERROR
@@ -595,9 +839,16 @@ export default function PayrollDetailsPage() {
           />
         </div>
 
-        <p className="mt-4 text-xs text-slate-500">
-          Sundays, first Saturday and company holidays are excluded from salary working days.
-        </p>
+        <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <p className="text-xs leading-5 text-blue-700">
+            Sunday, First Saturday
+            and configured Company
+            Holidays are treated as
+            paid off-days and are
+            excluded from scheduled
+            working days.
+          </p>
+        </div>
       </section>
 
       {/* ============================
@@ -612,7 +863,7 @@ export default function PayrollDetailsPage() {
             />
           }
           title="Attendance Summary"
-          description="Attendance used by payroll policy engine"
+          description="Attendance snapshot used by payroll policy engine"
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
@@ -672,7 +923,7 @@ export default function PayrollDetailsPage() {
             />
           }
           title="Leave Salary"
-          description="Paid and unpaid leave applied to this payroll"
+          description="Approved paid and unpaid leave applied to payroll"
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -698,14 +949,14 @@ export default function PayrollDetailsPage() {
           />
 
           <InfoCard
-            label="Monthly Paid Leave"
-            value="1 + Carry Forward"
+            label="Paid Leave Policy"
+            value="1 Leave + Carry Forward"
           />
         </div>
       </section>
 
       {/* ============================
-          LATE
+          LATE POLICY
       ============================ */}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -716,7 +967,7 @@ export default function PayrollDetailsPage() {
             />
           }
           title="Late Coming Policy"
-          description="First 3 late arrivals allowed, then ₹100 deduction per late"
+          description="Attendance timings are read from Attendance Settings"
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -749,6 +1000,13 @@ export default function PayrollDetailsPage() {
             }
           />
         </div>
+
+        <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-5 text-slate-500">
+          Check-In classification uses
+          configured Late After and
+          Half Day After values from
+          Attendance Settings.
+        </div>
       </section>
 
       {/* ============================
@@ -763,7 +1021,7 @@ export default function PayrollDetailsPage() {
             />
           }
           title="Early Going"
-          description="Monthly early-going usage"
+          description="Early departure is calculated from configured Office End Time"
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -782,19 +1040,19 @@ export default function PayrollDetailsPage() {
           />
 
           <InfoCard
-            label="Allowed Departure"
-            value="From 5:00 PM"
+            label="Early Window"
+            value="90 Min Before Office End"
           />
 
           <InfoCard
-            label="Office Closing"
-            value="6:30 PM"
+            label="Office End"
+            value="Attendance Settings"
           />
         </div>
       </section>
 
       {/* ============================
-          SALARY SUMMARY
+          SALARY
       ============================ */}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -861,7 +1119,9 @@ export default function PayrollDetailsPage() {
               </p>
 
               <p className="mt-1 text-xs text-blue-200">
-                Gross + Incentive + Bonus - Other Deduction - Late Deduction
+                Gross + Incentive +
+                Bonus - Other Deduction
+                - Late Deduction
               </p>
             </div>
 
@@ -876,7 +1136,7 @@ export default function PayrollDetailsPage() {
       </section>
 
       {/* ============================
-          PAYROLL STATUS
+          WORKFLOW
       ============================ */}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
@@ -894,36 +1154,39 @@ export default function PayrollDetailsPage() {
           <WorkflowStep
             label="Pending"
             active={
-              payroll.status ===
-                "PENDING" ||
-              payroll.status ===
-                "GENERATED" ||
-              payroll.status ===
-                "APPROVED" ||
-              payroll.status ===
-                "PAID"
+              [
+                "PENDING",
+                "GENERATED",
+                "APPROVED",
+                "PAID",
+              ].includes(
+                payroll.status
+              )
             }
           />
 
           <WorkflowStep
             label="Generated"
             active={
-              payroll.status ===
-                "GENERATED" ||
-              payroll.status ===
-                "APPROVED" ||
-              payroll.status ===
-                "PAID"
+              [
+                "GENERATED",
+                "APPROVED",
+                "PAID",
+              ].includes(
+                payroll.status
+              )
             }
           />
 
           <WorkflowStep
             label="Approved"
             active={
-              payroll.status ===
-                "APPROVED" ||
-              payroll.status ===
-                "PAID"
+              [
+                "APPROVED",
+                "PAID",
+              ].includes(
+                payroll.status
+              )
             }
           />
 
@@ -935,6 +1198,38 @@ export default function PayrollDetailsPage() {
             }
           />
         </div>
+
+        {payroll.status ===
+          "PENDING" &&
+          canManagePayroll && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-semibold text-amber-800">
+                Payroll can still be
+                recalculated
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-amber-700">
+                If attendance or leave
+                was corrected, use
+                Recalculate before
+                generating the payroll.
+              </p>
+            </div>
+          )}
+
+        {payroll.status ===
+          "PAID" && (
+          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <p className="text-sm font-semibold text-emerald-800">
+              Payroll Locked
+            </p>
+
+            <p className="mt-1 text-xs text-emerald-700">
+              Paid payroll cannot be
+              modified or recalculated.
+            </p>
+          </div>
+        )}
       </section>
 
       {/* ============================
@@ -978,7 +1273,8 @@ function ActionButton({
   icon:
     ReactNode;
 
-  onClick: () => void;
+  onClick:
+    () => void;
 }) {
   return (
     <button
@@ -1118,7 +1414,7 @@ function MoneyCard({
 }
 
 /* ============================
-   WORKFLOW
+   WORKFLOW STEP
 ============================ */
 
 function WorkflowStep({
@@ -1143,26 +1439,37 @@ function WorkflowStep({
 }
 
 /* ============================
-   DATE FORMAT
+   DATE
 ============================ */
 
 function formatDate(
   value: string
 ) {
-  return new Date(
-    value
-  ).toLocaleDateString(
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "-";
+  }
+
+  return date.toLocaleDateString(
     "en-IN",
     {
       day: "2-digit",
+
       month: "short",
+
       year: "numeric",
     }
   );
 }
 
 /* ============================
-   MONEY FORMAT
+   MONEY
 ============================ */
 
 function formatMoney(
@@ -1171,10 +1478,14 @@ function formatMoney(
     | string
 ) {
   return Number(
-    value || 0
+    value ||
+      0
   ).toLocaleString(
     "en-IN",
     {
+      minimumFractionDigits:
+        0,
+
       maximumFractionDigits:
         2,
     }
@@ -1187,15 +1498,26 @@ function formatMoney(
 
 const monthNames = [
   "January",
+
   "February",
+
   "March",
+
   "April",
+
   "May",
+
   "June",
+
   "July",
+
   "August",
+
   "September",
+
   "October",
+
   "November",
+
   "December",
 ];

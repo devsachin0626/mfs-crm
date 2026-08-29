@@ -3,13 +3,29 @@ export type PayrollStatus =
   | "GENERATED"
   | "APPROVED"
   | "PAID";
-
 export interface PayrollEmployee {
   id: string;
+
   employeeCode: string;
+
   name: string;
+
   mobile?: string | null;
+
   email?: string | null;
+
+  salary?:
+    | string
+    | number
+    | null;
+
+  role?: {
+    name: string;
+  } | null;
+
+  branch?: {
+    name: string;
+  } | null;
 }
 
 export interface Payroll {
@@ -166,48 +182,17 @@ export interface CreatePayrollPayload {
   month: number;
   year: number;
 
-  basicSalary: number;
-
-  workingDays: number;
-  presentDays: number;
-  lateDays: number;
-  halfDays: number;
-  leaveDays: number;
-  absentDays: number;
-
-  grossSalary: number;
-
-  incentive: number;
-  bonus: number;
-  deduction: number;
-
-  netSalary: number;
-
-  status?: PayrollStatus;
+  incentive?: number;
+  bonus?: number;
+  deduction?: number;
 
   remarks?: string;
 }
 
 export interface UpdatePayrollPayload {
-  month?: number;
-  year?: number;
-
-  basicSalary?: number;
-
-  workingDays?: number;
-  presentDays?: number;
-  lateDays?: number;
-  halfDays?: number;
-  leaveDays?: number;
-  absentDays?: number;
-
-  grossSalary?: number;
-
   incentive?: number;
   bonus?: number;
   deduction?: number;
-
-  netSalary?: number;
 
   status?: PayrollStatus;
 

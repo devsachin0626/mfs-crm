@@ -16,6 +16,7 @@ import {
 import {
   ArrowLeft,
   Banknote,
+  Lock,
   Save,
   WalletCards,
 } from "lucide-react";
@@ -29,6 +30,10 @@ import type {
   Payroll,
 } from "../../types/payroll.types";
 
+/* ============================
+   PAGE
+============================ */
+
 export default function PayrollEditPage() {
   const {
     id,
@@ -38,6 +43,10 @@ export default function PayrollEditPage() {
 
   const navigate =
     useNavigate();
+
+  /* ============================
+     STATE
+  ============================ */
 
   const [
     payroll,
@@ -71,8 +80,11 @@ export default function PayrollEditPage() {
   ] =
     useState({
       incentive: "0",
+
       bonus: "0",
+
       deduction: "0",
+
       remarks: "",
     });
 
@@ -156,8 +168,18 @@ export default function PayrollEditPage() {
         }
       };
 
-    loadPayroll();
-  }, [id]);
+    void loadPayroll();
+  }, [
+    id,
+  ]);
+
+  /* ============================
+     LOCK STATE
+  ============================ */
+
+  const isLocked =
+    payroll?.status !==
+    "PENDING";
 
   /* ============================
      SAVE
@@ -176,6 +198,77 @@ export default function PayrollEditPage() {
         return;
       }
 
+      /* ============================
+         STATUS GUARD
+      ============================ */
+
+      if (
+        payroll.status !==
+        "PENDING"
+      ) {
+        setError(
+          "Only Pending Payroll Can Be Edited"
+        );
+
+        return;
+      }
+
+      /* ============================
+         VALUES
+      ============================ */
+
+      const incentive =
+        Number(
+          form.incentive ||
+            0
+        );
+
+      const bonus =
+        Number(
+          form.bonus ||
+            0
+        );
+
+      const deduction =
+        Number(
+          form.deduction ||
+            0
+        );
+
+      /* ============================
+         NUMBER VALIDATION
+      ============================ */
+
+      if (
+        !Number.isFinite(
+          incentive
+        ) ||
+        !Number.isFinite(
+          bonus
+        ) ||
+        !Number.isFinite(
+          deduction
+        )
+      ) {
+        setError(
+          "Invalid payroll adjustment amount"
+        );
+
+        return;
+      }
+
+      if (
+        incentive < 0 ||
+        bonus < 0 ||
+        deduction < 0
+      ) {
+        setError(
+          "Payroll adjustment values cannot be negative"
+        );
+
+        return;
+      }
+
       try {
         setSaving(
           true
@@ -188,35 +281,15 @@ export default function PayrollEditPage() {
         await updatePayroll(
           id,
           {
-            incentive:
-              Math.max(
-                Number(
-                  form.incentive ||
-                    0
-                ),
-                0
-              ),
+            incentive,
 
-            bonus:
-              Math.max(
-                Number(
-                  form.bonus ||
-                    0
-                ),
-                0
-              ),
+            bonus,
 
-            deduction:
-              Math.max(
-                Number(
-                  form.deduction ||
-                    0
-                ),
-                0
-              ),
+            deduction,
 
             remarks:
-              form.remarks.trim() ||
+              form.remarks
+                .trim() ||
               undefined,
           }
         );
@@ -258,7 +331,7 @@ export default function PayrollEditPage() {
   }
 
   /* ============================
-     ERROR
+     LOAD ERROR
   ============================ */
 
   if (
@@ -294,23 +367,24 @@ export default function PayrollEditPage() {
     return null;
   }
 
+  /* ============================
+     LIVE NET SALARY
+  ============================ */
+
   const calculatedNet =
     Math.max(
       Number(
         payroll.grossSalary ||
           0
       ) +
-        Number(
-          form.incentive ||
-            0
+        safeNumber(
+          form.incentive
         ) +
-        Number(
-          form.bonus ||
-            0
+        safeNumber(
+          form.bonus
         ) -
-        Number(
-          form.deduction ||
-            0
+        safeNumber(
+          form.deduction
         ) -
         Number(
           payroll.lateDeduction ||
@@ -319,9 +393,15 @@ export default function PayrollEditPage() {
       0
     );
 
+  const scheduledWorkingDays =
+    payroll.scheduledWorkingDays ??
+    payroll.workingDays;
+
   return (
     <div className="space-y-6">
-      {/* HEADER */}
+      {/* ============================
+          HEADER
+      ============================ */}
 
       <div className="flex items-center gap-3">
         <button
@@ -331,7 +411,7 @@ export default function PayrollEditPage() {
               `/payroll/${payroll.id}`
             )
           }
-          className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 hover:bg-slate-50"
+          className="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 transition hover:bg-slate-50"
         >
           <ArrowLeft
             size={19}
@@ -339,15 +419,28 @@ export default function PayrollEditPage() {
         </button>
 
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Edit Payroll
-          </h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-900">
+              Edit Payroll
+            </h1>
 
-          <p className="text-sm text-slate-500">
-            Edit only payroll adjustments
+            <StatusBadge
+              status={
+                payroll.status
+              }
+            />
+          </div>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Edit payroll adjustments
+            only
           </p>
         </div>
       </div>
+
+      {/* ============================
+          ERROR
+      ============================ */}
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -355,7 +448,40 @@ export default function PayrollEditPage() {
         </div>
       )}
 
-      {/* LOCKED PAYROLL INFO */}
+      {/* ============================
+          LOCK NOTICE
+      ============================ */}
+
+      {isLocked && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <Lock
+            size={19}
+            className="mt-0.5 shrink-0 text-amber-700"
+          />
+
+          <div>
+            <p className="text-sm font-semibold text-amber-800">
+              Payroll Locked
+            </p>
+
+            <p className="mt-1 text-xs leading-5 text-amber-700">
+              Only Pending payroll can
+              be edited. This payroll
+              is currently{" "}
+              <strong>
+                {
+                  payroll.status
+                }
+              </strong>
+              .
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ============================
+          PAYROLL INFORMATION
+      ============================ */}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <SectionHeader
@@ -365,7 +491,7 @@ export default function PayrollEditPage() {
             />
           }
           title="Payroll Information"
-          description="Attendance and salary base are locked"
+          description="Employee and payroll period are locked"
         />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -389,9 +515,12 @@ export default function PayrollEditPage() {
 
           <ReadOnlyCard
             label="Payroll Month"
-            value={`${monthNames[
-              payroll.month - 1
-            ]} ${payroll.year}`}
+            value={`${
+              monthNames[
+                payroll.month -
+                  1
+              ]
+            } ${payroll.year}`}
           />
 
           <ReadOnlyCard
@@ -401,9 +530,20 @@ export default function PayrollEditPage() {
             }
           />
         </div>
+
+        <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+          <p className="text-xs leading-5 text-blue-700">
+            Payroll cycle runs from
+            26th of the previous month
+            to 25th of the selected
+            payroll month.
+          </p>
+        </div>
       </section>
 
-      {/* ATTENDANCE */}
+      {/* ============================
+          ATTENDANCE
+      ============================ */}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <h2 className="font-semibold text-slate-900">
@@ -411,16 +551,17 @@ export default function PayrollEditPage() {
         </h2>
 
         <p className="mt-1 text-sm text-slate-500">
-          These values come from the payroll policy engine and cannot be edited manually
+          Attendance values are
+          calculated by the backend
+          payroll policy engine and
+          cannot be edited manually.
         </p>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           <ReadOnlyCard
             label="Working Days"
             value={String(
-              payroll
-                .scheduledWorkingDays ??
-                payroll.workingDays
+              scheduledWorkingDays
             )}
           />
 
@@ -461,7 +602,9 @@ export default function PayrollEditPage() {
         </div>
       </section>
 
-      {/* FIXED SALARY */}
+      {/* ============================
+          SALARY BASE
+      ============================ */}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <h2 className="font-semibold text-slate-900">
@@ -469,7 +612,9 @@ export default function PayrollEditPage() {
         </h2>
 
         <p className="mt-1 text-sm text-slate-500">
-          Payroll base calculation is locked
+          Salary base and attendance
+          deductions are calculated by
+          the backend and are locked.
         </p>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -504,7 +649,9 @@ export default function PayrollEditPage() {
         </div>
       </section>
 
-      {/* EDITABLE */}
+      {/* ============================
+          EDIT FORM
+      ============================ */}
 
       <form
         onSubmit={
@@ -512,6 +659,10 @@ export default function PayrollEditPage() {
         }
         className="space-y-6"
       >
+        {/* ============================
+            ADJUSTMENTS
+        ============================ */}
+
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <SectionHeader
             icon={
@@ -520,7 +671,11 @@ export default function PayrollEditPage() {
               />
             }
             title="Salary Adjustments"
-            description="Only these values can be edited"
+            description={
+              isLocked
+                ? "Payroll adjustments are locked"
+                : "Only these payroll values can be edited"
+            }
           />
 
           <div className="grid gap-5 md:grid-cols-3">
@@ -528,6 +683,9 @@ export default function PayrollEditPage() {
               <MoneyInput
                 value={
                   form.incentive
+                }
+                disabled={
+                  isLocked
                 }
                 onChange={(
                   value
@@ -537,6 +695,7 @@ export default function PayrollEditPage() {
                       previous
                     ) => ({
                       ...previous,
+
                       incentive:
                         value,
                     })
@@ -550,6 +709,9 @@ export default function PayrollEditPage() {
                 value={
                   form.bonus
                 }
+                disabled={
+                  isLocked
+                }
                 onChange={(
                   value
                 ) =>
@@ -558,6 +720,7 @@ export default function PayrollEditPage() {
                       previous
                     ) => ({
                       ...previous,
+
                       bonus:
                         value,
                     })
@@ -571,6 +734,9 @@ export default function PayrollEditPage() {
                 value={
                   form.deduction
                 }
+                disabled={
+                  isLocked
+                }
                 onChange={(
                   value
                 ) =>
@@ -579,6 +745,7 @@ export default function PayrollEditPage() {
                       previous
                     ) => ({
                       ...previous,
+
                       deduction:
                         value,
                     })
@@ -588,7 +755,9 @@ export default function PayrollEditPage() {
             </Field>
           </div>
 
-          {/* LIVE NET */}
+          {/* ============================
+              LIVE NET
+          ============================ */}
 
           <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-5">
             <p className="text-xs font-medium uppercase tracking-wide text-blue-600">
@@ -602,13 +771,18 @@ export default function PayrollEditPage() {
               )}
             </p>
 
-            <p className="mt-2 text-xs text-blue-700">
-              Gross + Incentive + Bonus - Other Deduction - Late Deduction
+            <p className="mt-2 text-xs leading-5 text-blue-700">
+              Gross Salary +
+              Incentive + Bonus -
+              Other Deduction - Late
+              Deduction
             </p>
           </div>
         </section>
 
-        {/* REMARKS */}
+        {/* ============================
+            REMARKS
+        ============================ */}
 
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <Field label="Remarks">
@@ -617,11 +791,14 @@ export default function PayrollEditPage() {
               maxLength={
                 500
               }
+              disabled={
+                isLocked
+              }
               value={
                 form.remarks
               }
               onChange={(
-                e
+                event
               ) =>
                 setForm(
                   (
@@ -630,15 +807,13 @@ export default function PayrollEditPage() {
                     ...previous,
 
                     remarks:
-                      e.target
+                      event.target
                         .value,
                   })
                 )
               }
               placeholder="Enter payroll remarks..."
-              className={
-                inputClass
-              }
+              className={`${inputClass} resize-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`}
             />
 
             <p className="mt-2 text-right text-xs text-slate-400">
@@ -651,9 +826,11 @@ export default function PayrollEditPage() {
           </Field>
         </section>
 
-        {/* ACTIONS */}
+        {/* ============================
+            ACTIONS
+        ============================ */}
 
-        <div className="flex justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
           <button
             type="button"
             disabled={
@@ -664,28 +841,34 @@ export default function PayrollEditPage() {
                 `/payroll/${payroll.id}`
               )
             }
-            className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
           >
-            Cancel
+            {isLocked
+              ? "Back"
+              : "Cancel"}
           </button>
 
           <button
             type="submit"
             disabled={
               saving ||
-              payroll.status ===
-                "PAID"
+              isLocked
             }
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Save
-              size={17}
-            />
+            {isLocked ? (
+              <Lock
+                size={17}
+              />
+            ) : (
+              <Save
+                size={17}
+              />
+            )}
 
             {saving
               ? "Saving..."
-              : payroll.status ===
-                  "PAID"
+              : isLocked
                 ? "Payroll Locked"
                 : "Save Changes"}
           </button>
@@ -696,7 +879,7 @@ export default function PayrollEditPage() {
 }
 
 /* ============================
-   INPUT
+   INPUT CLASS
 ============================ */
 
 const inputClass =
@@ -768,12 +951,15 @@ function SectionHeader({
 function MoneyInput({
   value,
   onChange,
+  disabled = false,
 }: {
   value: string;
 
   onChange: (
     value: string
   ) => void;
+
+  disabled?: boolean;
 }) {
   return (
     <div className="relative">
@@ -785,25 +971,28 @@ function MoneyInput({
         type="number"
         min="0"
         step="0.01"
+        disabled={
+          disabled
+        }
         value={
           value
         }
         onChange={(
-          e
+          event
         ) =>
           onChange(
-            e.target
+            event.target
               .value
           )
         }
-        className={`${inputClass} pl-8`}
+        className={`${inputClass} pl-8 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500`}
       />
     </div>
   );
 }
 
 /* ============================
-   READ ONLY
+   READ ONLY CARD
 ============================ */
 
 function ReadOnlyCard({
@@ -858,6 +1047,61 @@ function MoneyCard({
 }
 
 /* ============================
+   STATUS BADGE
+============================ */
+
+function StatusBadge({
+  status,
+}: {
+  status: string;
+}) {
+  const className =
+    status === "PAID"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : status ===
+          "APPROVED"
+        ? "border-green-200 bg-green-50 text-green-700"
+        : status ===
+            "GENERATED"
+          ? "border-blue-200 bg-blue-50 text-blue-700"
+          : "border-amber-200 bg-amber-50 text-amber-700";
+
+  return (
+    <span
+      className={`rounded-full border px-3 py-1 text-xs font-semibold ${className}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+/* ============================
+   SAFE NUMBER
+============================ */
+
+function safeNumber(
+  value:
+    | string
+    | number
+) {
+  const parsed =
+    Number(value);
+
+  if (
+    !Number.isFinite(
+      parsed
+    )
+  ) {
+    return 0;
+  }
+
+  return Math.max(
+    parsed,
+    0
+  );
+}
+
+/* ============================
    FORMAT MONEY
 ============================ */
 
@@ -867,10 +1111,14 @@ function formatMoney(
     | string
 ) {
   return Number(
-    value || 0
+    value ||
+      0
   ).toLocaleString(
     "en-IN",
     {
+      minimumFractionDigits:
+        0,
+
       maximumFractionDigits:
         2,
     }

@@ -39,31 +39,67 @@ const auth_middleware_1 = require("../middleware/auth.middleware");
 const role_middleware_1 = require("../middleware/role.middleware");
 const router = (0, express_1.Router)();
 /* ============================
-   SELF CHECK IN
+   ALL ATTENDANCE ROUTES
+   REQUIRE LOGIN
 ============================ */
-router.post("/check-in", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.checkIn);
+router.use(auth_middleware_1.authenticate);
+/* ============================
+   SELF CHECK IN
+
+   Logged-in employee ka
+   employeeId controller
+   req.employee se leta hai.
+============================ */
+router.post("/check-in", (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.checkIn);
 /* ============================
    SELF CHECK OUT
 ============================ */
-router.put("/check-out", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.checkOut);
+router.put("/check-out", (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.checkOut);
 /* ============================
    GET ATTENDANCE LIST
 
-   Access filtering service/controller
-   me role ke hisaab se hoga
+   month/year =
+   payroll attendance cycle
+
+   Example:
+   month=8
+   year=2026
+
+   26 Jul 2026
+       →
+   25 Aug 2026
+
+   Access:
+   ADMIN       → All
+   HR          → All
+   TEAM_LEADER → Self + Team
+   EMPLOYEE    → Self
 ============================ */
-router.get("/", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.getAttendances);
+router.get("/", (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.getAttendances);
 /* ============================
    MONTHLY ATTENDANCE REPORT
+
+   IMPORTANT:
+   Keep this route BEFORE /:id
+
+   GET
+   /attendance/report/:employeeId
 ============================ */
-router.get("/report/:employeeId", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.monthlyAttendanceReport);
+router.get("/report/:employeeId", (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.monthlyAttendanceReport);
 /* ============================
    GET ATTENDANCE BY ID
 ============================ */
-router.get("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.getAttendanceById);
+router.get("/:id", (0, role_middleware_1.authorize)("ADMIN", "HR", "TEAM_LEADER", "EMPLOYEE"), attendanceController.getAttendanceById);
 /* ============================
    UPDATE ATTENDANCE
-   ONLY ADMIN / HR
+
+   ADMIN / HR ONLY
+
+   Manual correction:
+   - Check In
+   - Check Out
+   - Status
+   - Remarks
 ============================ */
-router.put("/:id", auth_middleware_1.authenticate, (0, role_middleware_1.authorize)("ADMIN", "HR"), attendanceController.updateAttendance);
+router.put("/:id", (0, role_middleware_1.authorize)("ADMIN", "HR"), attendanceController.updateAttendance);
 exports.default = router;

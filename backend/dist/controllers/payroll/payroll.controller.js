@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.previewPayrollController = exports.updatePayrollController = exports.getPayrollByIdController = exports.getPayrollsController = exports.createPayrollController = void 0;
+exports.recalculatePayrollController = exports.previewPayrollController = exports.updatePayrollController = exports.getPayrollByIdController = exports.getPayrollsController = exports.createPayrollController = void 0;
 const payroll_service_1 = require("../../services/payroll/payroll.service");
 /* ============================
    CREATE PAYROLL
@@ -159,3 +159,36 @@ const previewPayrollController = async (req, res) => {
     }
 };
 exports.previewPayrollController = previewPayrollController;
+/* ============================
+ RECALCULATE PAYROLL
+============================ */
+const recalculatePayrollController = async (req, res) => {
+    try {
+        if (!req.employee) {
+            res.status(401).json({
+                success: false,
+                message: "Authenticated Employee Not Found",
+            });
+            return;
+        }
+        const id = String(req.params.id ||
+            "").trim();
+        if (!id) {
+            res.status(400).json({
+                success: false,
+                message: "Payroll ID is required",
+            });
+            return;
+        }
+        const result = await (0, payroll_service_1.recalculatePayroll)(id, req.employee);
+        res.status(200).json(result);
+    }
+    catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message ||
+                "Payroll Recalculation Failed",
+        });
+    }
+};
+exports.recalculatePayrollController = recalculatePayrollController;

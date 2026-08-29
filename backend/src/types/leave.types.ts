@@ -14,10 +14,6 @@ export interface UpdateLeaveRequest {
   toDate?: Date;
 
   reason?: string;
-
-  status?: "PENDING" | "APPROVED" | "REJECTED";
-
-  approvedById?: string;
 }
 
 export interface LeaveQuery {

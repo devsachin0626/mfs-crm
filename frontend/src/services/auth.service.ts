@@ -30,3 +30,37 @@ export const login = async (
 
   return response.data;
 };
+
+export interface ImpersonationResponse {
+  success: boolean;
+
+  message: string;
+
+  token: string;
+
+  employee:
+    AuthEmployee;
+
+  impersonation: {
+    impersonatorId:
+      string;
+
+    impersonatorName:
+      string;
+
+    expiresInMinutes:
+      number;
+  };
+}
+
+export const impersonateEmployee =
+  async (
+    employeeId: string
+  ): Promise<ImpersonationResponse> => {
+    const response =
+      await api.post<ImpersonationResponse>(
+        `/auth/impersonate/${employeeId}`
+      );
+
+    return response.data;
+  };

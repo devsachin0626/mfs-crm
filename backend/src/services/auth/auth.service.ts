@@ -29,7 +29,7 @@ export const login = async ({ employeeCode, password }: LoginDto) => {
   });
 
   if (!employee) {
-    throw new Error("Invalid Employee Code");
+    throw new Error("Invalid Employee Code or Password");
   }
 
   // Account Status
@@ -44,7 +44,7 @@ export const login = async ({ employeeCode, password }: LoginDto) => {
   );
 
   if (!passwordMatched) {
-    throw new Error("Invalid Password");
+    throw new Error("Invalid Employee Code or Password");
   }
 
   // JWT Token

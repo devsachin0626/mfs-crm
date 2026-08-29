@@ -1,6 +1,5 @@
 import jwt, { Secret, SignOptions } from "jsonwebtoken";
-
-const JWT_SECRET: Secret = process.env.JWT_SECRET || "MFSCRM";
+import { getJwtSecret } from "../config/env";
 
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || "7d") as SignOptions["expiresIn"];
 
@@ -12,7 +11,7 @@ export interface JwtPayload {
 }
 
 export const generateToken = (payload: JwtPayload): string => {
-  return jwt.sign(payload, JWT_SECRET, {
+  return jwt.sign(payload, getJwtSecret() as Secret, {
     expiresIn: JWT_EXPIRES_IN,
   });
 };
@@ -22,7 +21,7 @@ export const generateImpersonationToken = (
 ): string => {
   return jwt.sign(
     payload,
-    JWT_SECRET,
+    getJwtSecret() as Secret,
     {
       expiresIn: "1h",
     }
@@ -30,5 +29,5 @@ export const generateImpersonationToken = (
 };
 
 export const verifyToken = (token: string): JwtPayload => {
-  return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  return jwt.verify(token, getJwtSecret() as Secret) as JwtPayload;
 };

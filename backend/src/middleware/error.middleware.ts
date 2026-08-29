@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { Prisma } from "@prisma/client";
+import multer from "multer";
 
 export const errorMiddleware = (
   error: any,
@@ -7,7 +8,7 @@ export const errorMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
-  console.error("❌ Error:", error);
+  console.error("Request failed:", error);
 
   // Prisma: Record Not Found / Constraint Errors
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -40,7 +41,6 @@ export const errorMiddleware = (
         res.status(400).json({
           success: false,
           message: "Database operation failed.",
-          error: error.code,
         });
         return;
     }
@@ -64,11 +64,26 @@ export const errorMiddleware = (
     return;
   }
 
+  if (error instanceof multer.MulterError) {
+    res.status(400).json({
+      success: false,
+      message:
+        error.code === "LIMIT_FILE_SIZE"
+          ? "Uploaded file is too large. Maximum size is 2 MB."
+          : "File upload failed.",
+    });
+    return;
+  }
+
   // Default Error
   const statusCode = error.statusCode || 500;
+  const isProduction = process.env.NODE_ENV === "production";
 
   res.status(statusCode).json({
     success: false,
-    message: error.message || "Internal Server Error",
+    message:
+      isProduction && statusCode >= 500
+        ? "Internal Server Error"
+        : error.message || "Internal Server Error",
   });
 };

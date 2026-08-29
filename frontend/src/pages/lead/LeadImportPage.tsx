@@ -16,8 +16,6 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import * as XLSX from "xlsx";
-
 import {
   getEmployees,
 } from "../../services/employee.service";
@@ -39,6 +37,98 @@ import type {
 import {
   useEffect,
 } from "react";
+
+type ImportFileRow = Record<string, string>;
+
+const parseCsv = (content: string): string[][] => {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let value = "";
+  let quoted = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index];
+
+    if (character === '"') {
+      if (quoted && content[index + 1] === '"') {
+        value += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === "," && !quoted) {
+      row.push(value);
+      value = "";
+    } else if ((character === "\n" || character === "\r") && !quoted) {
+      if (character === "\r" && content[index + 1] === "\n") {
+        index += 1;
+      }
+      row.push(value);
+      if (row.some((cell) => cell.trim())) {
+        rows.push(row);
+      }
+      row = [];
+      value = "";
+    } else {
+      value += character;
+    }
+  }
+
+  row.push(value);
+  if (row.some((cell) => cell.trim())) {
+    rows.push(row);
+  }
+
+  return rows;
+};
+
+const rowsToRecords = (table: string[][]): ImportFileRow[] => {
+  const [headerRow = [], ...dataRows] = table;
+  const headers = headerRow.map((header) =>
+    header.replace(/^\uFEFF/, "").trim().toLowerCase()
+  );
+
+  return dataRows.map((values) =>
+    Object.fromEntries(
+      headers.map((header, index) => [header, values[index]?.trim() || ""])
+    )
+  );
+};
+
+const readImportFile = async (file: File): Promise<ImportFileRow[]> => {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+
+  if (extension === "csv") {
+    return rowsToRecords(parseCsv(await file.text()));
+  }
+
+  if (extension !== "xlsx") {
+    throw new Error("Only .xlsx and .csv files are supported");
+  }
+
+  const { default: ExcelJS } = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  const spreadsheetData = await file.arrayBuffer();
+  await workbook.xlsx.load(
+    spreadsheetData as Parameters<typeof workbook.xlsx.load>[0]
+  );
+  const worksheet = workbook.worksheets[0];
+
+  if (!worksheet) {
+    return [];
+  }
+
+  const table: string[][] = [];
+  worksheet.eachRow({ includeEmpty: false }, (sheetRow) => {
+    const values: string[] = [];
+    for (let column = 1; column <= sheetRow.cellCount; column += 1) {
+      values.push(sheetRow.getCell(column).text);
+    }
+    table.push(values);
+  });
+
+  return rowsToRecords(table);
+};
 
 export default function LeadImportPage() {
   const navigate =
@@ -175,87 +265,46 @@ export default function LeadImportPage() {
           file.name
         );
 
-        const buffer =
-          await file.arrayBuffer();
-
-        const workbook =
-          XLSX.read(
-            buffer,
-            {
-              type: "array",
-            }
-          );
-
-        const sheetName =
-          workbook.SheetNames[0];
-
-        const sheet =
-          workbook.Sheets[
-            sheetName
-          ];
-
         const rawRows =
-          XLSX.utils.sheet_to_json<
-            Record<
-              string,
-              any
-            >
-          >(sheet, {
-            defval: "",
-          });
+          await readImportFile(file);
 
         const parsedRows =
           rawRows.map(
             (row) => ({
               name:
                 String(
-                  row.name ||
-                    row.Name ||
-                    ""
+                  row.name || ""
                 ).trim(),
 
               mobile:
                 String(
                   row.mobile ||
-                    row.Mobile ||
-                    row.phone ||
-                    row.Phone ||
-                    ""
+                    row.phone || ""
                 ).trim(),
 
               email:
                 String(
-                  row.email ||
-                    row.Email ||
-                    ""
+                  row.email || ""
                 ).trim(),
 
               city:
                 String(
-                  row.city ||
-                    row.City ||
-                    ""
+                  row.city || ""
                 ).trim(),
 
               state:
                 String(
-                  row.state ||
-                    row.State ||
-                    ""
+                  row.state || ""
                 ).trim(),
 
               address:
                 String(
-                  row.address ||
-                    row.Address ||
-                    ""
+                  row.address || ""
                 ).trim(),
 
               remarks:
                 String(
-                  row.remarks ||
-                    row.Remarks ||
-                    ""
+                  row.remarks || ""
                 ).trim(),
             })
           );
@@ -413,7 +462,7 @@ export default function LeadImportPage() {
 
             <input
               type="file"
-              accept=".xlsx,.xls,.csv"
+              accept=".xlsx,.csv"
               className="hidden"
               onChange={(e) => {
                 const file =

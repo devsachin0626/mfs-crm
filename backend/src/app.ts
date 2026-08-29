@@ -1,9 +1,10 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 
 import authRoutes from "./routes/auth.routes";
 import employeeRoutes from "./routes/employee.routes";
-import path from "path";
 import leadRoutes from "./routes/lead.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import clientRoutes from "./routes/client.routes";
@@ -30,6 +31,8 @@ import roleRoutes from "./routes/role.routes";
 import reportRoutes from "./routes/report.routes";
 import settingsRoutes from "./routes/settings.routes";
 import demoProductRoutes from "./routes/demo-product.routes";
+import { allowedCorsOrigins, requestBodyLimit } from "./config/env";
+import { uploadsDirectory } from "./config/paths";
 
 
 
@@ -52,10 +55,37 @@ import demoProductRoutes from "./routes/demo-product.routes";
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.disable("x-powered-by");
+app.set("trust proxy", process.env.TRUST_PROXY === "true" ? 1 : false);
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedCorsOrigins().includes(origin.replace(/\/$/, ""))) {
+        callback(null, true);
+        return;
+      }
+
+      const error = new Error("Origin is not allowed by CORS policy") as Error & {
+        statusCode: number;
+      };
+      error.statusCode = 403;
+      callback(error);
+    },
+  })
+);
+app.use(
+  rateLimit({
+    windowMs: 60 * 1000,
+    limit: Number(process.env.API_RATE_LIMIT_PER_MINUTE || 600),
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { success: false, message: "Too many requests. Please try again shortly." },
+  })
+);
+app.use(express.json({ limit: requestBodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
+app.use("/uploads", express.static(uploadsDirectory, { index: false, fallthrough: false }));
 app.use("/api/leads", leadRoutes);
 
 
@@ -118,6 +148,10 @@ app.get("/", (req, res) => {
     success: true,
     message: "MFS CRM Backend Running Successfully 🚀",
   });
+});
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ success: true, status: "ok" });
 });
 
 app.use((req, res) => {

@@ -17,6 +17,7 @@ import {
   BriefcaseBusiness,
   Building2,
   CalendarDays,
+  LogIn,
   Mail,
   MapPin,
   Pencil,
@@ -35,9 +36,22 @@ import {
 } from "../../store/slices/employeeDetailsSlice";
 
 import {
+  setCredentials,
+} from "../../store/slices/authSlice";
+
+import {
   deactivateEmployee,
   restoreEmployee,
 } from "../../services/employee.service";
+
+import {
+  impersonateEmployee,
+} from "../../services/auth.service";
+
+import {
+  saveImpersonationSession,
+  setToken,
+} from "../../utils/auth";
 
 import EmployeeAttendanceTab from "../../features/attendance/EmployeeAttendanceTab";
 import EmployeeLeaveTab from "../../features/leave/EmployeeLeaveTab";
@@ -54,6 +68,9 @@ export default function EmployeeDetailsPage() {
   const [statusUpdating, setStatusUpdating] =
     useState(false);
 
+  const [impersonating, setImpersonating] =
+    useState(false);
+
   const [activeTab, setActiveTab] =
     useState("Overview");
 
@@ -65,6 +82,12 @@ export default function EmployeeDetailsPage() {
     (state) =>
       state.employeeDetails
   );
+
+  const currentAuth =
+    useAppSelector(
+      (state) =>
+        state.auth
+    );
 
   useEffect(() => {
     if (id) {
@@ -171,6 +194,76 @@ export default function EmployeeDetailsPage() {
       }
     };
 
+  const handleImpersonate =
+    async () => {
+      if (
+        !employee ||
+        !currentAuth
+          .employee ||
+        !currentAuth.token
+      ) {
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          `Login as ${employee.name}? You will use this employee's CRM permissions until you return to Admin.`
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setImpersonating(
+          true
+        );
+
+        const response =
+          await impersonateEmployee(
+            employee.id
+          );
+
+        saveImpersonationSession({
+          token:
+            currentAuth.token,
+
+          employee:
+            currentAuth.employee,
+        });
+
+        setToken(
+          response.token
+        );
+
+        dispatch(
+          setCredentials({
+            token:
+              response.token,
+
+            employee:
+              response.employee,
+          })
+        );
+
+        window.location.href =
+          "/dashboard";
+      } catch (
+        error: any
+      ) {
+        alert(
+          error?.response
+            ?.data
+            ?.message ||
+            "Login as employee failed"
+        );
+      } finally {
+        setImpersonating(
+          false
+        );
+      }
+    };
+
   const tabs = [
     "Overview",
     "Attendance",
@@ -213,7 +306,36 @@ export default function EmployeeDetailsPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {currentAuth
+            .employee
+            ?.role ===
+              "ADMIN" &&
+            employee.id !==
+              currentAuth
+                .employee
+                .id &&
+            employee.isActive && (
+              <button
+                type="button"
+                onClick={
+                  handleImpersonate
+                }
+                disabled={
+                  impersonating
+                }
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-medium text-amber-950 hover:bg-amber-600 disabled:opacity-60"
+              >
+                <LogIn
+                  size={17}
+                />
+
+                {impersonating
+                  ? "Logging in..."
+                  : "Login as Employee"}
+              </button>
+            )}
+
           <button
             type="button"
             onClick={

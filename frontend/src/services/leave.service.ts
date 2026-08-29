@@ -46,8 +46,6 @@ export const updateLeave = async (
     fromDate?: string;
     toDate?: string;
     reason?: string;
-    status?: string;
-    approvedById?: string;
   }
 ) => {
   const response = await api.put(
@@ -60,14 +58,13 @@ export const updateLeave = async (
 
 export const approveRejectLeave = async (
   id: string,
-  data: {
-    status: "APPROVED" | "REJECTED";
-    approvedById: string;
-  }
+  status: "APPROVED" | "REJECTED"
 ) => {
   const response = await api.put(
     `/leaves/${id}/approve`,
-    data
+    {
+      status,
+    }
   );
 
   return response.data;

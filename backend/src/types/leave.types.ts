@@ -39,13 +39,6 @@ export interface UpdateLeaveRequest {
     | Date;
 
   reason?: string;
-
-  status?:
-    LeaveStatusValue;
-
-  approvedById?:
-    | string
-    | null;
 }
 
 /* ============================

@@ -1,11 +1,27 @@
 import api from "./api";
 
 import type {
+  AllocateLeadPoolRequest,
+  AllocateLeadPoolResponse,
   BulkActionResponse,
   BulkAssignRequest,
   BulkStageRequest,
   BulkStatusRequest,
 } from "../types/leadBulk.types";
+
+export const allocateLeadsFromPool =
+  async (
+    data:
+      AllocateLeadPoolRequest
+  ): Promise<AllocateLeadPoolResponse> => {
+    const response =
+      await api.patch<AllocateLeadPoolResponse>(
+        "/leads/bulk/allocate",
+        data
+      );
+
+    return response.data;
+  };
 
 export const bulkAssignLeads =
   async (

@@ -788,16 +788,6 @@ export const updateLeave =
             undefined
               ? data.reason.trim()
               : leave.reason,
-
-          status:
-            data.status ??
-            leave.status,
-
-          approvedById:
-            data.approvedById !==
-            undefined
-              ? data.approvedById
-              : leave.approvedById,
         },
 
         include: {
@@ -1018,41 +1008,66 @@ export const approveRejectLeave =
     ============================ */
 
     const updatedLeave =
-      await prisma.leave.update({
-        where: {
-          id,
-        },
+      await prisma.$transaction(
+        async (
+          transaction
+        ) => {
+          const result =
+            await transaction.leave.updateMany({
+              where: {
+                id,
 
-        data: {
-          status,
+                status:
+                  "PENDING",
+              },
 
-          approvedById,
-        },
+              data: {
+                status,
 
-        include: {
-          employee: {
-            select: {
-              id: true,
+                approvedById,
+              },
+            });
 
-              employeeCode:
-                true,
+          if (
+            result.count ===
+            0
+          ) {
+            throw new Error(
+              "Leave has already been processed"
+            );
+          }
 
-              name: true,
+          return transaction.leave.findUnique({
+            where: {
+              id,
             },
-          },
 
-          approvedBy: {
-            select: {
-              id: true,
+            include: {
+              employee: {
+                select: {
+                  id: true,
 
-              employeeCode:
-                true,
+                  employeeCode:
+                    true,
 
-              name: true,
+                  name: true,
+                },
+              },
+
+              approvedBy: {
+                select: {
+                  id: true,
+
+                  employeeCode:
+                    true,
+
+                  name: true,
+                },
+              },
             },
-          },
-        },
-      });
+          });
+        }
+      );
 
     return {
       success: true,

@@ -57,6 +57,69 @@ export const getEmployeeById = async (
 
 };
 
+export const getOwnProfile = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const result =
+      await employeeService.getEmployeeById(
+        req.employee!.id
+      );
+
+    res.status(200).json(
+      result
+    );
+  } catch (error: any) {
+    res.status(404).json({
+      success: false,
+      message:
+        error.message ||
+        "Profile Not Found",
+    });
+  }
+};
+
+export const updateOwnProfile = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const {
+      name,
+      mobile,
+      email,
+      gender,
+      dateOfBirth,
+      address,
+    } = req.body;
+
+    const result =
+      await employeeService.updateOwnProfile(
+        req.employee!.id,
+        {
+          name,
+          mobile,
+          email,
+          gender,
+          dateOfBirth,
+          address,
+        }
+      );
+
+    res.status(200).json(
+      result
+    );
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      message:
+        error.message ||
+        "Profile Update Failed",
+    });
+  }
+};
+
 export const updateEmployee = async (
   req: AuthRequest,
   res: Response
@@ -173,4 +236,3 @@ export const resetEmployeePassword = async (
     });
   }
 };
-

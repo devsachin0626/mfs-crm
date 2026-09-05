@@ -69,9 +69,6 @@ const roleName = (() => {
 
   return "";
 })();
-const isEmployee =
-  roleName === "EMPLOYEE";
-
 const canAssign =
   roleName === "ADMIN" ||
   roleName === "HR" ||
@@ -155,9 +152,19 @@ const canAssign =
 
     setError("");
 
-    if (!form.mobile.trim()) {
+    const mobile =
+      form.mobile.replace(/\D/g, "");
+
+    if (!mobile) {
       setError(
         "Mobile number is required"
+      );
+      return;
+    }
+
+    if (!/^[6-9]\d{9}$/.test(mobile)) {
+      setError(
+        "Enter a valid 10 digit mobile number"
       );
       return;
     }
@@ -171,7 +178,7 @@ const canAssign =
           undefined,
 
         mobile:
-          form.mobile.trim(),
+          mobile,
 
         email:
           form.email.trim() ||
@@ -301,33 +308,21 @@ assignedEmployeeId:
 >
   <input
     value={form.mobile}
-    readOnly={
-      isEmployee
-    }
+    type="tel"
+    inputMode="numeric"
+    maxLength={10}
     onChange={(e) => {
-      if (isEmployee) {
-        return;
-      }
-
       setForm((prev) => ({
         ...prev,
         mobile:
-          e.target.value,
+          e.target.value
+            .replace(/\D/g, "")
+            .slice(0, 10),
       }));
     }}
-    className={
-      isEmployee
-        ? `${inputClass} cursor-not-allowed bg-slate-100 text-slate-500`
-        : inputClass
-    }
-    placeholder="Mobile number"
+    className={inputClass}
+    placeholder="10 digit mobile number"
   />
-
-  {isEmployee && (
-    <p className="mt-1.5 text-xs text-slate-500">
-      Mobile number cannot be changed.
-    </p>
-  )}
 </Field>
 
               <Field label="Email">

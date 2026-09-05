@@ -1188,18 +1188,23 @@ export const updateLead = async (
     roleName === "EMPLOYEE";
 
   /* ============================
-     EMPLOYEE RESTRICTIONS
+     IMMUTABLE MOBILE
   ============================ */
 
   if (
-    isEmployee &&
     data.mobile !== undefined &&
-    data.mobile !== lead.mobile
+    normalizeLeadMobile(
+      data.mobile
+    ) !== lead.mobile
   ) {
     throw new Error(
-      "Employee cannot change lead mobile number"
+      "Mobile number cannot be changed after lead creation"
     );
   }
+
+  /* ============================
+     EMPLOYEE RESTRICTIONS
+  ============================ */
 
   if (
     isEmployee &&
@@ -1287,15 +1292,6 @@ export const updateLead = async (
       data: {
         name:
           data.name,
-
-        /*
-         Employee mobile cannot change.
-         For employee preserve DB value.
-        */
-        mobile:
-          isEmployee
-            ? lead.mobile
-            : data.mobile,
 
         email:
           data.email,

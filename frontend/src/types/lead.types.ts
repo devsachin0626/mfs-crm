@@ -192,8 +192,6 @@ export interface CreateLeadRequest {
 export interface UpdateLeadRequest {
   name?: string;
 
-  mobile?: string;
-
   email?: string;
 
   city?: string;

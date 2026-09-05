@@ -76,10 +76,6 @@ export default function LeadEditPage() {
     return "";
   })();
 
-  const isEmployee =
-    roleName ===
-    "EMPLOYEE";
-
   const canAssign =
     roleName ===
       "ADMIN" ||
@@ -306,16 +302,6 @@ export default function LeadEditPage() {
               form.name.trim() ||
               undefined,
 
-            /*
-             Employee mobile
-             backend + frontend
-             locked.
-            */
-            mobile:
-              isEmployee
-                ? undefined
-                : form.mobile.trim(),
-
             email:
               form.email.trim() ||
               undefined,
@@ -484,35 +470,14 @@ export default function LeadEditPage() {
               value={
                 form.mobile
               }
-              readOnly={
-                isEmployee
-              }
-              onChange={(e) => {
-                if (
-                  isEmployee
-                ) {
-                  return;
-                }
-
-                handleChange(
-                  "mobile",
-                  e.target
-                    .value
-                );
-              }}
-              className={
-                isEmployee
-                  ? `${inputClass} cursor-not-allowed bg-slate-100 text-slate-500`
-                  : inputClass
-              }
+              readOnly
+              className={`${inputClass} cursor-not-allowed bg-slate-100 text-slate-500`}
               placeholder="Mobile number"
             />
 
-            {isEmployee && (
-              <p className="mt-1.5 text-xs text-slate-500">
-                Mobile number cannot be changed.
-              </p>
-            )}
+            <p className="mt-1.5 text-xs text-slate-500">
+              Mobile number cannot be changed after lead creation.
+            </p>
           </Field>
 
           <Field label="Email">

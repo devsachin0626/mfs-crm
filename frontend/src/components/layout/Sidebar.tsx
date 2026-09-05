@@ -23,6 +23,7 @@ import {
   Phone,
   Columns3,
   FlaskConical,
+  CircleUserRound,
 } from "lucide-react";
 
 import {
@@ -163,6 +164,17 @@ export default function Sidebar() {
 
         icon:
           LayoutDashboard,
+      },
+
+      {
+        label:
+          "My Profile",
+
+        path:
+          "/profile",
+
+        icon:
+          CircleUserRound,
       },
 
       {

@@ -40,6 +40,57 @@ import {
 
 type ImportFileRow = Record<string, string>;
 
+const IMPORT_HEADER_ALIASES: Record<
+  string,
+  string
+> = {
+  name: "name",
+  leadname: "name",
+  customername: "name",
+  clientname: "name",
+  fullname: "name",
+
+  mobile: "mobile",
+  mobileno: "mobile",
+  mobilenumber: "mobile",
+  phone: "mobile",
+  phoneno: "mobile",
+  phonenumber: "mobile",
+  contact: "mobile",
+  contactno: "mobile",
+  contactnumber: "mobile",
+
+  email: "email",
+  emailid: "email",
+  emailaddress: "email",
+  city: "city",
+  location: "city",
+  state: "state",
+  address: "address",
+  fulladdress: "address",
+  remarks: "remarks",
+  remark: "remarks",
+  notes: "remarks",
+  note: "remarks",
+};
+
+const normalizeImportHeader = (
+  value: string
+) => {
+  const normalized =
+    value
+      .replace(/^\uFEFF/, "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+  return (
+    IMPORT_HEADER_ALIASES[
+      normalized
+    ] || ""
+  );
+};
+
 const parseCsv = (content: string): string[][] => {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -83,16 +134,75 @@ const parseCsv = (content: string): string[][] => {
 };
 
 const rowsToRecords = (table: string[][]): ImportFileRow[] => {
-  const [headerRow = [], ...dataRows] = table;
-  const headers = headerRow.map((header) =>
-    header.replace(/^\uFEFF/, "").trim().toLowerCase()
-  );
+  const headerCandidates =
+    table
+      .slice(0, 20)
+      .map((row, index) => ({
+        index,
+        headers:
+          row.map(
+            normalizeImportHeader
+          ),
+      }))
+      .map((candidate) => ({
+        ...candidate,
+        score:
+          candidate.headers.filter(
+            Boolean
+          ).length,
+      }))
+      .filter((candidate) =>
+        candidate.headers.includes(
+          "mobile"
+        )
+      )
+      .sort(
+        (first, second) =>
+          second.score -
+          first.score
+      );
 
-  return dataRows.map((values) =>
-    Object.fromEntries(
-      headers.map((header, index) => [header, values[index]?.trim() || ""])
-    )
-  );
+  const header =
+    headerCandidates[0];
+
+  if (!header) {
+    throw new Error(
+      "Mobile column not found. Use Mobile, Mobile Number, Phone Number or Contact Number as the heading."
+    );
+  }
+
+  const headers =
+    header.headers;
+
+  const dataRows =
+    table.slice(
+      header.index + 1
+    );
+
+  return dataRows
+    .map((values) => {
+      return Object.fromEntries(
+        headers
+          .map((header, index) => [
+            header,
+            values[index]
+              ?.trim() || "",
+          ])
+          .filter(
+            ([header]) =>
+              Boolean(
+                header
+              )
+          )
+      ) as ImportFileRow;
+    })
+    .filter((row) =>
+      Object.values(
+        row
+      ).some((value) =>
+        value.trim()
+      )
+    );
 };
 
 const readImportFile = async (file: File): Promise<ImportFileRow[]> => {

@@ -332,6 +332,135 @@ export const getEmployeeById = async (id: string) => {
 };
 };
 
+export const updateOwnProfile = async (
+  employeeId: string,
+  data: Pick<
+    UpdateEmployeeRequest,
+    | "name"
+    | "mobile"
+    | "email"
+    | "gender"
+    | "dateOfBirth"
+    | "address"
+  >
+) => {
+  const name =
+    data.name?.trim();
+
+  const mobile =
+    data.mobile?.replace(
+      /\D/g,
+      ""
+    );
+
+  const email =
+    data.email?.trim() ||
+    undefined;
+
+  if (!name) {
+    throw new Error(
+      "Name is required"
+    );
+  }
+
+  if (
+    !mobile ||
+    !/^[6-9]\d{9}$/.test(
+      mobile
+    )
+  ) {
+    throw new Error(
+      "Enter a valid 10 digit mobile number"
+    );
+  }
+
+  const duplicate =
+    await prisma.employee.findFirst({
+      where: {
+        id: {
+          not:
+            employeeId,
+        },
+
+        OR: [
+          {
+            mobile,
+          },
+
+          ...(email
+            ? [
+                {
+                  email,
+                },
+              ]
+            : []),
+        ],
+      },
+
+      select: {
+        mobile: true,
+        email: true,
+      },
+    });
+
+  if (
+    duplicate?.mobile ===
+    mobile
+  ) {
+    throw new Error(
+      "Mobile Number already exists"
+    );
+  }
+
+  if (
+    email &&
+    duplicate?.email ===
+      email
+  ) {
+    throw new Error(
+      "Email already exists"
+    );
+  }
+
+  await prisma.employee.update({
+    where: {
+      id:
+        employeeId,
+    },
+
+    data: {
+      name,
+      mobile,
+      email:
+        email ?? null,
+      gender:
+        data.gender,
+      dateOfBirth:
+        data.dateOfBirth
+          ? new Date(
+              data.dateOfBirth
+            )
+          : null,
+      address:
+        data.address?.trim() ||
+        null,
+      updatedById:
+        employeeId,
+    },
+  });
+
+  const result =
+    await getEmployeeById(
+      employeeId
+    );
+
+  return {
+    ...result,
+    message:
+      "Profile Updated Successfully",
+  };
+};
+
 export const updateEmployee = async (
   id: string,
   data: UpdateEmployeeRequest,
@@ -652,4 +781,3 @@ export const resetEmployeePassword = async (
     message: "Employee Password Reset Successfully",
   };
 };
-

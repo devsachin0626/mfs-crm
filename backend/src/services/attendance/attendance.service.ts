@@ -1634,6 +1634,14 @@ const isFuture =
         calendar.push({
           ...attendance,
 
+          /*
+           * Attendance date is a date-only value.
+           * Returning a Date object converts local midnight to UTC
+           * during JSON serialization and can shift it one day back.
+           */
+          attendanceDate:
+            key,
+
           source:
             "ATTENDANCE",
         });
@@ -1664,7 +1672,7 @@ const isFuture =
           employeeId,
 
           attendanceDate:
-            date,
+            key,
 
           status:
             "HOLIDAY",
@@ -1711,7 +1719,7 @@ const isFuture =
           employeeId,
 
           attendanceDate:
-            date,
+            key,
 
           status:
             "HOLIDAY",
@@ -1761,7 +1769,7 @@ const isFuture =
           employeeId,
 
           attendanceDate:
-            date,
+            key,
 
           status:
             "LEAVE",
@@ -1806,7 +1814,7 @@ const isFuture =
           employeeId,
 
           attendanceDate:
-            date,
+            key,
 
           status:
             null,
@@ -1851,7 +1859,7 @@ const isFuture =
         employeeId,
 
         attendanceDate:
-          date,
+          key,
 
         status:
           "ABSENT",
@@ -1913,10 +1921,14 @@ const isFuture =
        */
 
       cycleStart:
-        startDate,
+        dateKey(
+          startDate
+        ),
 
       cycleEnd:
-        endDate,
+        dateKey(
+          endDate
+        ),
 
       summary: {
         totalRecords:

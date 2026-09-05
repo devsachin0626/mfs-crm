@@ -423,6 +423,53 @@ const checkAttendanceEmployeeAccess =
     }
   };
 
+export const getAttendanceEmployeeOptions =
+  async (
+    currentEmployee: CurrentEmployee
+  ) => {
+    const allowedIds =
+      await getAttendanceEmployeeIds(
+        currentEmployee
+      );
+
+    const employees =
+      await prisma.employee.findMany({
+        where: {
+          isActive: true,
+          status:
+            "ACTIVE",
+          ...(allowedIds === null
+            ? {}
+            : {
+                id: {
+                  in:
+                    allowedIds,
+                },
+              }),
+        },
+        select: {
+          id: true,
+          employeeCode: true,
+          name: true,
+        },
+        orderBy: [
+          {
+            name:
+              "asc",
+          },
+          {
+            employeeCode:
+              "asc",
+          },
+        ],
+      });
+
+    return {
+      success: true,
+      employees,
+    };
+  };
+
 /* ============================
    CHECK IN
 ============================ */

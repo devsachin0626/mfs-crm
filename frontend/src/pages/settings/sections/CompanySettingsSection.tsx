@@ -35,6 +35,7 @@ import {
 ============================ */
 
 const COMPANY_KEYS: SettingKey[] = [
+  "CRM_DISPLAY_NAME",
   "COMPANY_NAME",
   "COMPANY_PHONE",
   "COMPANY_EMAIL",
@@ -215,6 +216,36 @@ export default function CompanySettingsSection() {
         title="Company Profile"
         description="These details can be used in reports, headers and other company-level screens."
       >
+        {/* CRM DISPLAY NAME */}
+
+        <SettingRow
+          title="CRM Display Name"
+          description="Short name shown at the top and bottom of the sidebar. Only Admin can edit it."
+        >
+          <input
+            type="text"
+            maxLength={40}
+            value={
+              getValue(
+                "CRM_DISPLAY_NAME"
+              )
+            }
+            onChange={(
+              event
+            ) =>
+              handleChange(
+                "CRM_DISPLAY_NAME",
+                event.target
+                  .value
+              )
+            }
+            placeholder="MFS CRM"
+            className={
+              inputClass
+            }
+          />
+        </SettingRow>
+
         {/* COMPANY NAME */}
 
         <SettingRow
@@ -349,10 +380,17 @@ export default function CompanySettingsSection() {
             <div className="min-w-0">
               <h3 className="text-lg font-bold text-slate-900">
                 {getValue(
+                  "CRM_DISPLAY_NAME"
+                ) ||
+                  "MFS CRM"}
+              </h3>
+
+              <p className="mt-0.5 text-sm font-medium text-slate-600">
+                {getValue(
                   "COMPANY_NAME"
                 ) ||
                   "Company Name"}
-              </h3>
+              </p>
 
               <div className="mt-2 space-y-1 text-sm text-slate-500">
                 <p>

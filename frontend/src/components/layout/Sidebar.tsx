@@ -389,12 +389,12 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="flex min-h-screen w-64 flex-col bg-blue-900 text-white">
+    <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-hidden border-r border-blue-800 bg-blue-950 text-white shadow-xl shadow-slate-900/10">
       {/* ============================
           BRAND
       ============================ */}
 
-      <div className="border-b border-blue-700 p-5">
+      <div className="shrink-0 border-b border-blue-800 p-5">
         <h1 className="text-2xl font-bold">
           MFS CRM
         </h1>
@@ -408,7 +408,7 @@ export default function Sidebar() {
           USER
       ============================ */}
 
-      <div className="border-b border-blue-800 px-5 py-4">
+      <div className="shrink-0 border-b border-blue-800 px-5 py-4">
         <p className="truncate text-sm font-semibold text-white">
           {employee?.name ||
             "Employee"}
@@ -424,7 +424,7 @@ export default function Sidebar() {
           NAVIGATION
       ============================ */}
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-4">
         {visibleMenuItems.map(
           (item) => {
             const Icon =
@@ -471,7 +471,7 @@ export default function Sidebar() {
           FOOTER
       ============================ */}
 
-      <div className="border-t border-blue-800 p-4">
+      <div className="shrink-0 border-t border-blue-800 p-4">
         <p className="text-center text-xs text-blue-300">
           MFS CRM
         </p>

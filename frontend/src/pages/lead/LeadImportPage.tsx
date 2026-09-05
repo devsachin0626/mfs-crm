@@ -59,6 +59,7 @@ const IMPORT_HEADER_ALIASES: Record<
   contact: "mobile",
   contactno: "mobile",
   contactnumber: "mobile",
+  number: "mobile",
 
   email: "email",
   emailid: "email",
@@ -166,9 +167,84 @@ const rowsToRecords = (table: string[][]): ImportFileRow[] => {
     headerCandidates[0];
 
   if (!header) {
-    throw new Error(
-      "Mobile column not found. Use Mobile, Mobile Number, Phone Number or Contact Number as the heading."
-    );
+    const maximumColumns =
+      Math.max(
+        0,
+        ...table.map(
+          (row) =>
+            row.length
+        )
+      );
+
+    const mobileColumnScores =
+      Array.from(
+        {
+          length:
+            maximumColumns,
+        },
+        (_, columnIndex) => ({
+          columnIndex,
+          score:
+            table.filter(
+              (row) => {
+                const digits =
+                  String(
+                    row[
+                      columnIndex
+                    ] || ""
+                  ).replace(
+                    /\D/g,
+                    ""
+                  );
+
+                return (
+                  digits.length >=
+                    10 &&
+                  digits.length <=
+                    13
+                );
+              }
+            ).length,
+        })
+      ).sort(
+        (first, second) =>
+          second.score -
+          first.score
+      );
+
+    const mobileColumn =
+      mobileColumnScores[0];
+
+    if (
+      !mobileColumn ||
+      mobileColumn.score ===
+        0
+    ) {
+      throw new Error(
+        "Mobile column not found. Add a Mobile Number heading or upload a column containing 10 digit mobile numbers."
+      );
+    }
+
+    return table
+      .map((values) => ({
+        mobile:
+          values[
+            mobileColumn
+              .columnIndex
+          ]?.trim() || "",
+      }))
+      .filter((row) => {
+        const digits =
+          row.mobile.replace(
+            /\D/g,
+            ""
+          );
+
+        return (
+          digits.length >= 10 &&
+          digits.length <= 13
+        );
+      });
   }
 
   const headers =
@@ -441,6 +517,7 @@ export default function LeadImportPage() {
         setError(
           error?.response
             ?.data?.message ||
+            error?.message ||
             "Failed to read file"
         );
       } finally {

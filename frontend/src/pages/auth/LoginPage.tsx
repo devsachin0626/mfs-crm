@@ -1,4 +1,8 @@
-import { useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useState,
+  type FormEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Card, Input, Button } from "../../components/ui";
@@ -7,6 +11,15 @@ import { login } from "../../services/auth.service";
 import { useAppDispatch } from "../../hooks/redux";
 import { setCredentials } from "../../store/slices/authSlice";
 import { setToken } from "../../utils/auth";
+import {
+  getBrandSettings,
+} from "../../services/settings.service";
+
+const DEFAULT_CRM_NAME =
+  "MFS CRM";
+
+const DEFAULT_COMPANY_NAME =
+  "Mahakal Financial Services";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -17,6 +30,38 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [brand, setBrand] =
+    useState({
+      crmDisplayName:
+        DEFAULT_CRM_NAME,
+      companyName:
+        DEFAULT_COMPANY_NAME,
+    });
+
+  useEffect(() => {
+    const loadBrand = async () => {
+      try {
+        const response =
+          await getBrandSettings();
+
+        setBrand({
+          crmDisplayName:
+            response.brand
+              .crmDisplayName ||
+            DEFAULT_CRM_NAME,
+          companyName:
+            response.brand
+              .companyName ||
+            DEFAULT_COMPANY_NAME,
+        });
+      } catch {
+        // Safe defaults keep login available if branding fails.
+      }
+    };
+
+    void loadBrand();
+  }, []);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -79,11 +124,11 @@ export default function LoginPage() {
           {/* Header */}
           <div className="mb-8 text-center">
             <h1 className="text-3xl font-bold text-blue-700">
-              MFS CRM
+              {brand.crmDisplayName}
             </h1>
 
             <p className="mt-2 text-gray-600">
-              Mahakal Financial Services
+              {brand.companyName}
             </p>
 
             <p className="text-sm text-gray-500">
@@ -147,7 +192,7 @@ export default function LoginPage() {
           <div className="mt-8 text-center text-xs text-gray-500">
             Version 1.0
             <br />
-            © Mahakal Financial Services
+            © {brand.companyName}
           </div>
         </div>
       </Card>

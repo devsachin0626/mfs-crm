@@ -67,6 +67,17 @@ type LeaderboardItem = {
   progress?: number;
 };
 
+const callOutcomeOptions = [
+  ["CONNECTED", "Connected"],
+  ["NO_ANSWER", "No Answer"],
+  ["BUSY", "Busy"],
+  ["CALL_BACK", "Call Back"],
+  ["INTERESTED", "Interested"],
+  ["DEMO", "Demo"],
+  ["NOT_INTERESTED", "Not Interested"],
+  ["WRONG_NUMBER", "Wrong Number"],
+] as const;
+
 export default function DashboardPage() {
   const dispatch =
     useAppDispatch();
@@ -482,6 +493,51 @@ export default function DashboardPage() {
           }
         />
       </div>
+
+      {/* ============================
+          TODAY'S CALL OUTCOMES
+      ============================ */}
+
+      <DashboardCard
+        title="Today's Call Outcomes"
+        subtitle="Today’s saved calling results"
+        action={
+          <button
+            type="button"
+            onClick={() =>
+              navigate(
+                "/calling"
+              )
+            }
+            className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 hover:text-blue-800"
+          >
+            Open Calling
+
+            <ArrowRight
+              size={15}
+            />
+          </button>
+        }
+      >
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+          {callOutcomeOptions.map(
+            ([value, label]) => (
+              <MiniMetric
+                key={value}
+                label={label}
+                value={
+                  loading
+                    ? "-"
+                    : stats
+                        ?.callOutcomesToday
+                        ?.[value] ??
+                      0
+                }
+              />
+            )
+          )}
+        </div>
+      </DashboardCard>
 
       {/* ============================
           PIPELINE + TODAY

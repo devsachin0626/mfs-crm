@@ -56,6 +56,9 @@ type MenuItem = {
 const DEFAULT_COMPANY_NAME =
   "Mahakal Financial Services";
 
+const DEFAULT_CRM_NAME =
+  "MFS CRM";
+
 /* ============================
    SIDEBAR
 ============================ */
@@ -85,6 +88,14 @@ export default function Sidebar() {
       DEFAULT_COMPANY_NAME
     );
 
+  const [
+    crmName,
+    setCrmName,
+  ] =
+    useState(
+      DEFAULT_CRM_NAME
+    );
+
   /* ============================
      LOAD BRAND
   ============================ */
@@ -101,6 +112,12 @@ export default function Sidebar() {
               ?.companyName ||
               DEFAULT_COMPANY_NAME
           );
+
+          setCrmName(
+            response?.brand
+              ?.crmDisplayName ||
+              DEFAULT_CRM_NAME
+          );
         } catch {
           /*
            * Brand API fail hone par
@@ -109,6 +126,10 @@ export default function Sidebar() {
 
           setCompanyName(
             DEFAULT_COMPANY_NAME
+          );
+
+          setCrmName(
+            DEFAULT_CRM_NAME
           );
         }
       };
@@ -408,7 +429,7 @@ export default function Sidebar() {
 
       <div className="shrink-0 border-b border-blue-800 p-5">
         <h1 className="text-2xl font-bold">
-          MFS CRM
+          {crmName}
         </h1>
 
         <p className="mt-1 truncate text-sm text-blue-200">
@@ -485,7 +506,7 @@ export default function Sidebar() {
 
       <div className="shrink-0 border-t border-blue-800 p-4">
         <p className="text-center text-xs text-blue-300">
-          MFS CRM
+          {crmName}
         </p>
       </div>
     </aside>

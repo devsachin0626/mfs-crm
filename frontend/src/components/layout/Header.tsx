@@ -16,6 +16,8 @@ export default function Header() {
   const pageTitle =
     location.pathname === "/dashboard"
       ? "Dashboard"
+      : location.pathname === "/profile"
+      ? "My Profile"
       : location.pathname.startsWith("/leads")
       ? "Lead Management"
       : location.pathname.startsWith("/clients")

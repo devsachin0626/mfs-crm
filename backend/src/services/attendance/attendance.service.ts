@@ -1536,6 +1536,26 @@ export const monthlyAttendanceReport =
         startDate
       );
 
+    /*
+     * Weekly-off "First Saturday" belongs to the payroll cycle,
+     * not to the calendar month. For a 26 Aug → 25 Sep cycle,
+     * this resolves to 29 Aug (not 5 Sep).
+     */
+    const firstSaturday =
+      addDays(
+        startDate,
+        (
+          6 -
+          startDate.getDay() +
+          7
+        ) % 7
+      );
+
+    const firstSaturdayKey =
+      dateKey(
+        firstSaturday
+      );
+
     while (
       currentDate <
       endExclusive
@@ -1569,8 +1589,8 @@ const isSunday =
   0;
 
 const isFirstSaturday =
-  date.getDay() === 6 &&
-  date.getDate() <= 7;
+  key ===
+  firstSaturdayKey;
 
 const isWeeklyOff =
   isSunday ||

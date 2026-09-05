@@ -28,26 +28,21 @@ const router =
   Router();
 
 /* ============================
-   AUTHENTICATED USERS
-
-   Common CRM settings such as
-   company branding.
-============================ */
-
-router.use(
-  authenticate
-);
-
-/* ============================
    BRAND SETTINGS
 
-   ADMIN / HR / TL / EMPLOYEE
-   sab authenticated users.
+   Public read-only branding is
+   required by the login screen.
+   All update routes remain
+   ADMIN-only below.
 ============================ */
 
 router.get(
   "/brand",
   getBrandSettingsController
+);
+
+router.use(
+  authenticate
 );
 
 router.get(

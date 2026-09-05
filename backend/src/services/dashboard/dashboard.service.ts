@@ -187,6 +187,8 @@ export const getDashboardStats =
 
       interestedCallsToday,
 
+      callOutcomeGroups,
+
       recentLeads,
 
       hotLeads,
@@ -396,6 +398,35 @@ export const getDashboardStats =
               lt:
                 tomorrow,
             },
+          },
+        }),
+
+        /* TODAY'S CALL OUTCOMES */
+
+        prisma.leadHistory.groupBy({
+          by: [
+            "callOutcome",
+          ],
+
+          where: {
+            lead:
+              accessWhere,
+
+            callOutcome: {
+              not: null,
+            },
+
+            createdAt: {
+              gte:
+                today,
+
+              lt:
+                tomorrow,
+            },
+          },
+
+          _count: {
+            _all: true,
           },
         }),
 
@@ -611,6 +642,31 @@ export const getDashboardStats =
             ).toFixed(1)
           )
         : 0;
+
+    const callOutcomesToday:
+      Record<string, number> = {
+        CONNECTED: 0,
+        NO_ANSWER: 0,
+        BUSY: 0,
+        CALL_BACK: 0,
+        INTERESTED: 0,
+        DEMO: 0,
+        NOT_INTERESTED: 0,
+        WRONG_NUMBER: 0,
+      };
+
+    callOutcomeGroups.forEach(
+      (item) => {
+        if (
+          item.callOutcome
+        ) {
+          callOutcomesToday[
+            item.callOutcome
+          ] =
+            item._count._all;
+        }
+      }
+    );
 
 
         /* ============================
@@ -898,6 +954,8 @@ const leaderboard =
     callProgress,
 
     connectRate,
+
+    callOutcomesToday,
   },
 
   targets: {

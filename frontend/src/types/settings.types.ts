@@ -20,6 +20,7 @@ export type SettingValueType =
   | "TEXTAREA";
 
 export type SettingKey =
+  | "CRM_DISPLAY_NAME"
   | "COMPANY_NAME"
   | "COMPANY_PHONE"
   | "COMPANY_EMAIL"
@@ -86,6 +87,7 @@ export interface SettingsListResponse {
 
 export interface ControlPanelSettings {
   company: {
+    crmDisplayName: string;
     companyName: string;
     companyPhone: string;
     companyEmail: string;

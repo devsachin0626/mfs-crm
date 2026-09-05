@@ -1,13 +1,17 @@
-import {
-  Search,
-} from "lucide-react";
-
 /* ============================
    PROPS
 ============================ */
 
 type Props = {
-  search: string;
+  employeeId: string;
+
+  employees: {
+    id: string;
+    employeeCode: string;
+    name: string;
+  }[];
+
+  employeesLoading?: boolean;
 
   status: string;
 
@@ -15,9 +19,9 @@ type Props = {
 
   year: number;
 
-  showEmployeeSearch?: boolean;
+  showEmployeeDropdown?: boolean;
 
-  onSearchChange: (
+  onEmployeeChange: (
     value: string
   ) => void;
 
@@ -153,12 +157,14 @@ const formatDate = (
 ============================ */
 
 export default function AttendanceFilters({
-  search,
+  employeeId,
+  employees,
+  employeesLoading = false,
   status,
   month,
   year,
-  showEmployeeSearch = true,
-  onSearchChange,
+  showEmployeeDropdown = true,
+  onEmployeeChange,
   onStatusChange,
   onMonthChange,
   onYearChange,
@@ -183,44 +189,58 @@ export default function AttendanceFilters({
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div
         className={`grid gap-3 ${
-          showEmployeeSearch
+          showEmployeeDropdown
             ? "md:grid-cols-4"
             : "md:grid-cols-3"
         }`}
       >
         {/* ============================
-            EMPLOYEE SEARCH
+            EMPLOYEE DROPDOWN
         ============================ */}
 
-        {showEmployeeSearch && (
+        {showEmployeeDropdown && (
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
               Employee
             </label>
 
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-
-              <input
-                type="text"
+            <select
                 value={
-                  search
+                  employeeId
+                }
+                disabled={
+                  employeesLoading
                 }
                 onChange={(
                   event
                 ) =>
-                  onSearchChange(
+                  onEmployeeChange(
                     event.target
                       .value
                   )
                 }
-                placeholder="Search employee..."
-                className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+              >
+                <option
+                  value=""
+                  disabled
+                >
+                  {employeesLoading
+                    ? "Loading employees..."
+                    : "Select Employee"}
+                </option>
+
+                {employees.map(
+                  (item) => (
+                    <option
+                      key={item.id}
+                      value={item.id}
+                    >
+                      {item.name} ({item.employeeCode})
+                    </option>
+                  )
+                )}
+              </select>
           </div>
         )}
 

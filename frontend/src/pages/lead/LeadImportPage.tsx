@@ -326,6 +326,11 @@ export default function LeadImportPage() {
   ] = useState("");
 
   const [
+    pastedNumbers,
+    setPastedNumbers,
+  ] = useState("");
+
+  const [
     rows,
     setRows,
   ] =
@@ -525,6 +530,65 @@ export default function LeadImportPage() {
       }
     };
 
+  const handlePastedNumbers =
+    async () => {
+      const values =
+        pastedNumbers
+          .split(/[\s,;]+/)
+          .map((value) =>
+            value.trim()
+          )
+          .filter(Boolean);
+
+      if (!values.length) {
+        setError(
+          "Please paste at least one mobile number"
+        );
+        return;
+      }
+
+      const parsedRows:
+        LeadImportRow[] =
+        values.map(
+          (mobile) => ({
+            mobile,
+          })
+        );
+
+      try {
+        setLoading(true);
+        setError("");
+        setSuccessMessage("");
+        setFileName(
+          `Pasted Numbers - ${values.length}`
+        );
+        setRows(parsedRows);
+
+        const response =
+          await previewLeadImport(
+            parsedRows
+          );
+
+        setPreviewRows(
+          response.rows
+        );
+        setSummary(
+          response.summary
+        );
+      } catch (
+        error: any
+      ) {
+        setError(
+          error?.response
+            ?.data?.message ||
+            error?.message ||
+            "Failed to validate numbers"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
   /* ============================
      IMPORT
   ============================ */
@@ -614,7 +678,7 @@ export default function LeadImportPage() {
           </h1>
 
           <p className="text-sm text-slate-500">
-            Excel / CSV lead import
+            Excel, CSV or copy-paste lead import
           </p>
         </div>
       </div>
@@ -670,6 +734,54 @@ export default function LeadImportPage() {
               {fileName}
             </p>
           )}
+        </div>
+      </section>
+
+      {/* Copy and paste */}
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+          <div className="min-w-0 flex-1">
+            <label
+              htmlFor="pasted-lead-numbers"
+              className="block font-semibold text-slate-800"
+            >
+              Copy-Paste Mobile Numbers
+            </label>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Numbers ko new line, comma ya space se paste karein. Duplicate aur wrong numbers automatically check honge.
+            </p>
+
+            <textarea
+              id="pasted-lead-numbers"
+              value={
+                pastedNumbers
+              }
+              onChange={(event) =>
+                setPastedNumbers(
+                  event.target.value
+                )
+              }
+              rows={6}
+              placeholder={"9876543210\n9123456789\n9988776655"}
+              className="mt-3 w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              handlePastedNumbers
+            }
+            disabled={
+              loading ||
+              !pastedNumbers.trim()
+            }
+            className="rounded-xl bg-blue-700 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Check Numbers
+          </button>
         </div>
       </section>
 

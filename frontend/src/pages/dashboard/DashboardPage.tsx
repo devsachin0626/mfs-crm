@@ -386,7 +386,13 @@ export default function DashboardPage() {
           MAIN KPI
       ============================ */}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div
+        className="grid gap-4"
+        style={{
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(220px, 1fr))",
+        }}
+      >
         <StatCard
           title={
             leadCardTitle

@@ -24,6 +24,17 @@ router.use(
   authenticate
 );
 
+router.get(
+  "/employee-options",
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  attendanceController.getAttendanceEmployeeOptions
+);
+
 /* ============================
    SELF CHECK IN
 

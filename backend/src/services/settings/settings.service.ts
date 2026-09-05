@@ -22,6 +22,18 @@ export const SETTING_DEFINITIONS: SettingDefinition[] = [
   ============================ */
 
   {
+    key: "CRM_DISPLAY_NAME",
+    label: "CRM Display Name",
+    description:
+      "Short CRM name displayed in the sidebar.",
+    group: "COMPANY",
+    valueType: "STRING",
+    defaultValue:
+      "MFS CRM",
+    required: true,
+  },
+
+  {
     key: "COMPANY_NAME",
     label: "Company Name",
     description:
@@ -1099,6 +1111,9 @@ export const getControlPanelSettings =
 
     return {
       company: {
+        crmDisplayName:
+          settings.CRM_DISPLAY_NAME,
+
         companyName:
           settings.COMPANY_NAME,
 
@@ -1172,6 +1187,3 @@ export const getControlPanelSettings =
     };
   };
 
-  
-
-  

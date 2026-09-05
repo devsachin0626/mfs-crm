@@ -12,9 +12,24 @@ import type {
 const normalizeMobile = (
   value: string
 ) => {
-  return String(value || "")
-    .replace(/\D/g, "")
-    .slice(-10);
+  const digits = String(value || "")
+    .replace(/\D/g, "");
+
+  if (
+    digits.length === 12 &&
+    digits.startsWith("91")
+  ) {
+    return digits.slice(2);
+  }
+
+  if (
+    digits.length === 11 &&
+    digits.startsWith("0")
+  ) {
+    return digits.slice(1);
+  }
+
+  return digits;
 };
 
 /* ============================
@@ -50,10 +65,12 @@ export const previewLeadImport = async (
 
       if (
         mobile &&
-        mobile.length !== 10
+        !/^[6-9]\d{9}$/.test(
+          mobile
+        )
       ) {
         errors.push(
-          "Mobile must contain 10 digits"
+          "Enter a valid 10 digit Indian mobile number"
         );
       }
 

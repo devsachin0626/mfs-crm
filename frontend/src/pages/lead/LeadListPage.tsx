@@ -611,7 +611,13 @@ canFilterEmployee,
           QUICK CARDS
       ====================== */}
 
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+    <div
+      className="grid gap-3"
+      style={{
+        gridTemplateColumns:
+          "repeat(auto-fit, minmax(170px, 1fr))",
+      }}
+    >
   <QuickCard
     title="Total Leads"
     value={leadSummary?.total ?? 0}
@@ -736,10 +742,16 @@ canFilterEmployee,
           </button>
         </div>
 
-        <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-6">
+        <div
+          className="grid gap-3 p-4"
+          style={{
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(190px, 1fr))",
+          }}
+        >
           {/* Search */}
 
-          <div className="relative xl:col-span-2">
+          <div className="relative">
             <Search
               size={17}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -950,7 +962,13 @@ canFilterEmployee,
   ) : (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table
+          className="w-full"
+          style={{
+            minWidth:
+              "1150px",
+          }}
+        >
           <thead className="bg-slate-50">
             <tr>
               {/* Select All */}

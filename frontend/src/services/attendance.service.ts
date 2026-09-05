@@ -16,6 +16,23 @@ import type {
 const ATTENDANCE_URL =
   "/attendance";
 
+export const getAttendanceEmployeeOptions =
+  async () => {
+    const response =
+      await api.get<{
+        success: boolean;
+        employees: {
+          id: string;
+          employeeCode: string;
+          name: string;
+        }[];
+      }>(
+        `${ATTENDANCE_URL}/employee-options`
+      );
+
+    return response.data;
+  };
+
 /* ============================
    GET ATTENDANCES
 
@@ -268,6 +285,8 @@ export const getMonthlyAttendanceReport =
 ============================ */
 
 const attendanceService = {
+  getAttendanceEmployeeOptions,
+
   getAttendances,
 
   getAttendanceById,

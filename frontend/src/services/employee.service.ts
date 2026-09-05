@@ -76,6 +76,41 @@ export const getEmployeeById =
     return response.data;
   };
 
+export const getOwnProfile =
+  async (): Promise<{
+    success: boolean;
+    employee:
+      EmployeeDetails;
+  }> => {
+    const response =
+      await api.get(
+        "/employees/me"
+      );
+
+    return response.data;
+  };
+
+export const updateOwnProfile =
+  async (
+    data: Pick<
+      UpdateEmployeePayload,
+      | "name"
+      | "mobile"
+      | "email"
+      | "gender"
+      | "dateOfBirth"
+      | "address"
+    >
+  ) => {
+    const response =
+      await api.put(
+        "/employees/me",
+        data
+      );
+
+    return response.data;
+  };
+
 /* ============================
    CREATE EMPLOYEE
 ============================ */

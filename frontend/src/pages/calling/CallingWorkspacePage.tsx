@@ -1084,6 +1084,40 @@ if (
       </section>
 
       {/* ============================
+          TODAY'S OUTCOMES
+      ============================ */}
+
+      {callingSummary && (
+        <section className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="text-sm font-semibold text-slate-800">
+            Today's Call Outcomes
+          </p>
+
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+            {outcomeOptions.map(
+              (option) => (
+                <MiniCard
+                  key={
+                    option.value
+                  }
+                  label={
+                    option.label
+                  }
+                  value={
+                    callingSummary
+                      .summary
+                      .outcomes[
+                      option.value
+                    ] ?? 0
+                  }
+                />
+              )
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ============================
           QUEUE TYPES
       ============================ */}
 
@@ -1196,7 +1230,7 @@ if (
           }
         />
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[1fr_390px]">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           {/* ============================
               LEFT
           ============================ */}
@@ -1476,48 +1510,13 @@ if (
               )}
             </section>
 
-            {/* OUTCOME SUMMARY */}
-
-            {callingSummary && (
-              <section className="rounded-xl border border-slate-200 bg-white p-5">
-                <p className="font-semibold text-slate-800">
-                  Today's Call Outcomes
-                </p>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {outcomeOptions.map(
-                    (
-                      option
-                    ) => (
-                      <MiniCard
-                        key={
-                          option.value
-                        }
-                        label={
-                          option.label
-                        }
-                        value={
-                          callingSummary
-                            .summary
-                            .outcomes[
-                            option
-                              .value
-                          ] ??
-                          0
-                        }
-                      />
-                    )
-                  )}
-                </div>
-              </section>
-            )}
           </div>
 
           {/* ============================
               RIGHT
           ============================ */}
 
-          <aside className="h-fit rounded-xl border border-slate-200 bg-white p-5 xl:sticky xl:top-5">
+          <aside className="h-fit rounded-xl border border-slate-200 bg-white p-5 lg:sticky lg:top-5">
             <div>
               <h3 className="font-semibold text-slate-900">
                 Save Call Update
@@ -1537,54 +1536,49 @@ if (
                 Call Outcome
               </FieldLabel>
 
-              <div className="space-y-2">
+              <select
+                value={
+                  callOutcome
+                }
+                onChange={(event) =>
+                  setCallOutcome(
+                    event.target.value as CallOutcome | ""
+                  )
+                }
+                className={
+                  inputClass
+                }
+              >
+                <option value="">
+                  Select call outcome
+                </option>
+
                 {outcomeOptions.map(
-                  (
-                    option
-                  ) => {
-                    const active =
-                      callOutcome ===
-                      option.value;
-
-                    return (
-                      <button
-                        key={
-                          option.value
-                        }
-                        type="button"
-                        onClick={() =>
-                          setCallOutcome(
-                            option.value
-                          )
-                        }
-                        className={
-                          active
-                            ? "w-full rounded-lg border border-blue-500 bg-blue-50 p-3 text-left"
-                            : "w-full rounded-lg border border-slate-200 p-3 text-left hover:bg-slate-50"
-                        }
-                      >
-                        <p
-                          className={
-                            active
-                              ? "text-sm font-semibold text-blue-700"
-                              : "text-sm font-semibold text-slate-700"
-                          }
-                        >
-                          {
-                            option.label
-                          }
-                        </p>
-
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {
-                            option.description
-                          }
-                        </p>
-                      </button>
-                    );
-                  }
+                  (option) => (
+                    <option
+                      key={
+                        option.value
+                      }
+                      value={
+                        option.value
+                      }
+                    >
+                      {option.label}
+                    </option>
+                  )
                 )}
-              </div>
+              </select>
+
+              {callOutcome && (
+                <p className="mt-1.5 text-xs text-slate-500">
+                  {
+                    outcomeOptions.find(
+                      (option) =>
+                        option.value === callOutcome
+                    )?.description
+                  }
+                </p>
+              )}
             </div>
 
             {/* LOST WARNING */}

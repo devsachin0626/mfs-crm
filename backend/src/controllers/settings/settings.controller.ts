@@ -472,6 +472,11 @@ export const getBrandSettingsController =
         success: true,
 
         brand: {
+          crmDisplayName:
+            result.settings
+              .CRM_DISPLAY_NAME ||
+            "MFS CRM",
+
           companyName:
             result.settings
               .COMPANY_NAME ||

@@ -8,6 +8,7 @@
 ============================ */
 
 export type SettingKey =
+  | "CRM_DISPLAY_NAME"
   | "COMPANY_NAME"
   | "COMPANY_PHONE"
   | "COMPANY_EMAIL"
@@ -169,6 +170,8 @@ export interface SettingsListItem {
 ============================ */
 
 export interface CompanySettings {
+  crmDisplayName: string;
+
   companyName: string;
 
   companyPhone: string;

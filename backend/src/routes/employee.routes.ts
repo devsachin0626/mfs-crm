@@ -21,6 +21,18 @@ router.get(
 
 // Get Employee By Id
 router.get(
+  "/me",
+  authenticate,
+  employeeController.getOwnProfile
+);
+
+router.put(
+  "/me",
+  authenticate,
+  employeeController.updateOwnProfile
+);
+
+router.get(
   "/:id",
   authenticate,
   authorize("ADMIN", "HR"),

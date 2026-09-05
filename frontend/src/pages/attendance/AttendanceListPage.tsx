@@ -22,6 +22,7 @@ import {
 import {
   checkIn,
   checkOut,
+  getAttendanceEmployeeOptions,
   getMonthlyAttendanceReport,
 } from "../../services/attendance.service";
 
@@ -178,10 +179,25 @@ export default function AttendanceListPage() {
     useState(1);
 
   const [
-    search,
-    setSearch,
-  ] =
-    useState("");
+    selectedEmployeeId,
+    setSelectedEmployeeId,
+  ] = useState(
+    employee?.id || ""
+  );
+
+  const [
+    employeeOptions,
+    setEmployeeOptions,
+  ] = useState<{
+    id: string;
+    employeeCode: string;
+    name: string;
+  }[]>([]);
+
+  const [
+    employeeOptionsLoading,
+    setEmployeeOptionsLoading,
+  ] = useState(false);
 
   const [
     status,
@@ -284,12 +300,6 @@ export default function AttendanceListPage() {
 
         limit: 20,
 
-        search:
-          canViewEmployeeSearch &&
-          search.trim()
-            ? search.trim()
-            : undefined,
-
         status:
           status
             ? status as AttendanceQuery["status"]
@@ -302,11 +312,12 @@ export default function AttendanceListPage() {
         employeeId:
           isEmployee
             ? employee?.id
-            : undefined,
+            : selectedEmployeeId ||
+              undefined,
       }),
       [
         page,
-        search,
+        selectedEmployeeId,
         status,
         month,
         year,
@@ -341,6 +352,54 @@ export default function AttendanceListPage() {
     loadAttendanceList,
   ]);
 
+  useEffect(() => {
+    if (
+      employee?.id &&
+      !selectedEmployeeId
+    ) {
+      setSelectedEmployeeId(
+        employee.id
+      );
+    }
+  }, [
+    employee?.id,
+    selectedEmployeeId,
+  ]);
+
+  useEffect(() => {
+    if (
+      !canViewEmployeeSearch
+    ) {
+      return;
+    }
+
+    const loadEmployeeOptions =
+      async () => {
+        try {
+          setEmployeeOptionsLoading(
+            true
+          );
+          const response =
+            await getAttendanceEmployeeOptions();
+          setEmployeeOptions(
+            response.employees
+          );
+        } catch {
+          setEmployeeOptions(
+            []
+          );
+        } finally {
+          setEmployeeOptionsLoading(
+            false
+          );
+        }
+      };
+
+    void loadEmployeeOptions();
+  }, [
+    canViewEmployeeSearch,
+  ]);
+
   /* ============================
      LOAD MY MONTHLY REPORT
 
@@ -355,9 +414,12 @@ export default function AttendanceListPage() {
   const loadMonthlyReport =
     useCallback(
       async () => {
-        if (
-          !employee?.id
-        ) {
+        const reportEmployeeId =
+          isEmployee
+            ? employee?.id
+            : selectedEmployeeId;
+
+        if (!reportEmployeeId) {
           setMonthlyReport(
             null
           );
@@ -376,7 +438,7 @@ export default function AttendanceListPage() {
 
           const response =
             await getMonthlyAttendanceReport(
-              employee.id,
+              reportEmployeeId,
               month,
               year
             );
@@ -406,6 +468,8 @@ export default function AttendanceListPage() {
       },
       [
         employee?.id,
+        isEmployee,
+        selectedEmployeeId,
         month,
         year,
       ]
@@ -583,13 +647,13 @@ export default function AttendanceListPage() {
      FILTER HANDLERS
   ============================ */
 
-  const handleSearchChange =
+  const handleEmployeeChange =
     (
       value: string
     ) => {
       setPage(1);
 
-      setSearch(
+      setSelectedEmployeeId(
         value
       );
     };
@@ -791,8 +855,14 @@ export default function AttendanceListPage() {
       ============================ */}
 
       <AttendanceFilters
-        search={
-          search
+        employeeId={
+          selectedEmployeeId
+        }
+        employees={
+          employeeOptions
+        }
+        employeesLoading={
+          employeeOptionsLoading
         }
         status={
           status
@@ -803,11 +873,11 @@ export default function AttendanceListPage() {
         year={
           year
         }
-        showEmployeeSearch={
+        showEmployeeDropdown={
           canViewEmployeeSearch
         }
-        onSearchChange={
-          handleSearchChange
+        onEmployeeChange={
+          handleEmployeeChange
         }
         onStatusChange={
           handleStatusChange
@@ -828,21 +898,18 @@ export default function AttendanceListPage() {
           own attendance.
       ============================ */}
 
-      {canViewEmployeeSearch && (
+      {canViewEmployeeSearch &&
+        !selectedEmployeeId && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
           <p className="text-sm font-semibold text-slate-700">
-            My Attendance
-            Summary
+            Select an Employee
           </p>
 
           <p className="mt-1 text-xs text-slate-500">
-            Calendar and summary
-            below belong to your
-            logged-in employee
-            account. Open an
-            employee profile to
-            view that employee's
-            attendance report.
+            Choose an employee from
+            the dropdown to view that
+            employee's attendance
+            summary and calendar.
           </p>
         </div>
       )}

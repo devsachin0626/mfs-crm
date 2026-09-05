@@ -25,6 +25,7 @@ import EmployeeListPage from "../pages/employee/EmployeeListPage";
 import EmployeeDetailsPage from "../pages/employee/EmployeeDetailsPage";
 import EmployeeCreatePage from "../pages/employee/EmployeeCreatePage";
 import EmployeeEditPage from "../pages/employee/EmployeeEditPage";
+import ProfilePage from "../pages/employee/ProfilePage";
 
 /* ============================
    ATTENDANCE
@@ -143,6 +144,13 @@ export default function AppRoutes() {
               path="/dashboard"
               element={
                 <DashboardPage />
+              }
+            />
+
+            <Route
+              path="/profile"
+              element={
+                <ProfilePage />
               }
             />
 

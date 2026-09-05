@@ -138,6 +138,7 @@ export const getBrandSettings =
         success: boolean;
 
         brand: {
+          crmDisplayName: string;
           companyName: string;
         };
       }>(

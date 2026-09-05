@@ -8,6 +8,32 @@ import {
 
 import * as attendanceService from "../../services/attendance/attendance.service";
 
+export const getAttendanceEmployeeOptions =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const result =
+        await attendanceService.getAttendanceEmployeeOptions(
+          req.employee!
+        );
+
+      res.status(200).json(
+        result
+      );
+    } catch (error: unknown) {
+      res.status(500).json({
+        success: false,
+        message:
+          getErrorMessage(
+            error,
+            "Failed to load employees"
+          ),
+      });
+    }
+  };
+
 /* ============================
    HELPERS
 ============================ */

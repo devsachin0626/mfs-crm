@@ -134,6 +134,74 @@ const parseCsv = (content: string): string[][] => {
   return rows;
 };
 
+const parsePastedMobileNumbers = (
+  content: string
+) => {
+  const groups = content
+    .split(/[\r\n,;]+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return groups.flatMap((group) => {
+    const groupDigits =
+      group.replace(/\D/g, "");
+
+    if (
+      groupDigits.length === 10 ||
+      (
+        groupDigits.length === 11 &&
+        groupDigits.startsWith("0")
+      ) ||
+      (
+        groupDigits.length === 12 &&
+        groupDigits.startsWith("91")
+      ) ||
+      (
+        groupDigits.length === 14 &&
+        groupDigits.startsWith("0091")
+      )
+    ) {
+      return [group];
+    }
+
+    const tokens =
+      group.split(/\s+/).filter(Boolean);
+    const numbers: string[] = [];
+
+    for (
+      let index = 0;
+      index < tokens.length;
+      index += 1
+    ) {
+      const token = tokens[index];
+      const tokenDigits =
+        token.replace(/\D/g, "");
+      const next = tokens[index + 1];
+      const nextDigits = next
+        ? next.replace(/\D/g, "")
+        : "";
+
+      if (
+        (
+          tokenDigits === "91" ||
+          tokenDigits === "0091" ||
+          tokenDigits === "0"
+        ) &&
+        nextDigits.length === 10
+      ) {
+        numbers.push(
+          `${token}${next}`
+        );
+        index += 1;
+      } else {
+        numbers.push(token);
+      }
+    }
+
+    return numbers;
+  });
+};
+
 const rowsToRecords = (table: string[][]): ImportFileRow[] => {
   const headerCandidates =
     table
@@ -533,12 +601,9 @@ export default function LeadImportPage() {
   const handlePastedNumbers =
     async () => {
       const values =
-        pastedNumbers
-          .split(/[\s,;]+/)
-          .map((value) =>
-            value.trim()
-          )
-          .filter(Boolean);
+        parsePastedMobileNumbers(
+          pastedNumbers
+        );
 
       if (!values.length) {
         setError(

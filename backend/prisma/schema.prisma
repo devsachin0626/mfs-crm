@@ -85,17 +85,6 @@ enum NotificationType {
   ERROR
 }
 
-enum CallOutcome {
-  CONNECTED
-  NO_ANSWER
-  BUSY
-  CALL_BACK
-  INTERESTED
-  DEMO
-  NOT_INTERESTED
-  WRONG_NUMBER
-}
-
 model Branch {
   id         String  @id @default(cuid())
   branchCode String  @unique
@@ -322,10 +311,32 @@ model LeadStatus {
 
   histories LeadHistory[]
 
+  callOutcomes CallOutcome[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("lead_statuses")
+}
+
+model CallOutcome {
+  id String @id @default(cuid())
+  code String @unique
+  name String @unique
+  description String?
+  color String? @default("#2563eb")
+  leadStatusId String?
+  leadStatus LeadStatus? @relation(fields: [leadStatusId], references: [id], onDelete: SetNull)
+  requiresFollowUp Boolean @default(false)
+  marksLeadLost Boolean @default(false)
+  sortOrder Int @default(0)
+  isActive Boolean @default(true)
+  isSystem Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadStatusId])
+  @@map("call_outcomes")
 }
 
 model ImportBatch {
@@ -457,7 +468,7 @@ model LeadHistory {
 
   status LeadStatus? @relation(fields: [statusId], references: [id])
 
-  callOutcome CallOutcome?
+  callOutcome String?
 
   remarks String?
 

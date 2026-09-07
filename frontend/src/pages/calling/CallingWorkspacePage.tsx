@@ -39,6 +39,10 @@ import {
 } from "../../services/leadStatus.service";
 
 import {
+  getCallOutcomes,
+} from "../../services/callOutcome.service";
+
+import {
   useAppSelector,
 } from "../../hooks/redux";
 
@@ -46,80 +50,11 @@ import LeadAgingBadge from "../../features/lead/LeadAgingBadge";
 
 import type {
   CallOutcome,
+  CallOutcomeOption,
   CallingQueueLead,
   CallingQueueType,
   DailyCallingSummary,
 } from "../../types/calling.types";
-
-/* ============================
-   OUTCOME OPTIONS
-============================ */
-
-const outcomeOptions: Array<{
-  value: CallOutcome;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: "CONNECTED",
-    label: "Connected",
-    description:
-      "Customer answered the call",
-  },
-
-  {
-    value: "NO_ANSWER",
-    label: "No Answer",
-    description:
-      "Call was not answered",
-  },
-
-  {
-    value: "BUSY",
-    label: "Busy",
-    description:
-      "Customer line was busy",
-  },
-
-  {
-    value: "CALL_BACK",
-    label: "Call Back",
-    description:
-      "Customer requested another call",
-  },
-
-  {
-    value: "INTERESTED",
-    label: "Interested",
-    description:
-      "Customer showed interest",
-  },
-
-  {
-    value: "DEMO",
-    label: "Demo",
-    description:
-      "Demo or detailed discussion",
-  },
-
-  {
-    value:
-      "NOT_INTERESTED",
-    label:
-      "Not Interested",
-    description:
-      "Lead will be marked Lost",
-  },
-
-  {
-    value:
-      "WRONG_NUMBER",
-    label:
-      "Wrong Number",
-    description:
-      "Lead will be marked Lost",
-  },
-];
 
 /* ============================
    STATUS TYPE
@@ -181,6 +116,11 @@ const requestedLeadId =
     useState<LeadStatusOption[]>(
       []
     );
+
+  const [
+    outcomeOptions,
+    setOutcomeOptions,
+  ] = useState<CallOutcomeOption[]>([]);
 
   const [
     selectedIndex,
@@ -277,17 +217,19 @@ const requestedLeadId =
      RULES
   ============================ */
 
+  const selectedOutcome =
+    outcomeOptions.find(
+      (option) =>
+        option.code === callOutcome
+    );
+
   const requiresFollowUp =
-    callOutcome ===
-      "CALL_BACK" ||
-    callOutcome ===
-      "INTERESTED";
+    selectedOutcome
+      ?.requiresFollowUp ?? false;
 
   const marksLeadLost =
-    callOutcome ===
-      "NOT_INTERESTED" ||
-    callOutcome ===
-      "WRONG_NUMBER";
+    selectedOutcome
+      ?.marksLeadLost ?? false;
 
   /* ============================
      CALL SUMMARY
@@ -357,6 +299,25 @@ const requestedLeadId =
       };
 
     loadStatuses();
+  }, []);
+
+  useEffect(() => {
+    const loadOutcomes = async () => {
+      try {
+        const response =
+          await getCallOutcomes();
+        setOutcomeOptions(
+          response.callOutcomes || []
+        );
+      } catch (error) {
+        console.error(
+          "Call outcome load error",
+          error
+        );
+      }
+    };
+
+    void loadOutcomes();
   }, []);
 
   /* ============================
@@ -1523,13 +1484,13 @@ if (
                   (option) => (
                     <option
                       key={
-                        option.value
+                        option.code
                       }
                       value={
-                        option.value
+                        option.code
                       }
                     >
-                      {option.label}
+                      {option.name}
                     </option>
                   )
                 )}
@@ -1540,7 +1501,7 @@ if (
                   {
                     outcomeOptions.find(
                       (option) =>
-                        option.value === callOutcome
+                        option.code === callOutcome
                     )?.description
                   }
                 </p>

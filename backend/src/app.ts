@@ -30,6 +30,7 @@ import branchRoutes from "./routes/branch.routes";
 import roleRoutes from "./routes/role.routes";
 import reportRoutes from "./routes/report.routes";
 import settingsRoutes from "./routes/settings.routes";
+import callOutcomeRoutes from "./routes/call-outcome.routes";
 import demoProductRoutes from "./routes/demo-product.routes";
 import { allowedCorsOrigins, requestBodyLimit } from "./config/env";
 import { uploadsDirectory } from "./config/paths";
@@ -107,6 +108,7 @@ app.use("/api/holidays", holidayRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/lead-sources", leadSourceRoutes);
 app.use("/api/lead-statuses", leadStatusRoutes);
+app.use("/api/call-outcomes", callOutcomeRoutes);
 app.use("/api/import-batches", importBatchRoutes);
 app.use(
   "/api/demo-products",

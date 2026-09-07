@@ -14,7 +14,6 @@ import {
 } from "../../utils/leadAging";
 
 import {
-  CallOutcome,
   Prisma,
 } from "@prisma/client";
 
@@ -2277,31 +2276,41 @@ export const saveCallOutcome =
        OUTCOME VALIDATION
     ============================ */
 
+    const outcome =
+      data.outcome
+        ? await prisma.callOutcome.findUnique({
+            where: {
+              code: data.outcome,
+            },
+          })
+        : null;
+
     if (
-      !data.outcome ||
-      !Object.values(
-        CallOutcome
-      ).includes(
-        data.outcome as CallOutcome
-      )
+      !outcome ||
+      !outcome.isActive
     ) {
       throw new Error(
         "Invalid Call Outcome"
       );
     }
 
+    const effectiveStatusId =
+      data.statusId ||
+      outcome.leadStatusId ||
+      undefined;
+
     /* ============================
        STATUS VALIDATION
     ============================ */
 
     if (
-      data.statusId
+      effectiveStatusId
     ) {
       const status =
         await prisma.leadStatus.findUnique({
           where: {
             id:
-              data.statusId,
+              effectiveStatusId,
           },
 
           select: {
@@ -2325,10 +2334,7 @@ export const saveCallOutcome =
     ============================ */
 
     const requiresFollowUp =
-      data.outcome ===
-        "CALL_BACK" ||
-      data.outcome ===
-        "INTERESTED";
+      outcome.requiresFollowUp;
 
     if (
       requiresFollowUp &&
@@ -2376,10 +2382,7 @@ export const saveCallOutcome =
     ============================ */
 
     const shouldMarkLost =
-      data.outcome ===
-        "NOT_INTERESTED" ||
-      data.outcome ===
-        "WRONG_NUMBER";
+      outcome.marksLeadLost;
 
     /* ============================
        TRANSACTION
@@ -2451,11 +2454,11 @@ export const saveCallOutcome =
                 lastCallAt:
                   new Date(),
 
-                ...(data.statusId && {
+                ...(effectiveStatusId && {
                   status: {
                     connect: {
                       id:
-                        data.statusId,
+                        effectiveStatusId,
                     },
                   },
                 }),
@@ -2463,7 +2466,16 @@ export const saveCallOutcome =
                 ...(followUpDate && {
                   nextFollowUp:
                     followUpDate,
+
+                  stage:
+                    "FOLLOW_UP",
                 }),
+
+                ...(!followUpDate &&
+                  !shouldMarkLost && {
+                    stage:
+                      "WORKING",
+                  }),
 
                 ...(shouldMarkLost && {
                   stage:
@@ -2507,7 +2519,7 @@ export const saveCallOutcome =
                 employeeId,
 
                 statusId:
-                  data.statusId,
+                  effectiveStatusId,
 
                 callOutcome:
                   data.outcome,
@@ -2709,13 +2721,14 @@ export const getDailyCallingSummary =
       number
     > = {};
 
-    Object.values(
-      CallOutcome
-    ).forEach(
+    const configuredOutcomes =
+      await prisma.callOutcome.findMany({
+        select: { code: true },
+      });
+
+    configuredOutcomes.forEach(
       (outcome) => {
-        outcomes[
-          outcome
-        ] = 0;
+        outcomes[outcome.code] = 0;
       }
     );
 

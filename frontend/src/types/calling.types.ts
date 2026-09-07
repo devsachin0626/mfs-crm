@@ -1,12 +1,34 @@
-export type CallOutcome =
-  | "CONNECTED"
-  | "NO_ANSWER"
-  | "BUSY"
-  | "CALL_BACK"
-  | "INTERESTED"
-  | "DEMO"
-  | "NOT_INTERESTED"
-  | "WRONG_NUMBER";
+export type CallOutcome = string;
+
+export interface CallOutcomeOption {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  leadStatusId?: string | null;
+  leadStatus?: {
+    id: string;
+    name: string;
+    color?: string | null;
+  } | null;
+  requiresFollowUp: boolean;
+  marksLeadLost: boolean;
+  sortOrder: number;
+  isActive: boolean;
+  isSystem: boolean;
+}
+
+export interface CallOutcomePayload {
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  leadStatusId?: string | null;
+  requiresFollowUp?: boolean;
+  marksLeadLost?: boolean;
+  sortOrder?: number;
+  isActive?: boolean;
+}
 
 export interface SaveCallOutcomeRequest {
   outcome: CallOutcome;

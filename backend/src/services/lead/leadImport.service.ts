@@ -12,8 +12,20 @@ import type {
 const normalizeMobile = (
   value: string
 ) => {
-  const digits = String(value || "")
+  const cleanedValue =
+    String(value || "")
+      .trim()
+      .replace(/\.0+$/, "");
+
+  const digits = cleanedValue
     .replace(/\D/g, "");
+
+  if (
+    digits.length === 14 &&
+    digits.startsWith("0091")
+  ) {
+    return digits.slice(4);
+  }
 
   if (
     digits.length === 12 &&

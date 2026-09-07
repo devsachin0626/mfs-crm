@@ -643,30 +643,47 @@ export const getDashboardStats =
           )
         : 0;
 
-    const callOutcomesToday:
-      Record<string, number> = {
-        CONNECTED: 0,
-        NO_ANSWER: 0,
-        BUSY: 0,
-        CALL_BACK: 0,
-        INTERESTED: 0,
-        DEMO: 0,
-        NOT_INTERESTED: 0,
-        WRONG_NUMBER: 0,
-      };
+    const callOutcomeCounts:
+      Record<string, number> = {};
 
     callOutcomeGroups.forEach(
       (item) => {
         if (
           item.callOutcome
         ) {
-          callOutcomesToday[
+          callOutcomeCounts[
             item.callOutcome
           ] =
             item._count._all;
         }
       }
     );
+
+    const configuredCallOutcomes =
+      await prisma.callOutcome.findMany({
+        where: { isActive: true },
+        select: {
+          code: true,
+          name: true,
+          color: true,
+          sortOrder: true,
+        },
+        orderBy: [
+          { sortOrder: "asc" },
+          { name: "asc" },
+        ],
+      });
+
+    const callOutcomesToday =
+      configuredCallOutcomes.map(
+        (outcome) => ({
+          ...outcome,
+          count:
+            callOutcomeCounts[
+              outcome.code
+            ] || 0,
+        })
+      );
 
 
         /* ============================

@@ -1084,40 +1084,6 @@ if (
       </section>
 
       {/* ============================
-          TODAY'S OUTCOMES
-      ============================ */}
-
-      {callingSummary && (
-        <section className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-800">
-            Today's Call Outcomes
-          </p>
-
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-            {outcomeOptions.map(
-              (option) => (
-                <MiniCard
-                  key={
-                    option.value
-                  }
-                  label={
-                    option.label
-                  }
-                  value={
-                    callingSummary
-                      .summary
-                      .outcomes[
-                      option.value
-                    ] ?? 0
-                  }
-                />
-              )
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ============================
           QUEUE TYPES
       ============================ */}
 
@@ -1840,33 +1806,6 @@ function QueueBadge({
     >
       {type}
     </span>
-  );
-}
-
-/* ============================
-   MINI CARD
-============================ */
-
-function MiniCard({
-  label,
-  value,
-}: {
-  label: string;
-
-  value:
-    | number
-    | string;
-}) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-3">
-      <p className="text-xs text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-1 text-lg font-bold text-slate-900">
-        {value}
-      </p>
-    </div>
   );
 }
 

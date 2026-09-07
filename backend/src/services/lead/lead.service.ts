@@ -4247,6 +4247,29 @@ export const getCallingQueue =
       (page - 1) *
       limit;
 
+    const now =
+      new Date();
+
+    const startOfToday =
+      new Date();
+
+    startOfToday.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    const endOfToday =
+      new Date(
+        startOfToday
+      );
+
+    endOfToday.setDate(
+      endOfToday.getDate() +
+        1
+    );
+
     /* ============================
        ACCESS
     ============================ */
@@ -4269,6 +4292,24 @@ export const getCallingQueue =
               "LOST",
               "CONVERTED",
             ],
+          },
+        },
+        {
+          histories: {
+            none: {
+              employeeId:
+                query.employeeId ||
+                currentEmployee.id,
+              callOutcome: {
+                not: null,
+              },
+              createdAt: {
+                gte:
+                  startOfToday,
+                lt:
+                  endOfToday,
+              },
+            },
           },
         },
       ],
@@ -4454,29 +4495,6 @@ export const getCallingQueue =
     /* ============================
        PRIORITY
     ============================ */
-
-    const now =
-      new Date();
-
-    const startOfToday =
-      new Date();
-
-    startOfToday.setHours(
-      0,
-      0,
-      0,
-      0
-    );
-
-    const endOfToday =
-      new Date(
-        startOfToday
-      );
-
-    endOfToday.setDate(
-      endOfToday.getDate() +
-        1
-    );
 
     const queue =
       leads

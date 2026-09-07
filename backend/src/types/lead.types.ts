@@ -1,7 +1,3 @@
-import {
-  CallOutcome,
-} from "@prisma/client";
-
 export interface CreateLeadRequest {
   name?: string;
 
@@ -130,7 +126,7 @@ export interface FollowUpQuery {
 }
 
 export interface SaveCallOutcomeRequest {
-  outcome: CallOutcome;
+  outcome: string;
 
   statusId?: string;
 

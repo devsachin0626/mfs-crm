@@ -67,17 +67,6 @@ type LeaderboardItem = {
   progress?: number;
 };
 
-const callOutcomeOptions = [
-  ["CONNECTED", "Connected"],
-  ["NO_ANSWER", "No Answer"],
-  ["BUSY", "Busy"],
-  ["CALL_BACK", "Call Back"],
-  ["INTERESTED", "Interested"],
-  ["DEMO", "Demo"],
-  ["NOT_INTERESTED", "Not Interested"],
-  ["WRONG_NUMBER", "Wrong Number"],
-] as const;
-
 export default function DashboardPage() {
   const dispatch =
     useAppDispatch();
@@ -520,18 +509,22 @@ export default function DashboardPage() {
         }
       >
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
-          {callOutcomeOptions.map(
-            ([value, label]) => (
+          {(stats
+            ?.callOutcomesToday ||
+            []).map(
+            (outcome: {
+              code: string;
+              name: string;
+              color?: string | null;
+              count: number;
+            }) => (
               <MiniMetric
-                key={value}
-                label={label}
+                key={outcome.code}
+                label={outcome.name}
                 value={
                   loading
                     ? "-"
-                    : stats
-                        ?.callOutcomesToday
-                        ?.[value] ??
-                      0
+                    : outcome.count
                 }
               />
             )

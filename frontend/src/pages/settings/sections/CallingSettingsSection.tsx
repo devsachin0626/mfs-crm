@@ -29,6 +29,8 @@ import {
   SettingsSectionHeader,
 } from "../SettingsLayout";
 
+import CallOutcomeManagement from "./CallOutcomeManagement";
+
 /* ============================
    KEYS
 ============================ */
@@ -253,6 +255,8 @@ export default function CallingSettingsSection() {
           </p>
         </div>
       </SettingsCard>
+
+      <CallOutcomeManagement />
     </div>
   );
 }

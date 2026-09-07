@@ -147,6 +147,16 @@ const requestedLeadId =
     useState(0);
 
   const [
+    batchSize,
+    setBatchSize,
+  ] = useState(0);
+
+  const [
+    batchNumber,
+    setBatchNumber,
+  ] = useState(1);
+
+  const [
     search,
     setSearch,
   ] =
@@ -376,7 +386,7 @@ const requestedLeadId =
             await getCallingQueue({
               page,
 
-              limit: 20,
+              limit: 10,
 
               search:
                 search ||
@@ -402,6 +412,12 @@ const requestedLeadId =
 setQueue(
   queueItems
 );
+
+if (resetSelection) {
+  setBatchSize(
+    queueItems.length
+  );
+}
 
 setTotal(
   response.total ||
@@ -769,20 +785,18 @@ if (
           ""
         );
 
-        /* ============================
-           REFILL PAGE
-
-           Queue me few records bachne
-           par backend se latest priority
-           queue fetch karenge.
-        ============================ */
+        /* Load the next batch only after
+           all 10 current leads finish. */
 
         if (
-          queue.length <=
-          5
+          queue.length === 1
         ) {
+          setBatchNumber(
+            (current) =>
+              current + 1
+          );
           await loadQueue(
-            false
+            true
           );
         }
 
@@ -1330,17 +1344,19 @@ if (
                   </p>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    Lead{" "}
-                    {selectedIndex +
-                      1}
+                    Batch {batchNumber}
+                    {" • Lead "}
+                    {Math.min(
+                      batchSize -
+                        queue.length +
+                        1,
+                      batchSize
+                    )}
                     {" of "}
-                    {
-                      queue.length
-                    }
-                    {" • Page "}
-                    {page}
-                    {" of "}
-                    {totalPages}
+                    {batchSize}
+                    {" • "}
+                    {total}
+                    {" leads available"}
                   </p>
                 </div>
 
@@ -1384,57 +1400,6 @@ if (
                 </div>
               </div>
 
-              {/* PAGE NAVIGATION */}
-
-              {totalPages >
-                1 && (
-                <div className="mt-4 flex justify-between border-t border-slate-100 pt-4">
-                  <button
-                    type="button"
-                    disabled={
-                      page <= 1
-                    }
-                    onClick={() =>
-                      setPage(
-                        (
-                          current
-                        ) =>
-                          Math.max(
-                            current -
-                              1,
-                            1
-                          )
-                      )
-                    }
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium disabled:opacity-40"
-                  >
-                    Previous Page
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={
-                      page >=
-                      totalPages
-                    }
-                    onClick={() =>
-                      setPage(
-                        (
-                          current
-                        ) =>
-                          Math.min(
-                            current +
-                              1,
-                            totalPages
-                          )
-                      )
-                    }
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium disabled:opacity-40"
-                  >
-                    Next Page
-                  </button>
-                </div>
-              )}
             </section>
 
           </div>

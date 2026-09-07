@@ -1,1974 +1,309 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarClock, Eye, Pencil, Phone, RefreshCw, Save, Search, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-import type {
-  ReactNode,
-} from "react";
+import { useAppSelector } from "../../hooks/redux";
+import { getCallingQueue, getDailyCallingSummary, saveCallOutcome } from "../../services/calling.service";
+import { getCallOutcomes } from "../../services/callOutcome.service";
+import { getLeadStatuses } from "../../services/leadStatus.service";
+import type { CallOutcomeOption, CallingQueueLead, DailyCallingSummary } from "../../types/calling.types";
 
-import {
-  useNavigate,
-  useSearchParams
-} from "react-router-dom";
+type LeadStatusOption = { id: string; name: string };
 
-import {
-  CalendarClock,
-  ChevronLeft,
-  ChevronRight,
-  Clock3,
-  Eye,
-  Mail,
-  MapPin,
-  Phone,
-  RefreshCw,
-  Search,
-  UserRound,
-} from "lucide-react";
+const inputClass = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
-import {
-  getCallingQueue,
-  getDailyCallingSummary,
-  saveCallOutcome,
-} from "../../services/calling.service";
+const getMinDateTime = () => {
+  const date = new Date(Date.now() + 5 * 60 * 1000);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+};
 
-import {
-  getLeadStatuses,
-} from "../../services/leadStatus.service";
-
-import {
-  getCallOutcomes,
-} from "../../services/callOutcome.service";
-
-import {
-  useAppSelector,
-} from "../../hooks/redux";
-
-import LeadAgingBadge from "../../features/lead/LeadAgingBadge";
-
-import type {
-  CallOutcome,
-  CallOutcomeOption,
-  CallingQueueLead,
-  CallingQueueType,
-  DailyCallingSummary,
-} from "../../types/calling.types";
-
-/* ============================
-   STATUS TYPE
-============================ */
-
-interface LeadStatusOption {
-  id: string;
-
-  name: string;
-
-  color?: string | null;
-}
-
-/* ============================
-   PAGE
-============================ */
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+};
 
 export default function CallingWorkspacePage() {
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
+  const employee = useAppSelector((state) => state.auth.employee);
+  const [queue, setQueue] = useState<CallingQueueLead[]>([]);
+  const [outcomes, setOutcomes] = useState<CallOutcomeOption[]>([]);
+  const [statuses, setStatuses] = useState<LeadStatusOption[]>([]);
+  const [summary, setSummary] = useState<DailyCallingSummary | null>(null);
+  const [total, setTotal] = useState(0);
+  const [batchNumber, setBatchNumber] = useState(1);
+  const [batchSize, setBatchSize] = useState(0);
+  const [completedInBatch, setCompletedInBatch] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [editingLeadId, setEditingLeadId] = useState<string | null>(null);
+  const [callOutcome, setCallOutcome] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [savingLeadId, setSavingLeadId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-
-const [
-  searchParams,
-] =
-  useSearchParams();
-
-const requestedLeadId =
-  searchParams.get(
-    "leadId"
+  const selectedOutcome = useMemo(
+    () => outcomes.find((item) => item.code === callOutcome),
+    [outcomes, callOutcome]
   );
 
-  const loggedInEmployee =
-    useAppSelector(
-      (state) =>
-        state.auth.employee
-    );
+  const resetEditor = () => {
+    setEditingLeadId(null);
+    setCallOutcome("");
+    setSelectedStatus("");
+    setFollowUpDate("");
+    setRemarks("");
+  };
 
-  const [
-    callingSummary,
-    setCallingSummary,
-  ] =
-    useState<DailyCallingSummary | null>(
-      null
-    );
-
-  const [
-    queue,
-    setQueue,
-  ] =
-    useState<CallingQueueLead[]>(
-      []
-    );
-
-  const [
-    statuses,
-    setStatuses,
-  ] =
-    useState<LeadStatusOption[]>(
-      []
-    );
-
-  const [
-    outcomeOptions,
-    setOutcomeOptions,
-  ] = useState<CallOutcomeOption[]>([]);
-
-  const [
-    selectedIndex,
-    setSelectedIndex,
-  ] =
-    useState(0);
-
-  const [
-    page,
-    setPage,
-  ] =
-    useState(1);
-
-  const [
-    totalPages,
-    setTotalPages,
-  ] =
-    useState(1);
-
-  const [
-    total,
-    setTotal,
-  ] =
-    useState(0);
-
-  const [
-    batchSize,
-    setBatchSize,
-  ] = useState(0);
-
-  const [
-    batchNumber,
-    setBatchNumber,
-  ] = useState(1);
-
-  const [
-    search,
-    setSearch,
-  ] =
-    useState("");
-
-  const [
-    searchInput,
-    setSearchInput,
-  ] =
-    useState("");
-
-  const [
-    callOutcome,
-    setCallOutcome,
-  ] =
-    useState<CallOutcome | "">(
-      ""
-    );
-
-  const [
-    selectedStatus,
-    setSelectedStatus,
-  ] =
-    useState("");
-
-  const [
-    remarks,
-    setRemarks,
-  ] =
-    useState("");
-
-  const [
-    followUpDate,
-    setFollowUpDate,
-  ] =
-    useState("");
-
-  const [
-    loading,
-    setLoading,
-  ] =
-    useState(true);
-
-  const [
-    saving,
-    setSaving,
-  ] =
-    useState(false);
-
-  const [
-    error,
-    setError,
-  ] =
-    useState("");
-
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] =
-    useState("");
-
-  const selectedLead =
-    queue[
-      selectedIndex
-    ] || null;
-
-  /* ============================
-     RULES
-  ============================ */
-
-  const selectedOutcome =
-    outcomeOptions.find(
-      (option) =>
-        option.code === callOutcome
-    );
-
-  const requiresFollowUp =
-    selectedOutcome
-      ?.requiresFollowUp ?? false;
-
-  const marksLeadLost =
-    selectedOutcome
-      ?.marksLeadLost ?? false;
-
-  /* ============================
-     CALL SUMMARY
-  ============================ */
-
-  const loadCallingSummary =
-    useCallback(
-      async () => {
-        if (
-          !loggedInEmployee?.id
-        ) {
-          return;
-        }
-
-        try {
-          const response =
-            await getDailyCallingSummary(
-              loggedInEmployee.id
-            );
-
-          setCallingSummary(
-            response
-          );
-        } catch (
-          error
-        ) {
-          console.error(
-            "Calling summary error",
-            error
-          );
-        }
-      },
-      [
-        loggedInEmployee?.id,
-      ]
-    );
-
-  useEffect(() => {
-    loadCallingSummary();
-  }, [
-    loadCallingSummary,
-  ]);
-
-  /* ============================
-     LOAD STATUSES
-  ============================ */
-
-  useEffect(() => {
-    const loadStatuses =
-      async () => {
-        try {
-          const response =
-            await getLeadStatuses();
-
-          setStatuses(
-            response.leadStatuses ||
-              []
-          );
-        } catch (
-          error
-        ) {
-          console.error(
-            "Lead status load error",
-            error
-          );
-        }
-      };
-
-    loadStatuses();
-  }, []);
-
-  useEffect(() => {
-    const loadOutcomes = async () => {
-      try {
-        const response =
-          await getCallOutcomes();
-        setOutcomeOptions(
-          response.callOutcomes || []
-        );
-      } catch (error) {
-        console.error(
-          "Call outcome load error",
-          error
-        );
-      }
-    };
-
-    void loadOutcomes();
-  }, []);
-
-  /* ============================
-     SEARCH DEBOUNCE
-  ============================ */
-
-  useEffect(() => {
-    const timer =
-      setTimeout(
-        () => {
-          setPage(
-            1
-          );
-
-          setSearch(
-            searchInput.trim()
-          );
-        },
-        400
-      );
-
-    return () =>
-      clearTimeout(
-        timer
-      );
-  }, [
-    searchInput,
-  ]);
-
-  /* ============================
-     LOAD CALLING QUEUE
-  ============================ */
-
-  const loadQueue =
-    useCallback(
-      async (
-        resetSelection =
-          true
-      ) => {
-        if (
-          !loggedInEmployee?.id
-        ) {
-          return;
-        }
-
-        try {
-          setLoading(
-            true
-          );
-
-          setError(
-            ""
-          );
-
-          const response =
-            await getCallingQueue({
-              page,
-
-              limit: 10,
-
-              search:
-                search ||
-                undefined,
-
-              /*
-               * Employee ID optional hai,
-               * backend access check karega.
-               */
-              employeeId:
-                loggedInEmployee.id,
-            });
-
-          setQueue(
-            response.queue ||
-              []
-          );
-
-          const queueItems =
-  response.queue ||
-  [];
-
-setQueue(
-  queueItems
-);
-
-if (resetSelection) {
-  setBatchSize(
-    queueItems.length
-  );
-}
-
-setTotal(
-  response.total ||
-    0
-);
-
-setTotalPages(
-  response.totalPages ||
-    1
-);
-
-if (
-  requestedLeadId
-) {
-  const requestedIndex =
-    queueItems.findIndex(
-      (
-        lead
-      ) =>
-        lead.id ===
-        requestedLeadId
-    );
-
-  if (
-    requestedIndex >=
-    0
-  ) {
-    setSelectedIndex(
-      requestedIndex
-    );
-
-    return;
-  }
-}
-
-if (
-  resetSelection
-) {
-  setSelectedIndex(
-    0
-  );
-} else {
-  setSelectedIndex(
-    (
-      current
-    ) => {
-      const maxIndex =
-        Math.max(
-          queueItems.length -
-            1,
-          0
-        );
-
-      return Math.min(
-        current,
-        maxIndex
-      );
+  const loadSummary = useCallback(async () => {
+    if (!employee?.id) return;
+    try {
+      setSummary(await getDailyCallingSummary(employee.id));
+    } catch (loadError) {
+      console.error("Calling summary error", loadError);
     }
-  );
-}
+  }, [employee?.id]);
 
-          setTotal(
-            response.total ||
-              0
-          );
-
-          setTotalPages(
-            response.totalPages ||
-              1
-          );
-
-          if (
-            resetSelection
-          ) {
-            setSelectedIndex(
-              0
-            );
-          } else {
-            setSelectedIndex(
-              (
-                current
-              ) => {
-                const maxIndex =
-                  Math.max(
-                    (
-                      response.queue
-                        ?.length ||
-                      1
-                    ) - 1,
-                    0
-                  );
-
-                return Math.min(
-                  current,
-                  maxIndex
-                );
-              }
-            );
-          }
-        } catch (
-          error: any
-        ) {
-          setError(
-            error?.response
-              ?.data
-              ?.message ||
-            "Failed to load calling queue"
-          );
-        } finally {
-          setLoading(
-            false
-          );
-        }
-      },
-      [
-        loggedInEmployee?.id,
-        page,
-        search,
-      ]
-    );
+  const loadQueue = useCallback(async () => {
+    if (!employee?.id) return;
+    try {
+      setLoading(true);
+      setError("");
+      const response = await getCallingQueue({
+        page: 1,
+        limit: 10,
+        search: search || undefined,
+        employeeId: employee.id,
+      });
+      const nextQueue = response.queue || [];
+      setQueue(nextQueue);
+      setTotal(response.total || 0);
+      setBatchSize(nextQueue.length);
+      setCompletedInBatch(0);
+      resetEditor();
+    } catch (loadError: any) {
+      setError(loadError?.response?.data?.message || "Failed to load calling leads");
+    } finally {
+      setLoading(false);
+    }
+  }, [employee?.id, search]);
 
   useEffect(() => {
-    loadQueue();
-  }, [
-    loadQueue,
-  ]);
+    const timer = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+      setBatchNumber(1);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
-  /* ============================
-     RESET FORM
-  ============================ */
+  useEffect(() => { void loadQueue(); }, [loadQueue]);
+  useEffect(() => { void loadSummary(); }, [loadSummary]);
 
   useEffect(() => {
-    setCallOutcome(
-      ""
-    );
-
-    setSelectedStatus(
-      ""
-    );
-
-    setRemarks(
-      ""
-    );
-
-    setFollowUpDate(
-      ""
-    );
-
-    setError(
-      ""
-    );
-
-    setSuccessMessage(
-      ""
-    );
-  }, [
-    selectedLead?.id,
-  ]);
-
-  /* ============================
-     SAVE CALL
-  ============================ */
-
-  const handleSaveUpdate =
-    async () => {
-      if (
-        !selectedLead ||
-        !loggedInEmployee?.id
-      ) {
-        return;
-      }
-
-      if (
-        !callOutcome
-      ) {
-        setError(
-          "Please select call outcome"
-        );
-
-        return;
-      }
-
-      if (
-        requiresFollowUp &&
-        !followUpDate
-      ) {
-        setError(
-          "Follow-up date is required for Call Back or Interested outcome"
-        );
-
-        return;
-      }
-
-      if (
-        followUpDate
-      ) {
-        const selectedDate =
-          new Date(
-            followUpDate
-          );
-
-        if (
-          Number.isNaN(
-            selectedDate.getTime()
-          )
-        ) {
-          setError(
-            "Invalid follow-up date"
-          );
-
-          return;
-        }
-
-        if (
-          selectedDate <=
-          new Date()
-        ) {
-          setError(
-            "Follow-up date must be in the future"
-          );
-
-          return;
-        }
-      }
-
+    const loadOptions = async () => {
       try {
-        setSaving(
-          true
-        );
-
-        setError(
-          ""
-        );
-
-        setSuccessMessage(
-          ""
-        );
-
-        const currentLeadId =
-          selectedLead.id;
-
-        const currentIndex =
-          selectedIndex;
-
-        const response =
-          await saveCallOutcome(
-            currentLeadId,
-            {
-              outcome:
-                callOutcome,
-
-              statusId:
-                selectedStatus ||
-                undefined,
-
-              remarks:
-                remarks.trim() ||
-                undefined,
-
-              followUpDate:
-                followUpDate
-                  ? new Date(
-                      followUpDate
-                    ).toISOString()
-                  : undefined,
-            }
-          );
-
-        await loadCallingSummary();
-
-        /* ============================
-           REMOVE CURRENT FROM QUEUE
-
-           Calling queue actionable
-           workflow hai. Call save hone
-           ke baad current lead ko
-           current page queue se remove
-           karenge.
-        ============================ */
-
-        setQueue(
-          (
-            currentQueue
-          ) =>
-            currentQueue.filter(
-              (
-                lead
-              ) =>
-                lead.id !==
-                currentLeadId
-            )
-        );
-
-        setTotal(
-          (
-            current
-          ) =>
-            Math.max(
-              current - 1,
-              0
-            )
-        );
-
-        setSuccessMessage(
-          response?.message ||
-            "Call saved successfully"
-        );
-
-        /* ============================
-           KEEP NEXT LEAD SELECTED
-        ============================ */
-
-        setSelectedIndex(
-          (
-          
-          ) => {
-            const nextLength =
-              Math.max(
-                queue.length -
-                  1,
-                0
-              );
-
-            if (
-              nextLength ===
-              0
-            ) {
-              return 0;
-            }
-
-            if (
-              currentIndex <
-              nextLength
-            ) {
-              return currentIndex;
-            }
-
-            return Math.max(
-              nextLength -
-                1,
-              0
-            );
-          }
-        );
-
-        /*
-         * Form immediately clear.
-         * selectedLead ID may remain
-         * same index after removal.
-         */
-
-        setCallOutcome(
-          ""
-        );
-
-        setSelectedStatus(
-          ""
-        );
-
-        setRemarks(
-          ""
-        );
-
-        setFollowUpDate(
-          ""
-        );
-
-        /* Load the next batch only after
-           all 10 current leads finish. */
-
-        if (
-          queue.length === 1
-        ) {
-          setBatchNumber(
-            (current) =>
-              current + 1
-          );
-          await loadQueue(
-            true
-          );
-        }
-
-        /*
-         * Lost lead backend already
-         * LOST mark karega.
-         */
-
-        if (
-          marksLeadLost
-        ) {
-          return;
-        }
-      } catch (
-        error: any
-      ) {
-        setError(
-          error?.response
-            ?.data
-            ?.message ||
-          error?.message ||
-          "Failed to save call"
-        );
-      } finally {
-        setSaving(
-          false
-        );
+        const [outcomeResponse, statusResponse] = await Promise.all([
+          getCallOutcomes(),
+          getLeadStatuses(),
+        ]);
+        setOutcomes(outcomeResponse.callOutcomes || []);
+        setStatuses(statusResponse.leadStatuses || []);
+      } catch (loadError: any) {
+        setError(loadError?.response?.data?.message || "Failed to load calling options");
       }
     };
+    void loadOptions();
+  }, []);
 
-  /* ============================
-     NAVIGATION
-  ============================ */
+  const openEditor = (leadId: string) => {
+    resetEditor();
+    setEditingLeadId(leadId);
+    setError("");
+    setSuccess("");
+  };
 
-  const previousLead =
-    () => {
-      setSelectedIndex(
-        (
-          current
-        ) =>
-          Math.max(
-            current - 1,
-            0
-          )
-      );
-    };
+  const handleSave = async (lead: CallingQueueLead) => {
+    if (!callOutcome) {
+      setError("Please select call outcome");
+      return;
+    }
+    if (selectedOutcome?.requiresFollowUp && !followUpDate) {
+      setError("Follow-up date is required for this outcome");
+      return;
+    }
+    if (followUpDate && new Date(followUpDate) <= new Date()) {
+      setError("Follow-up date must be in the future");
+      return;
+    }
 
-  const nextLead =
-    () => {
-      setSelectedIndex(
-        (
-          current
-        ) =>
-          Math.min(
-            current + 1,
-            queue.length - 1
-          )
-      );
-    };
+    try {
+      setSavingLeadId(lead.id);
+      setError("");
+      setSuccess("");
+      const response = await saveCallOutcome(lead.id, {
+        outcome: callOutcome,
+        statusId: selectedStatus || undefined,
+        followUpDate: followUpDate ? new Date(followUpDate).toISOString() : undefined,
+        remarks: remarks.trim() || undefined,
+      });
 
-  /* ============================
-     QUEUE SUMMARY
-  ============================ */
+      const remaining = queue.filter((item) => item.id !== lead.id);
+      setQueue(remaining);
+      setTotal((value) => Math.max(value - 1, 0));
+      setCompletedInBatch((value) => value + 1);
+      setSuccess(response?.message || "Call saved successfully");
+      resetEditor();
+      await loadSummary();
 
-  const queueSummary =
-    useMemo(() => {
-      return {
-        overdue:
-          queue.filter(
-            (
-              lead
-            ) =>
-              lead.queueType ===
-              "OVERDUE"
-          ).length,
+      if (remaining.length === 0) {
+        setBatchNumber((value) => value + 1);
+        await loadQueue();
+      }
+    } catch (saveError: any) {
+      setError(saveError?.response?.data?.message || saveError?.message || "Failed to save call");
+    } finally {
+      setSavingLeadId(null);
+    }
+  };
 
-        today:
-          queue.filter(
-            (
-              lead
-            ) =>
-              lead.queueType ===
-              "TODAY"
-          ).length,
-
-        newLeads:
-          queue.filter(
-            (
-              lead
-            ) =>
-              lead.queueType ===
-              "NEW"
-          ).length,
-
-        general:
-          queue.filter(
-            (
-              lead
-            ) =>
-              lead.queueType ===
-              "GENERAL"
-          ).length,
-      };
-    }, [
-      queue,
-    ]);
-
-  /* ============================
-     NO USER
-  ============================ */
-
-  if (
-    !loggedInEmployee?.id
-  ) {
-    return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
-        Logged-in employee information not found.
-      </div>
-    );
+  if (!employee?.id) {
+    return <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">Logged-in employee information not found.</div>;
   }
 
   return (
     <div className="space-y-5">
-      {/* ============================
-          HEADER
-      ============================ */}
-
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+      <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-center">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Calling Workspace
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Priority based calling queue
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900">Calling Workspace</h1>
+          <p className="mt-1 text-sm text-slate-500">Call and update 10 priority leads in one batch</p>
         </div>
-
-        <button
-          type="button"
-          disabled={
-            loading
-          }
-          onClick={() => {
-            loadQueue();
-            loadCallingSummary();
-          }}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw
-            size={16}
-            className={
-              loading
-                ? "animate-spin"
-                : ""
-            }
-          />
-
-          Refresh
+        <button type="button" onClick={() => { void loadQueue(); void loadSummary(); }} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 disabled:opacity-50">
+          <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh
         </button>
       </div>
 
-      {/* ============================
-          DAILY SUMMARY
-      ============================ */}
-
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard
-          title="Calls Today"
-          value={
-            callingSummary
-              ?.summary
-              .todayCalls ??
-            0
-          }
-          subText={`Target ${
-            callingSummary
-              ?.summary
-              .dailyTarget ??
-            250
-          }`}
-        />
-
-        <SummaryCard
-          title="Remaining Calls"
-          value={
-            callingSummary
-              ?.summary
-              .remaining ??
-            250
-          }
-          subText="Today's target"
-        />
-
-        <SummaryCard
-          title="Calling Queue"
-          value={
-            total
-          }
-          subText="Actionable leads"
-        />
-
-        <SummaryCard
-          title="Overdue"
-          value={
-            queueSummary.overdue
-          }
-          subText="Highest priority"
-        />
+        <SummaryCard title="Calls Today" value={summary?.summary.todayCalls ?? 0} detail={`Target ${summary?.summary.dailyTarget ?? 250}`} />
+        <SummaryCard title="Current Batch" value={`#${batchNumber}`} detail={`${completedInBatch} of ${batchSize || 10} completed`} />
+        <SummaryCard title="Batch Remaining" value={queue.length} detail="Auto-loads next 10" />
+        <SummaryCard title="Available Leads" value={total} detail="Not called today" />
       </div>
-
-      {/* ============================
-          TARGET PROGRESS
-      ============================ */}
-
-      <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-800">
-              Daily Calling Target
-            </p>
-
-            <p className="mt-1 text-xs text-slate-500">
-              {callingSummary
-                ?.summary
-                .todayCalls ??
-                0}
-              {" / "}
-              {callingSummary
-                ?.summary
-                .dailyTarget ??
-                250}
-              {" calls"}
-            </p>
-          </div>
-
-          <p className="text-lg font-bold text-blue-700">
-            {callingSummary
-              ?.summary
-              .achievementPercent ??
-              0}
-            %
-          </p>
-        </div>
-
-        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100">
-          <div
-            className="h-full rounded-full bg-blue-600 transition-all"
-            style={{
-              width: `${Math.min(
-                callingSummary
-                  ?.summary
-                  .achievementPercent ??
-                  0,
-                100
-              )}%`,
-            }}
-          />
-        </div>
-      </section>
-
-      {/* ============================
-          QUEUE TYPES
-      ============================ */}
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <QueueStat
-          title="Overdue"
-          value={
-            queueSummary.overdue
-          }
-          type="OVERDUE"
-        />
-
-        <QueueStat
-          title="Today"
-          value={
-            queueSummary.today
-          }
-          type="TODAY"
-        />
-
-        <QueueStat
-          title="New"
-          value={
-            queueSummary.newLeads
-          }
-          type="NEW"
-        />
-
-        <QueueStat
-          title="General"
-          value={
-            queueSummary.general
-          }
-          type="GENERAL"
-        />
-      </div>
-
-      {/* ============================
-          SEARCH
-      ============================ */}
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="relative">
-          <Search
-            size={17}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-
-          <input
-            value={
-              searchInput
-            }
-            onChange={(
-              e
-            ) =>
-              setSearchInput(
-                e.target
-                  .value
-              )
-            }
-            placeholder="Search calling queue..."
-            className={`${inputClass} pl-9`}
-          />
+          <Search size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search lead, mobile or email..." className={`${inputClass} pl-9`} />
         </div>
       </section>
 
-      {/* ============================
-          MESSAGES
-      ============================ */}
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+      {success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{success}</div>}
 
-      {successMessage && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-          {
-            successMessage
-          }
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {/* ============================
-          MAIN
-      ============================ */}
-
-      {loading ? (
-        <LoadingState />
-      ) : !selectedLead ? (
-        <EmptyState
-          page={
-            page
-          }
-          totalPages={
-            totalPages
-          }
-          onPreviousPage={() =>
-            setPage(
-              (
-                current
-              ) =>
-                Math.max(
-                  current -
-                    1,
-                  1
-                )
-            )
-          }
-        />
-      ) : (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-          {/* ============================
-              LEFT
-          ============================ */}
-
-          <div className="space-y-5">
-            {/* LEAD */}
-
-            <section className="rounded-xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-100 p-6">
-                <div className="flex flex-col justify-between gap-5 md:flex-row md:items-center">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-700">
-                      {getInitials(
-                        selectedLead.name
-                      )}
-                    </div>
-
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-xl font-bold text-slate-900">
-                          {selectedLead.name ||
-                            "Unnamed Lead"}
-                        </h2>
-
-                        <QueueBadge
-                          type={
-                            selectedLead.queueType
-                          }
-                        />
-
-                        <StageBadge
-                          stage={
-                            selectedLead.stage
-                          }
-                        />
-
-                        {selectedLead.aging && (
-                          <LeadAgingBadge
-                            aging={
-                              selectedLead.aging
-                            }
-                          />
-                        )}
-                      </div>
-
-                      <p className="mt-1 text-xs text-slate-400">
-                        {
-                          selectedLead.leadCode
-                        }
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      navigate(
-                        `/leads/${selectedLead.id}`
-                      )
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                  >
-                    <Eye
-                      size={15}
-                    />
-
-                    Full Details
-                  </button>
-                </div>
-              </div>
-
-              {/* CONTACT */}
-
-              <div className="grid gap-4 p-6 md:grid-cols-2">
-                <ContactRow
-                  icon={
-                    <Phone
-                      size={17}
-                    />
-                  }
-                  label="Mobile"
-                  value={
-                    selectedLead.mobile ||
-                    "-"
-                  }
-                />
-
-                <ContactRow
-                  icon={
-                    <Mail
-                      size={17}
-                    />
-                  }
-                  label="Email"
-                  value={
-                    selectedLead.email ||
-                    "-"
-                  }
-                />
-
-                <ContactRow
-                  icon={
-                    <MapPin
-                      size={17}
-                    />
-                  }
-                  label="City"
-                  value={
-                    selectedLead.city ||
-                    "-"
-                  }
-                />
-
-                <ContactRow
-                  icon={
-                    <Clock3
-                      size={17}
-                    />
-                  }
-                  label="Next Follow-up"
-                  value={
-                    selectedLead.nextFollowUp
-                      ? formatDateTime(
-                          selectedLead.nextFollowUp
-                        )
-                      : "Not scheduled"
-                  }
-                />
-
-                <ContactRow
-                  icon={
-                    <UserRound
-                      size={17}
-                    />
-                  }
-                  label="Assigned Employee"
-                  value={
-                    selectedLead
-                      .assignedEmployee
-                      ?.name ||
-                    "-"
-                  }
-                />
-
-                <ContactRow
-                  icon={
-                    <CalendarClock
-                      size={17}
-                    />
-                  }
-                  label="Last Call"
-                  value={
-                    selectedLead.lastCallAt
-                      ? formatDateTime(
-                          selectedLead.lastCallAt
-                        )
-                      : "Never called"
-                  }
-                />
-              </div>
-            </section>
-
-            {/* QUEUE NAVIGATION */}
-
-            <section className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">
-                    Calling Queue
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Batch {batchNumber}
-                    {" • Lead "}
-                    {Math.min(
-                      batchSize -
-                        queue.length +
-                        1,
-                      batchSize
-                    )}
-                    {" of "}
-                    {batchSize}
-                    {" • "}
-                    {total}
-                    {" leads available"}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={
-                      selectedIndex ===
-                      0
-                    }
-                    onClick={
-                      previousLead
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-40"
-                  >
-                    <ChevronLeft
-                      size={16}
-                    />
-
-                    Previous
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={
-                      selectedIndex >=
-                      queue.length -
-                        1
-                    }
-                    onClick={
-                      nextLead
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-                  >
-                    Next
-
-                    <ChevronRight
-                      size={16}
-                    />
-                  </button>
-                </div>
-              </div>
-
-            </section>
-
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <h2 className="font-semibold text-slate-900">Batch {batchNumber} Calling Leads</h2>
+            <p className="mt-1 text-xs text-slate-500">Save a call update and that lead will leave this list.</p>
           </div>
-
-          {/* ============================
-              RIGHT
-          ============================ */}
-
-          <aside className="h-fit rounded-xl border border-slate-200 bg-white p-5 lg:sticky lg:top-5">
-            <div>
-              <h3 className="font-semibold text-slate-900">
-                Save Call Update
-              </h3>
-
-              <p className="mt-1 text-xs text-slate-500">
-                Save outcome and move to next priority lead
-              </p>
-            </div>
-
-            {/* OUTCOME */}
-
-            <div className="mt-5">
-              <FieldLabel
-                required
-              >
-                Call Outcome
-              </FieldLabel>
-
-              <select
-                value={
-                  callOutcome
-                }
-                onChange={(event) =>
-                  setCallOutcome(
-                    event.target.value as CallOutcome | ""
-                  )
-                }
-                className={
-                  inputClass
-                }
-              >
-                <option value="">
-                  Select call outcome
-                </option>
-
-                {outcomeOptions.map(
-                  (option) => (
-                    <option
-                      key={
-                        option.code
-                      }
-                      value={
-                        option.code
-                      }
-                    >
-                      {option.name}
-                    </option>
-                  )
-                )}
-              </select>
-
-              {callOutcome && (
-                <p className="mt-1.5 text-xs text-slate-500">
-                  {
-                    outcomeOptions.find(
-                      (option) =>
-                        option.code === callOutcome
-                    )?.description
-                  }
-                </p>
-              )}
-            </div>
-
-            {/* LOST WARNING */}
-
-            {marksLeadLost && (
-              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                This outcome will mark the lead as Lost and remove it from the calling queue.
-              </div>
-            )}
-
-            {/* STATUS */}
-
-            <div className="mt-5">
-              <FieldLabel>
-                Lead Status
-              </FieldLabel>
-
-              <select
-                value={
-                  selectedStatus
-                }
-                onChange={(
-                  e
-                ) =>
-                  setSelectedStatus(
-                    e.target
-                      .value
-                  )
-                }
-                className={
-                  inputClass
-                }
-              >
-                <option value="">
-                  Keep current status
-                </option>
-
-                {statuses.map(
-                  (
-                    status
-                  ) => (
-                    <option
-                      key={
-                        status.id
-                      }
-                      value={
-                        status.id
-                      }
-                    >
-                      {
-                        status.name
-                      }
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-
-            {/* FOLLOW-UP */}
-
-            <div className="mt-5">
-              <FieldLabel
-                required={
-                  requiresFollowUp
-                }
-              >
-                Follow-up Date
-              </FieldLabel>
-
-              <div className="relative">
-                <CalendarClock
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-
-                <input
-                  type="datetime-local"
-                  value={
-                    followUpDate
-                  }
-                  min={
-                    getMinDateTime()
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setFollowUpDate(
-                      e.target
-                        .value
-                    )
-                  }
-                  className={`${inputClass} pl-9`}
-                />
-              </div>
-
-              {requiresFollowUp && (
-                <p className="mt-1.5 text-xs text-blue-600">
-                  Follow-up is mandatory for this outcome.
-                </p>
-              )}
-            </div>
-
-            {/* REMARKS */}
-
-            <div className="mt-5">
-              <FieldLabel>
-                Remarks
-              </FieldLabel>
-
-              <textarea
-                rows={4}
-                value={
-                  remarks
-                }
-                onChange={(
-                  e
-                ) =>
-                  setRemarks(
-                    e.target
-                      .value
-                  )
-                }
-                placeholder="Enter call notes..."
-                className={
-                  inputClass
-                }
-              />
-            </div>
-
-            {/* SAVE */}
-
-            <button
-              type="button"
-              disabled={
-                saving ||
-                !callOutcome ||
-                (
-                  requiresFollowUp &&
-                  !followUpDate
-                )
-              }
-              onClick={
-                handleSaveUpdate
-              }
-              className="mt-6 w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving
-                ? "Saving Call..."
-                : "Save & Next Lead"}
-            </button>
-          </aside>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ============================
-   SUMMARY CARD
-============================ */
-
-function SummaryCard({
-  title,
-  value,
-  subText,
-}: {
-  title: string;
-
-  value:
-    | number
-    | string;
-
-  subText: string;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <p className="text-sm text-slate-500">
-        {title}
-      </p>
-
-      <p className="mt-2 text-2xl font-bold text-slate-900">
-        {value}
-      </p>
-
-      <p className="mt-1 text-xs text-slate-400">
-        {subText}
-      </p>
-    </div>
-  );
-}
-
-/* ============================
-   QUEUE STAT
-============================ */
-
-function QueueStat({
-  title,
-  value,
-  type,
-}: {
-  title: string;
-
-  value: number;
-
-  type: CallingQueueType;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            {title}
-          </p>
-
-          <p className="mt-2 text-xl font-bold text-slate-900">
-            {value}
-          </p>
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{queue.length} remaining</span>
         </div>
 
-        <QueueBadge
-          type={
-            type
-          }
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ============================
-   QUEUE BADGE
-============================ */
-
-function QueueBadge({
-  type,
-}: {
-  type: CallingQueueType;
-}) {
-  const classes: Record<
-    CallingQueueType,
-    string
-  > = {
-    OVERDUE:
-      "bg-red-50 text-red-700",
-
-    TODAY:
-      "bg-amber-50 text-amber-700",
-
-    NEW:
-      "bg-blue-50 text-blue-700",
-
-    GENERAL:
-      "bg-slate-100 text-slate-600",
-  };
-
-  return (
-    <span
-      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${classes[type]}`}
-    >
-      {type}
-    </span>
-  );
-}
-
-/* ============================
-   CONTACT
-============================ */
-
-function ContactRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-
-  label: string;
-
-  value: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg bg-slate-50 p-4">
-      <div className="mt-0.5 text-slate-400">
-        {icon}
-      </div>
-
-      <div className="min-w-0">
-        <p className="text-xs text-slate-500">
-          {label}
-        </p>
-
-        <p className="mt-1 wrap-break-word text-sm font-medium text-slate-800">
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/* ============================
-   FIELD LABEL
-============================ */
-
-function FieldLabel({
-  children,
-  required = false,
-}: {
-  children: ReactNode;
-
-  required?: boolean;
-}) {
-  return (
-    <label className="mb-2 block text-sm font-medium text-slate-700">
-      {children}
-
-      {required && (
-        <span className="ml-1 text-red-500">
-          *
-        </span>
-      )}
-    </label>
-  );
-}
-
-/* ============================
-   STAGE BADGE
-============================ */
-
-function StageBadge({
-  stage,
-}: {
-  stage: string;
-}) {
-  const classes: Record<
-    string,
-    string
-  > = {
-    NEW:
-      "bg-slate-100 text-slate-700",
-
-    WORKING:
-      "bg-blue-50 text-blue-700",
-
-    FOLLOW_UP:
-      "bg-amber-50 text-amber-700",
-
-    CONVERTED:
-      "bg-emerald-50 text-emerald-700",
-
-    LOST:
-      "bg-red-50 text-red-700",
-  };
-
-  return (
-    <span
-      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-        classes[
-          stage
-        ] ||
-        "bg-slate-100 text-slate-600"
-      }`}
-    >
-      {stage.replace(
-        /_/g,
-        " "
-      )}
-    </span>
-  );
-}
-
-/* ============================
-   LOADING
-============================ */
-
-function LoadingState() {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-14 text-center">
-      <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
-
-      <p className="mt-3 text-sm text-slate-500">
-        Loading priority queue...
-      </p>
-    </div>
-  );
-}
-
-/* ============================
-   EMPTY
-============================ */
-
-function EmptyState({
-  page,
-  totalPages,
-  onPreviousPage,
-}: {
-  page: number;
-
-  totalPages: number;
-
-  onPreviousPage: () => void;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-14 text-center">
-      <UserRound
-        size={40}
-        className="mx-auto text-slate-300"
-      />
-
-      <p className="mt-3 font-medium text-slate-700">
-        Calling queue is empty
-      </p>
-
-      <p className="mt-1 text-sm text-slate-400">
-        No actionable assigned leads found on this page.
-      </p>
-
-      {page > 1 &&
-        totalPages >
-          0 && (
-          <button
-            type="button"
-            onClick={
-              onPreviousPage
-            }
-            className="mt-4 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700"
-          >
-            Previous Page
-          </button>
+        {loading ? (
+          <div className="p-10 text-center text-sm text-slate-500">Loading priority leads...</div>
+        ) : queue.length === 0 ? (
+          <div className="p-10 text-center"><p className="font-semibold text-slate-800">No calling leads available</p><p className="mt-1 text-sm text-slate-500">All assigned leads may already be called today.</p></div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-240 text-left">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr><th className="px-4 py-3">#</th><th className="px-4 py-3">Lead</th><th className="px-4 py-3">Contact</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Priority</th><th className="px-4 py-3">Follow-up</th><th className="px-4 py-3">Last Call</th><th className="px-4 py-3 text-right">Actions</th></tr>
+              </thead>
+              <tbody>
+                {queue.map((lead, index) => (
+                  <LeadCallingRows key={lead.id} lead={lead} index={index} isEditing={editingLeadId === lead.id} isSaving={savingLeadId === lead.id} outcomes={outcomes} statuses={statuses} callOutcome={callOutcome} selectedStatus={selectedStatus} followUpDate={followUpDate} remarks={remarks} selectedOutcome={selectedOutcome} onCallOutcome={setCallOutcome} onStatus={setSelectedStatus} onFollowUp={setFollowUpDate} onRemarks={setRemarks} onEdit={() => openEditor(lead.id)} onCancel={resetEditor} onSave={() => void handleSave(lead)} onView={() => navigate(`/leads/${lead.id}`)} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
+      </section>
     </div>
   );
 }
 
-/* ============================
-   HELPERS
-============================ */
+type LeadRowsProps = {
+  lead: CallingQueueLead;
+  index: number;
+  isEditing: boolean;
+  isSaving: boolean;
+  outcomes: CallOutcomeOption[];
+  statuses: LeadStatusOption[];
+  callOutcome: string;
+  selectedStatus: string;
+  followUpDate: string;
+  remarks: string;
+  selectedOutcome?: CallOutcomeOption;
+  onCallOutcome: (value: string) => void;
+  onStatus: (value: string) => void;
+  onFollowUp: (value: string) => void;
+  onRemarks: (value: string) => void;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: () => void;
+  onView: () => void;
+};
 
-const inputClass =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+function LeadCallingRows(props: LeadRowsProps) {
+  const { lead, index, isEditing, isSaving, outcomes, statuses, callOutcome, selectedStatus, followUpDate, remarks, selectedOutcome, onCallOutcome, onStatus, onFollowUp, onRemarks, onEdit, onCancel, onSave, onView } = props;
+  return (
+    <>
+      <tr className={`border-t border-slate-100 ${isEditing ? "bg-blue-50/40" : "hover:bg-slate-50/60"}`}>
+        <td className="px-4 py-3 text-xs text-slate-400">{index + 1}</td>
+        <td className="px-4 py-3"><p className="font-semibold text-blue-700">{lead.name || "Unnamed Lead"}</p><p className="mt-0.5 text-xs text-slate-400">{lead.leadCode}</p></td>
+        <td className="px-4 py-3"><p className="font-medium text-slate-800">{lead.mobile}</p><p className="mt-0.5 text-xs text-slate-400">{lead.city || lead.email || "-"}</p></td>
+        <td className="px-4 py-3"><Badge text={lead.status?.name || lead.stage} /></td>
+        <td className="px-4 py-3"><PriorityBadge type={lead.queueType} /></td>
+        <td className="px-4 py-3 text-sm text-slate-600">{formatDateTime(lead.nextFollowUp)}</td>
+        <td className="px-4 py-3 text-sm text-slate-500">{formatDateTime(lead.lastCallAt)}</td>
+        <td className="px-4 py-3"><div className="flex justify-end gap-2"><a href={`tel:${lead.mobile}`} className="rounded-lg border border-emerald-200 p-2 text-emerald-700" title="Call"><Phone size={16} /></a><button type="button" onClick={onView} className="rounded-lg border border-slate-200 p-2 text-blue-700" title="View lead"><Eye size={16} /></button><button type="button" onClick={onEdit} className="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white"><Pencil size={14} /> Update</button></div></td>
+      </tr>
 
-function getInitials(
-  name?:
-    | string
-    | null
-) {
-  if (!name) {
-    return "L";
-  }
-
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(
-      (word) =>
-        word[0]
-          ?.toUpperCase()
-    )
-    .join("");
-}
-
-function formatDateTime(
-  value: string
-) {
-  return new Date(
-    value
-  ).toLocaleString(
-    "en-IN",
-    {
-      day: "2-digit",
-
-      month:
-        "short",
-
-      year:
-        "numeric",
-
-      hour:
-        "2-digit",
-
-      minute:
-        "2-digit",
-    }
+      {isEditing && (
+        <tr className="border-t border-blue-100 bg-blue-50/40">
+          <td colSpan={8} className="p-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div><label className="mb-1.5 block text-xs font-semibold text-slate-600">Call Outcome *</label><select value={callOutcome} onChange={(event) => onCallOutcome(event.target.value)} className={inputClass}><option value="">Select outcome</option>{outcomes.map((outcome) => <option key={outcome.id} value={outcome.code}>{outcome.name}</option>)}</select>{selectedOutcome?.description && <p className="mt-1 text-xs text-slate-500">{selectedOutcome.description}</p>}</div>
+              <div><label className="mb-1.5 block text-xs font-semibold text-slate-600">Lead Status</label><select value={selectedStatus} onChange={(event) => onStatus(event.target.value)} className={inputClass}><option value="">Automatic / keep current</option>{statuses.map((status) => <option key={status.id} value={status.id}>{status.name}</option>)}</select></div>
+              <div><label className="mb-1.5 block text-xs font-semibold text-slate-600">Follow-up Date {selectedOutcome?.requiresFollowUp ? "*" : ""}</label><div className="relative"><CalendarClock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type="datetime-local" min={getMinDateTime()} value={followUpDate} onChange={(event) => onFollowUp(event.target.value)} className={`${inputClass} pl-9`} /></div></div>
+              <div><label className="mb-1.5 block text-xs font-semibold text-slate-600">Remarks</label><input value={remarks} onChange={(event) => onRemarks(event.target.value)} placeholder="Call notes..." className={inputClass} /></div>
+            </div>
+            {selectedOutcome?.marksLeadLost && <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-700">This outcome will mark the lead Lost and remove it from the calling queue.</p>}
+            <div className="mt-4 flex justify-end gap-2"><button type="button" onClick={onCancel} disabled={isSaving} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700"><X size={15} /> Cancel</button><button type="button" onClick={onSave} disabled={isSaving || !callOutcome || Boolean(selectedOutcome?.requiresFollowUp && !followUpDate)} className="inline-flex items-center gap-1 rounded-lg bg-blue-700 px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"><Save size={15} /> {isSaving ? "Saving..." : "Save & Remove"}</button></div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
-function getMinDateTime() {
-  const date =
-    new Date();
+function SummaryCard({ title, value, detail }: { title: string; value: string | number; detail: string }) {
+  return <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">{title}</p><p className="mt-2 text-2xl font-bold text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-400">{detail}</p></div>;
+}
 
-  date.setMinutes(
-    date.getMinutes() -
-      date.getTimezoneOffset()
-  );
+function Badge({ text }: { text: string }) {
+  return <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{text}</span>;
+}
 
-  return date
-    .toISOString()
-    .slice(
-      0,
-      16
-    );
+function PriorityBadge({ type }: { type: CallingQueueLead["queueType"] }) {
+  const classes = { OVERDUE: "bg-red-50 text-red-700", TODAY: "bg-amber-50 text-amber-700", NEW: "bg-emerald-50 text-emerald-700", GENERAL: "bg-slate-100 text-slate-600" };
+  return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${classes[type]}`}>{type}</span>;
 }

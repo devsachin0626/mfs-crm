@@ -2828,6 +2828,227 @@ export const getDailyCallingSummary =
     };
   };
 
+export const getTeamCallingPerformance =
+  async (
+    dateValue: string | undefined,
+    currentEmployee: any
+  ) => {
+    const roleName =
+      getRoleName(currentEmployee);
+
+    const selectedDate =
+      dateValue
+        ? new Date(`${dateValue}T00:00:00`)
+        : new Date();
+
+    if (
+      Number.isNaN(
+        selectedDate.getTime()
+      )
+    ) {
+      throw new Error(
+        "Invalid Calling Performance Date"
+      );
+    }
+
+    const startOfDay =
+      new Date(selectedDate);
+
+    startOfDay.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    const endOfDay =
+      new Date(startOfDay);
+
+    endOfDay.setDate(
+      endOfDay.getDate() + 1
+    );
+
+    const employeeWhere: Prisma.EmployeeWhereInput = {
+      isActive: true,
+      status: "ACTIVE",
+    };
+
+    if (
+      roleName === "ADMIN" ||
+      roleName === "HR"
+    ) {
+      employeeWhere.role = {
+        name: {
+          in: [
+            "EMPLOYEE",
+            "TEAM_LEADER",
+          ],
+        },
+      };
+    } else if (
+      roleName === "TEAM_LEADER"
+    ) {
+      employeeWhere.OR = [
+        {
+          id: currentEmployee.id,
+        },
+        {
+          reportingManagerId:
+            currentEmployee.id,
+        },
+      ];
+    } else if (
+      roleName === "EMPLOYEE"
+    ) {
+      employeeWhere.id =
+        currentEmployee.id;
+    } else {
+      throw new Error(
+        "Calling Performance Access Denied"
+      );
+    }
+
+    const employees =
+      await prisma.employee.findMany({
+        where: employeeWhere,
+        select: {
+          id: true,
+          employeeCode: true,
+          name: true,
+          role: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          name: "asc",
+        },
+      });
+
+    const employeeIds =
+      employees.map(
+        (employee) => employee.id
+      );
+
+    const callGroups =
+      employeeIds.length > 0
+        ? await prisma.leadHistory.groupBy({
+            by: ["employeeId"],
+            where: {
+              employeeId: {
+                in: employeeIds,
+              },
+              callOutcome: {
+                not: null,
+              },
+              createdAt: {
+                gte: startOfDay,
+                lt: endOfDay,
+              },
+            },
+            _count: {
+              _all: true,
+            },
+          })
+        : [];
+
+    const callsByEmployee =
+      new Map(
+        callGroups.map(
+          (group) => [
+            group.employeeId,
+            group._count._all,
+          ]
+        )
+      );
+
+    const rows =
+      await Promise.all(
+        employees.map(
+          async (employee) => {
+            const calls =
+              callsByEmployee.get(
+                employee.id
+              ) || 0;
+
+            const pendingFreshLeads =
+              await prisma.lead.count({
+                where: {
+                  assignedEmployeeId:
+                    employee.id,
+                  isConverted: false,
+                  stage: {
+                    notIn: [
+                      "LOST",
+                      "CONVERTED",
+                    ],
+                  },
+                  histories: {
+                    none: {
+                      employeeId:
+                        employee.id,
+                      callOutcome: {
+                        not: null,
+                      },
+                    },
+                  },
+                },
+              });
+
+            const completedBatches =
+              Math.floor(calls / 10);
+
+            return {
+              employee: {
+                id: employee.id,
+                employeeCode:
+                  employee.employeeCode,
+                name: employee.name,
+                role: employee.role.name,
+              },
+              calls,
+              completedBatches,
+              currentBatchNumber:
+                completedBatches + 1,
+              currentBatchCompleted:
+                calls % 10,
+              pendingFreshLeads,
+            };
+          }
+        )
+      );
+
+    return {
+      success: true,
+      date:
+        startOfDay.toISOString(),
+      batchSize: 10,
+      totals: {
+        calls: rows.reduce(
+          (sum, row) =>
+            sum + row.calls,
+          0
+        ),
+        completedBatches:
+          rows.reduce(
+            (sum, row) =>
+              sum +
+              row.completedBatches,
+            0
+          ),
+        pendingFreshLeads:
+          rows.reduce(
+            (sum, row) =>
+              sum +
+              row.pendingFreshLeads,
+            0
+          ),
+      },
+      employees: rows,
+    };
+  };
+
 export const getLeadTimeline = async (
   leadId: string,
   currentEmployee: any

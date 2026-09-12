@@ -3,10 +3,10 @@ import { CalendarClock, Eye, Pencil, Phone, RefreshCw, Save, Search, X } from "l
 import { useNavigate } from "react-router-dom";
 
 import { useAppSelector } from "../../hooks/redux";
-import { getCallingQueue, getDailyCallingSummary, saveCallOutcome } from "../../services/calling.service";
+import { getCallingQueue, getDailyCallingSummary, getTeamCallingPerformance, saveCallOutcome } from "../../services/calling.service";
 import { getCallOutcomes } from "../../services/callOutcome.service";
 import { getLeadStatuses } from "../../services/leadStatus.service";
-import type { CallOutcomeOption, CallingQueueLead, DailyCallingSummary } from "../../types/calling.types";
+import type { CallOutcomeOption, CallingQueueLead, DailyCallingSummary, TeamCallingPerformanceResponse } from "../../types/calling.types";
 
 type LeadStatusOption = { id: string; name: string };
 
@@ -16,6 +16,12 @@ const getMinDateTime = () => {
   const date = new Date(Date.now() + 5 * 60 * 1000);
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return local.toISOString().slice(0, 16);
+};
+
+const getLocalDateValue = () => {
+  const date = new Date();
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
 };
 
 const formatDateTime = (value?: string | null) => {
@@ -35,6 +41,9 @@ export default function CallingWorkspacePage() {
   const [outcomes, setOutcomes] = useState<CallOutcomeOption[]>([]);
   const [statuses, setStatuses] = useState<LeadStatusOption[]>([]);
   const [summary, setSummary] = useState<DailyCallingSummary | null>(null);
+  const [teamPerformance, setTeamPerformance] = useState<TeamCallingPerformanceResponse | null>(null);
+  const [performanceDate, setPerformanceDate] = useState(getLocalDateValue);
+  const [performanceLoading, setPerformanceLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [batchNumber, setBatchNumber] = useState(1);
   const [batchSize, setBatchSize] = useState(0);
@@ -73,6 +82,18 @@ export default function CallingWorkspacePage() {
     }
   }, [employee?.id]);
 
+  const loadTeamPerformance = useCallback(async () => {
+    if (!employee?.id) return;
+    try {
+      setPerformanceLoading(true);
+      setTeamPerformance(await getTeamCallingPerformance(performanceDate));
+    } catch (loadError: any) {
+      setError(loadError?.response?.data?.message || "Failed to load team calling performance");
+    } finally {
+      setPerformanceLoading(false);
+    }
+  }, [employee?.id, performanceDate]);
+
   const loadQueue = useCallback(async () => {
     if (!employee?.id) return;
     try {
@@ -107,6 +128,7 @@ export default function CallingWorkspacePage() {
 
   useEffect(() => { void loadQueue(); }, [loadQueue]);
   useEffect(() => { void loadSummary(); }, [loadSummary]);
+  useEffect(() => { void loadTeamPerformance(); }, [loadTeamPerformance]);
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -163,6 +185,7 @@ export default function CallingWorkspacePage() {
       setSuccess(response?.message || "Call saved successfully");
       resetEditor();
       await loadSummary();
+      await loadTeamPerformance();
 
       if (remaining.length === 0) {
         setBatchNumber((value) => value + 1);
@@ -186,7 +209,7 @@ export default function CallingWorkspacePage() {
           <h1 className="text-2xl font-bold text-slate-900">Calling Workspace</h1>
           <p className="mt-1 text-sm text-slate-500">Call and update 10 priority leads in one batch</p>
         </div>
-        <button type="button" onClick={() => { void loadQueue(); void loadSummary(); }} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 disabled:opacity-50">
+        <button type="button" onClick={() => { void loadQueue(); void loadSummary(); void loadTeamPerformance(); }} disabled={loading} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 disabled:opacity-50">
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh
         </button>
       </div>
@@ -197,6 +220,65 @@ export default function CallingWorkspacePage() {
         <SummaryCard title="Batch Remaining" value={queue.length} detail="Auto-loads next 10" />
         <SummaryCard title="Available Leads" value={total} detail="Not called today" />
       </div>
+
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-end">
+          <div>
+            <h2 className="font-semibold text-slate-900">Team Calling Performance</h2>
+            <p className="mt-1 text-xs text-slate-500">Calls, completed batches and fresh leads pending with each employee</p>
+          </div>
+          <label className="text-xs font-semibold text-slate-600">
+            Calling Date
+            <input
+              type="date"
+              value={performanceDate}
+              max={getLocalDateValue()}
+              onChange={(event) => setPerformanceDate(event.target.value)}
+              className="mt-1 block rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-blue-500"
+            />
+          </label>
+        </div>
+
+        <div className="grid gap-px border-b border-slate-100 bg-slate-100 sm:grid-cols-3">
+          <PerformanceTotal label="Total Calls" value={teamPerformance?.totals.calls ?? 0} />
+          <PerformanceTotal label="Completed Batches" value={teamPerformance?.totals.completedBatches ?? 0} />
+          <PerformanceTotal label="Pending Fresh Leads" value={teamPerformance?.totals.pendingFreshLeads ?? 0} />
+        </div>
+
+        {performanceLoading ? (
+          <div className="p-8 text-center text-sm text-slate-500">Loading team performance...</div>
+        ) : !teamPerformance?.employees.length ? (
+          <div className="p-8 text-center text-sm text-slate-500">No active calling employees found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-180 text-left">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="px-5 py-3">Employee</th>
+                  <th className="px-5 py-3 text-center">Calls</th>
+                  <th className="px-5 py-3 text-center">Completed Batches</th>
+                  <th className="px-5 py-3 text-center">Current Batch</th>
+                  <th className="px-5 py-3 text-center">Pending Fresh Leads</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {teamPerformance.employees.map((row) => (
+                  <tr key={row.employee.id} className="hover:bg-slate-50">
+                    <td className="px-5 py-3">
+                      <p className="font-semibold text-slate-800">{row.employee.name}</p>
+                      <p className="text-xs text-slate-500">{row.employee.employeeCode} · {row.employee.role.replaceAll("_", " ")}</p>
+                    </td>
+                    <td className="px-5 py-3 text-center text-lg font-bold text-slate-900">{row.calls}</td>
+                    <td className="px-5 py-3 text-center font-semibold text-blue-700">{row.completedBatches}</td>
+                    <td className="px-5 py-3 text-center text-sm text-slate-700">#{row.currentBatchNumber} · {row.currentBatchCompleted}/10</td>
+                    <td className="px-5 py-3 text-center font-semibold text-amber-700">{row.pendingFreshLeads}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="relative">
@@ -236,6 +318,15 @@ export default function CallingWorkspacePage() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function PerformanceTotal({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-white px-5 py-3">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="mt-1 text-xl font-bold text-slate-900">{value}</p>
     </div>
   );
 }

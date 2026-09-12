@@ -545,6 +545,44 @@ export const getDailyCallingSummary =
     }
   };
 
+export const getTeamCallingPerformance =
+  async (
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> => {
+    try {
+      if (!req.employee) {
+        res.status(401).json({
+          success: false,
+          message:
+            "Authenticated Employee Not Found",
+        });
+        return;
+      }
+
+      const date =
+        typeof req.query.date ===
+        "string"
+          ? req.query.date
+          : undefined;
+
+      const result =
+        await leadService.getTeamCallingPerformance(
+          date,
+          req.employee
+        );
+
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(400).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed To Load Team Calling Performance",
+      });
+    }
+  };
+
 /* ============================
    LEAD TIMELINE
 ============================ */

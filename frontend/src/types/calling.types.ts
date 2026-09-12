@@ -72,6 +72,29 @@ export interface DailyCallingSummary {
   };
 }
 
+export interface TeamCallingPerformanceRow {
+  employee: CallingEmployee & {
+    role: string;
+  };
+  calls: number;
+  completedBatches: number;
+  currentBatchNumber: number;
+  currentBatchCompleted: number;
+  pendingFreshLeads: number;
+}
+
+export interface TeamCallingPerformanceResponse {
+  success: boolean;
+  date: string;
+  batchSize: number;
+  totals: {
+    calls: number;
+    completedBatches: number;
+    pendingFreshLeads: number;
+  };
+  employees: TeamCallingPerformanceRow[];
+}
+
 export type CallingQueueType =
   | "OVERDUE"
   | "TODAY"

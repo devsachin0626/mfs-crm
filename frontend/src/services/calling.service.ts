@@ -5,6 +5,7 @@ import type {
   CallingQueueResponse,
   DailyCallingSummary,
   SaveCallOutcomeRequest,
+  TeamCallingPerformanceResponse,
 } from "../types/calling.types";
 
 /* ============================
@@ -36,6 +37,22 @@ export const getDailyCallingSummary = async (
       {
         params: {
           employeeId,
+        },
+      }
+    );
+
+  return response.data;
+};
+
+export const getTeamCallingPerformance = async (
+  date: string
+): Promise<TeamCallingPerformanceResponse> => {
+  const response =
+    await api.get<TeamCallingPerformanceResponse>(
+      "/leads/calling-team-performance",
+      {
+        params: {
+          date,
         },
       }
     );
@@ -82,4 +99,3 @@ export const getCallingQueue =
 
     return response.data;
   };
-

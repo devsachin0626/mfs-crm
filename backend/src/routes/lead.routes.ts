@@ -108,6 +108,18 @@ router.get(
   leadController.getDailyCallingSummary
 );
 
+router.get(
+  "/calling-team-performance",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  leadController.getTeamCallingPerformance
+);
+
 
 /* ============================
    CALLING QUEUE

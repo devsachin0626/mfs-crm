@@ -2238,6 +2238,32 @@ export const saveCallOutcome =
       );
     }
 
+    /* Calling workspace is a first-call queue. If the same employee
+       retries after a slow response, treat it as an idempotent success
+       instead of creating another call history entry. */
+    const existingCall =
+      await prisma.leadHistory.findFirst({
+        where: {
+          leadId,
+          employeeId,
+          callOutcome: {
+            not: null,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+    if (existingCall) {
+      return {
+        success: true,
+        message:
+          "Call Already Saved And Lead Removed From Calling Queue",
+        duplicate: true,
+      };
+    }
+
     /* ============================
        EMPLOYEE
     ============================ */
@@ -4302,12 +4328,6 @@ export const getCallingQueue =
                 currentEmployee.id,
               callOutcome: {
                 not: null,
-              },
-              createdAt: {
-                gte:
-                  startOfToday,
-                lt:
-                  endOfToday,
               },
             },
           },

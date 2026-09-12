@@ -1,17 +1,53 @@
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { Bell } from "lucide-react";
 
 import { useAppSelector } from "../../hooks/redux";
+import { getFollowUps } from "../../services/followup.service";
 
 import LogoutButton from "../auth/LogoutButton";
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const employee = useAppSelector(
     (state) => state.auth.employee
   );
+
+  const [dueFollowUps, setDueFollowUps] = useState(0);
+
+  const loadDueFollowUps = useCallback(async () => {
+    if (!employee?.id) {
+      setDueFollowUps(0);
+      return;
+    }
+
+    try {
+      const due = await getFollowUps({
+        employeeId: employee.id,
+        view: "OVERDUE",
+        isCompleted: false,
+        page: 1,
+        limit: 1,
+      });
+
+      setDueFollowUps(due.total || 0);
+    } catch (error) {
+      console.error("Follow-up notification error", error);
+    }
+  }, [employee?.id]);
+
+  useEffect(() => {
+    void loadDueFollowUps();
+
+    const timer = window.setInterval(() => {
+      void loadDueFollowUps();
+    }, 60_000);
+
+    return () => window.clearInterval(timer);
+  }, [loadDueFollowUps]);
 
   const pageTitle =
     location.pathname === "/dashboard"
@@ -37,10 +73,20 @@ export default function Header() {
       </h2>
 
       <div className="flex items-center gap-5">
-        <button className="relative">
+        <button
+          type="button"
+          className="relative"
+          aria-label={`${dueFollowUps} follow-ups due`}
+          title={`${dueFollowUps} follow-ups due`}
+          onClick={() => navigate("/follow-ups")}
+        >
           <Bell size={22} />
 
-          <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500"></span>
+          {dueFollowUps > 0 && (
+            <span className="absolute -right-2.5 -top-2.5 min-w-5 rounded-full bg-red-500 px-1 text-center text-[10px] font-bold leading-5 text-white">
+              {dueFollowUps > 99 ? "99+" : dueFollowUps}
+            </span>
+          )}
         </button>
 
         <div className="text-right">

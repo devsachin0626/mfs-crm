@@ -366,8 +366,7 @@ export const importLeads = async (
               totalRecords:
                 data.rows.length,
 
-              imported:
-                validRows.length,
+              imported: 0,
 
               duplicates:
                 duplicateCount,
@@ -407,22 +406,19 @@ export const importLeads = async (
           }
         }
 
-        for (
-          const row of
-          validRows
-        ) {
-          const leadCode =
-            `LD${String(
-              counter
-            ).padStart(
-              6,
-              "0"
-            )}`;
+        const leadsToCreate =
+          validRows.map((row) => {
+            const leadCode =
+              `LD${String(
+                counter
+              ).padStart(
+                6,
+                "0"
+              )}`;
 
-          counter++;
+            counter++;
 
-          await tx.lead.create({
-            data: {
+            return {
               leadCode,
 
               name:
@@ -463,7 +459,7 @@ export const importLeads = async (
               importBatchId:
                 batch.id,
 
-              stage: "NEW",
+              stage: "NEW" as const,
 
               isDuplicate:
                 false,
@@ -471,11 +467,52 @@ export const importLeads = async (
               remarks:
                 row.remarks ||
                 null,
-            },
+            };
           });
+
+        const chunkSize = 500;
+        let importedCount = 0;
+
+        for (
+          let index = 0;
+          index < leadsToCreate.length;
+          index += chunkSize
+        ) {
+          const chunk =
+            leadsToCreate.slice(
+              index,
+              index + chunkSize
+            );
+
+          const created =
+            await tx.lead.createMany({
+              data: chunk,
+              skipDuplicates: true,
+            });
+
+          importedCount +=
+            created.count;
         }
 
-        return batch;
+        return tx.importBatch.update({
+          where: {
+            id: batch.id,
+          },
+
+          data: {
+            imported:
+              importedCount,
+
+            duplicates:
+              duplicateCount +
+              (validRows.length -
+                importedCount),
+          },
+        });
+      },
+      {
+        maxWait: 10000,
+        timeout: 120000,
       }
     );
 
@@ -483,7 +520,7 @@ export const importLeads = async (
     success: true,
 
     message:
-      `${validRows.length} leads imported successfully`,
+      `${result.imported} leads imported successfully`,
 
     batch:
       result,
@@ -493,10 +530,10 @@ export const importLeads = async (
         data.rows.length,
 
       imported:
-        validRows.length,
+        result.imported,
 
       duplicates:
-        duplicateCount,
+        result.duplicates,
 
       failed:
         failedCount,

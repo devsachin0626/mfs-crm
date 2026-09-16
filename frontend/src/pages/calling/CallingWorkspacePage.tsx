@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarClock, Eye, Pencil, Phone, RefreshCw, Save, Search, X } from "lucide-react";
+import { CalendarClock, Download, Eye, Pencil, Phone, RefreshCw, Save, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { useAppSelector } from "../../hooks/redux";
-import { getCallingQueue, getDailyCallingSummary, getTeamCallingPerformance, saveCallOutcome } from "../../services/calling.service";
+import { fetchCallingLeads, getCallingQueue, getDailyCallingSummary, getTeamCallingPerformance, saveCallOutcome } from "../../services/calling.service";
 import { getCallOutcomes } from "../../services/callOutcome.service";
+import { getLeadSources } from "../../services/leadSource.service";
 import { getLeadStatuses } from "../../services/leadStatus.service";
 import type { CallOutcomeOption, CallingQueueLead, DailyCallingSummary, TeamCallingPerformanceResponse } from "../../types/calling.types";
 
 type LeadStatusOption = { id: string; name: string };
+type LeadSourceOption = { id: string; name: string };
 
 const inputClass = "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
@@ -40,6 +42,10 @@ export default function CallingWorkspacePage() {
   const [queue, setQueue] = useState<CallingQueueLead[]>([]);
   const [outcomes, setOutcomes] = useState<CallOutcomeOption[]>([]);
   const [statuses, setStatuses] = useState<LeadStatusOption[]>([]);
+  const [sources, setSources] = useState<LeadSourceOption[]>([]);
+  const [selectedSourceId, setSelectedSourceId] = useState("");
+  const [fetchQuantity, setFetchQuantity] = useState("10");
+  const [fetchingLeads, setFetchingLeads] = useState(false);
   const [summary, setSummary] = useState<DailyCallingSummary | null>(null);
   const [teamPerformance, setTeamPerformance] = useState<TeamCallingPerformanceResponse | null>(null);
   const [performanceDate, setPerformanceDate] = useState(getLocalDateValue);
@@ -133,18 +139,62 @@ export default function CallingWorkspacePage() {
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [outcomeResponse, statusResponse] = await Promise.all([
+        const [outcomeResponse, statusResponse, sourceResponse] = await Promise.all([
           getCallOutcomes(),
           getLeadStatuses(),
+          getLeadSources(),
         ]);
         setOutcomes(outcomeResponse.callOutcomes || []);
         setStatuses(statusResponse.leadStatuses || []);
+        setSources(sourceResponse.leadSources || []);
       } catch (loadError: any) {
         setError(loadError?.response?.data?.message || "Failed to load calling options");
       }
     };
     void loadOptions();
   }, []);
+
+  const handleFetchLeads = async () => {
+    if (!selectedSourceId) {
+      setError("Please select a lead source");
+      return;
+    }
+
+    const quantity = Number(fetchQuantity);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 5000) {
+      setError("Quantity must be between 1 and 5000");
+      return;
+    }
+
+    try {
+      setFetchingLeads(true);
+      setError("");
+      setSuccess("");
+
+      const response = await fetchCallingLeads({
+        sourceId: selectedSourceId,
+        quantity,
+      });
+
+      setSuccess(
+        `${response.message}. ${response.availableRemaining} fresh leads remain in this source.`
+      );
+      setBatchNumber(1);
+      await Promise.all([
+        loadQueue(),
+        loadSummary(),
+        loadTeamPerformance(),
+      ]);
+    } catch (fetchError: any) {
+      setError(
+        fetchError?.response?.data?.message ||
+        fetchError?.message ||
+        "Failed to fetch leads"
+      );
+    } finally {
+      setFetchingLeads(false);
+    }
+  };
 
   const openEditor = (leadId: string) => {
     resetEditor();
@@ -220,6 +270,58 @@ export default function CallingWorkspacePage() {
         <SummaryCard title="Batch Remaining" value={queue.length} detail="Auto-loads next 10" />
         <SummaryCard title="Available Leads" value={total} detail="Not called today" />
       </div>
+
+      <section className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-900">Fetch Leads for Calling</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Select a source and quantity. Leads will be assigned to you and shown in batches of 10.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-[minmax(220px,1fr)_150px_auto] xl:w-3xl">
+            <label className="text-xs font-semibold text-slate-600">
+              Lead Source
+              <select
+                value={selectedSourceId}
+                onChange={(event) => setSelectedSourceId(event.target.value)}
+                className={`${inputClass} mt-1`}
+              >
+                <option value="">Select source</option>
+                {sources.map((source) => (
+                  <option key={source.id} value={source.id}>
+                    {source.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-xs font-semibold text-slate-600">
+              Quantity
+              <input
+                type="number"
+                min={1}
+                max={5000}
+                step={1}
+                value={fetchQuantity}
+                onChange={(event) => setFetchQuantity(event.target.value)}
+                className={`${inputClass} mt-1`}
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void handleFetchLeads()}
+              disabled={fetchingLeads || !selectedSourceId}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:mb-px"
+            >
+              <Download size={17} className={fetchingLeads ? "animate-bounce" : ""} />
+              {fetchingLeads ? "Fetching..." : "Fetch Leads"}
+            </button>
+          </div>
+        </div>
+      </section>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-end">

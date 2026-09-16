@@ -161,3 +161,20 @@ export interface CallingQueueResponse {
   queue:
     CallingQueueLead[];
 }
+
+export interface FetchCallingLeadsRequest {
+  sourceId: string;
+  quantity: number;
+}
+
+export interface FetchCallingLeadsResponse {
+  success: boolean;
+  message: string;
+  assigned: number;
+  requested: number;
+  availableRemaining: number;
+  source: {
+    id: string;
+    name: string;
+  };
+}

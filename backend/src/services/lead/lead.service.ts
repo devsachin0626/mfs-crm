@@ -4149,6 +4149,221 @@ export const allocateLeadsFromPool =
   };
 
 /* ============================
+   EMPLOYEE SELF-FETCH LEADS
+
+   Any active logged-in user can
+   fetch unassigned, never-called
+   leads from one active source.
+   Row locks prevent duplicate
+   allocation during concurrent
+   requests.
+============================ */
+
+export const fetchCallingLeads =
+  async (
+    data: {
+      sourceId?: string;
+      quantity?: number;
+    },
+    currentEmployee: any
+  ) => {
+    const sourceId =
+      String(
+        data.sourceId || ""
+      ).trim();
+
+    if (!sourceId) {
+      throw new Error(
+        "Please select a lead source"
+      );
+    }
+
+    const quantity =
+      Number(data.quantity);
+
+    if (
+      !Number.isInteger(quantity) ||
+      quantity < 1 ||
+      quantity > 5000
+    ) {
+      throw new Error(
+        "Quantity must be between 1 and 5000"
+      );
+    }
+
+    const employee =
+      await prisma.employee.findUnique({
+        where: {
+          id: currentEmployee.id,
+        },
+
+        select: {
+          id: true,
+          employeeCode: true,
+          name: true,
+          isActive: true,
+          status: true,
+        },
+      });
+
+    if (!employee) {
+      throw new Error(
+        "Employee Not Found"
+      );
+    }
+
+    if (
+      !employee.isActive ||
+      employee.status !== "ACTIVE"
+    ) {
+      throw new Error(
+        "Inactive employee cannot fetch leads"
+      );
+    }
+
+    const source =
+      await prisma.leadSource.findFirst({
+        where: {
+          id: sourceId,
+          isActive: true,
+        },
+
+        select: {
+          id: true,
+          name: true,
+        },
+      });
+
+    if (!source) {
+      throw new Error(
+        "Active lead source not found"
+      );
+    }
+
+    const assigned =
+      await prisma.$transaction(
+        async (tx) => {
+          const poolLeads =
+            await tx.$queryRaw<
+              Array<{ id: string }>
+            >(
+              Prisma.sql`
+                SELECT l."id"
+                FROM "leads" l
+                WHERE l."assignedEmployeeId" IS NULL
+                  AND l."sourceId" = ${source.id}
+                  AND l."isDuplicate" = false
+                  AND l."isConverted" = false
+                  AND l."stage" NOT IN ('LOST', 'CONVERTED')
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM "lead_histories" h
+                    WHERE h."leadId" = l."id"
+                      AND h."callOutcome" IS NOT NULL
+                  )
+                ORDER BY l."createdAt" ASC, l."id" ASC
+                FOR UPDATE OF l SKIP LOCKED
+                LIMIT ${quantity}
+              `
+            );
+
+          if (poolLeads.length === 0) {
+            return 0;
+          }
+
+          const leadIds =
+            poolLeads.map(
+              (lead) => lead.id
+            );
+
+          const updated =
+            await tx.lead.updateMany({
+              where: {
+                id: {
+                  in: leadIds,
+                },
+                assignedEmployeeId: null,
+              },
+
+              data: {
+                assignedEmployeeId:
+                  employee.id,
+              },
+            });
+
+          if (
+            updated.count !==
+            leadIds.length
+          ) {
+            throw new Error(
+              "Lead pool changed during fetch. Please try again"
+            );
+          }
+
+          await tx.leadAssignmentHistory.createMany({
+            data: leadIds.map(
+              (leadId) => ({
+                leadId,
+                fromEmployeeId: null,
+                toEmployeeId:
+                  employee.id,
+                reason:
+                  `Employee self-fetch from ${source.name}`,
+              })
+            ),
+          });
+
+          return leadIds.length;
+        },
+        {
+          maxWait: 10000,
+          timeout: 60000,
+        }
+      );
+
+    if (assigned === 0) {
+      throw new Error(
+        `No unassigned fresh leads are available in ${source.name}`
+      );
+    }
+
+    const availableRemaining =
+      await prisma.lead.count({
+        where: {
+          assignedEmployeeId: null,
+          sourceId: source.id,
+          isDuplicate: false,
+          isConverted: false,
+          stage: {
+            notIn: [
+              "LOST",
+              "CONVERTED",
+            ],
+          },
+          histories: {
+            none: {
+              callOutcome: {
+                not: null,
+              },
+            },
+          },
+        },
+      });
+
+    return {
+      success: true,
+      message:
+        assigned === quantity
+          ? `${assigned} ${source.name} leads fetched successfully`
+          : `${assigned} of ${quantity} requested ${source.name} leads fetched`,
+      assigned,
+      requested: quantity,
+      availableRemaining,
+      source,
+    };
+  };
+
+/* ============================
    BULK CHANGE STAGE
 ============================ */
 

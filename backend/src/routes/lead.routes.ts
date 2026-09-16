@@ -137,6 +137,18 @@ router.get(
   leadController.getCallingQueue
 );
 
+router.post(
+  "/calling-fetch",
+  authenticate,
+  authorize(
+    "ADMIN",
+    "HR",
+    "TEAM_LEADER",
+    "EMPLOYEE"
+  ),
+  leadController.fetchCallingLeads
+);
+
 /* ============================
    LEAD PIPELINE
 ============================ */

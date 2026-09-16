@@ -4,9 +4,23 @@ import api from "./api";
 import type {
   CallingQueueResponse,
   DailyCallingSummary,
+  FetchCallingLeadsRequest,
+  FetchCallingLeadsResponse,
   SaveCallOutcomeRequest,
   TeamCallingPerformanceResponse,
 } from "../types/calling.types";
+
+export const fetchCallingLeads = async (
+  data: FetchCallingLeadsRequest
+): Promise<FetchCallingLeadsResponse> => {
+  const response =
+    await api.post<FetchCallingLeadsResponse>(
+      "/leads/calling-fetch",
+      data
+    );
+
+  return response.data;
+};
 
 /* ============================
    SAVE CALL OUTCOME

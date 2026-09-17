@@ -925,6 +925,320 @@ const leaderboard =
     )
     .slice(0, 5);
 
+/* ============================
+   COMPANY LEADERBOARDS
+
+   These rankings deliberately ignore role-based lead visibility so every
+   logged-in employee sees the same company-wide table.
+============================ */
+
+const companyEmployees =
+  await prisma.employee.findMany({
+    where: {
+      isActive: true,
+      status: "ACTIVE",
+    },
+
+    select: {
+      id: true,
+      employeeCode: true,
+      name: true,
+      role: {
+        select: {
+          name: true,
+        },
+      },
+    },
+
+    orderBy: {
+      name: "asc",
+    },
+  });
+
+const companyEmployeeIds =
+  companyEmployees.map(
+    (employee) =>
+      employee.id
+  );
+
+const [
+  companyCallGroups,
+  companyDematGroups,
+  companyTargets,
+  companyPreIpoActivations,
+] = await Promise.all([
+  prisma.leadHistory.groupBy({
+    by: ["employeeId"],
+    where: {
+      employeeId: {
+        in: companyEmployeeIds,
+      },
+      callOutcome: {
+        not: null,
+      },
+      createdAt: {
+        gte: monthStart,
+        lt: nextMonth,
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  }),
+
+  prisma.lead.groupBy({
+    by: ["assignedEmployeeId"],
+    where: {
+      assignedEmployeeId: {
+        in: companyEmployeeIds,
+      },
+      isConverted: true,
+      updatedAt: {
+        gte: monthStart,
+        lt: nextMonth,
+      },
+    },
+    _count: {
+      _all: true,
+    },
+  }),
+
+  prisma.employeeTarget.findMany({
+    where: {
+      employeeId: {
+        in: companyEmployeeIds,
+      },
+      month: currentMonth,
+      year: currentYear,
+    },
+    select: {
+      employeeId: true,
+      achievedAmount: true,
+    },
+  }),
+
+  prisma.serviceActivation.findMany({
+    where: {
+      employeeId: {
+        in: companyEmployeeIds,
+      },
+      createdAt: {
+        gte: monthStart,
+        lt: nextMonth,
+      },
+      product: {
+        type: "PRE_IPO",
+      },
+    },
+    select: {
+      employeeId: true,
+      productId: true,
+      order: {
+        select: {
+          items: {
+            select: {
+              productId: true,
+              total: true,
+            },
+          },
+        },
+      },
+    },
+  }),
+]);
+
+const callsByEmployee =
+  new Map(
+    companyCallGroups.map(
+      (item) => [
+        item.employeeId,
+        item._count._all,
+      ]
+    )
+  );
+
+const dematByEmployee =
+  new Map(
+    companyDematGroups.map(
+      (item) => [
+        item.assignedEmployeeId,
+        item._count._all,
+      ]
+    )
+  );
+
+const brokerageByEmployee =
+  new Map(
+    companyTargets.map(
+      (target) => [
+        target.employeeId,
+        Number(
+          target.achievedAmount
+        ),
+      ]
+    )
+  );
+
+const preIpoByEmployee =
+  new Map<string, number>();
+
+companyPreIpoActivations.forEach(
+  (activation) => {
+    const amount =
+      activation.order?.items
+        .filter(
+          (item) =>
+            item.productId ===
+            activation.productId
+        )
+        .reduce(
+          (total, item) =>
+            total +
+            Number(item.total),
+          0
+        ) || 0;
+
+    preIpoByEmployee.set(
+      activation.employeeId,
+      (preIpoByEmployee.get(
+        activation.employeeId
+      ) || 0) + amount
+    );
+  }
+);
+
+const companyPerformanceRows =
+  companyEmployees.map(
+    (employee) => ({
+      employeeId: employee.id,
+      employeeCode:
+        employee.employeeCode,
+      name: employee.name,
+      role:
+        employee.role.name,
+      calls:
+        callsByEmployee.get(
+          employee.id
+        ) || 0,
+      demat:
+        dematByEmployee.get(
+          employee.id
+        ) || 0,
+      brokerage:
+        brokerageByEmployee.get(
+          employee.id
+        ) || 0,
+      preIpo:
+        preIpoByEmployee.get(
+          employee.id
+        ) || 0,
+      score: 0,
+    })
+  );
+
+const companyMaximums = {
+  calls: Math.max(
+    0,
+    ...companyPerformanceRows.map(
+      (item) => item.calls
+    )
+  ),
+  demat: Math.max(
+    0,
+    ...companyPerformanceRows.map(
+      (item) => item.demat
+    )
+  ),
+  brokerage: Math.max(
+    0,
+    ...companyPerformanceRows.map(
+      (item) =>
+        item.brokerage
+    )
+  ),
+  preIpo: Math.max(
+    0,
+    ...companyPerformanceRows.map(
+      (item) => item.preIpo
+    )
+  ),
+};
+
+const normalizedScore = (
+  value: number,
+  maximum: number,
+  weight: number
+) =>
+  maximum > 0
+    ? (value / maximum) *
+      weight
+    : 0;
+
+companyPerformanceRows.forEach(
+  (item) => {
+    item.score = Number(
+      (
+        normalizedScore(
+          item.calls,
+          companyMaximums.calls,
+          20
+        ) +
+        normalizedScore(
+          item.demat,
+          companyMaximums.demat,
+          30
+        ) +
+        normalizedScore(
+          item.brokerage,
+          companyMaximums.brokerage,
+          25
+        ) +
+        normalizedScore(
+          item.preIpo,
+          companyMaximums.preIpo,
+          25
+        )
+      ).toFixed(1)
+    );
+  }
+);
+
+const rankBy = (
+  metric:
+    | "demat"
+    | "brokerage"
+    | "preIpo"
+    | "score"
+) =>
+  [...companyPerformanceRows].sort(
+    (a, b) =>
+      b[metric] -
+        a[metric] ||
+      a.name.localeCompare(
+        b.name
+      )
+  );
+
+const companyLeaderboards = {
+  period: {
+    month: currentMonth,
+    year: currentYear,
+  },
+  weights: {
+    calls: 20,
+    demat: 30,
+    brokerage: 25,
+    preIpo: 25,
+  },
+  demat: rankBy("demat"),
+  preIpo: rankBy("preIpo"),
+  brokerage: rankBy(
+    "brokerage"
+  ),
+  topPerformance:
+    rankBy("score"),
+};
+
     /* ============================
        RESPONSE
     ============================ */
@@ -995,6 +1309,8 @@ const leaderboard =
   },
 
   leaderboard,
+
+  companyLeaderboards,
 
   recentLeads,
 

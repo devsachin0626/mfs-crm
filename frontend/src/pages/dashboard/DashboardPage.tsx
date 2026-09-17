@@ -53,18 +53,33 @@ type DashboardLead = {
   } | null;
 };
 
-type LeaderboardItem = {
+type CompanyLeaderboardItem = {
   employeeId: string;
   employeeCode?: string;
   name: string;
   role?: string;
+  calls: number;
+  demat: number;
+  brokerage: number;
+  preIpo: number;
+  score: number;
+};
 
-  brokerageTarget?: number;
-  achievedAmount?: number;
-  revenueTarget?: number;
-  dematTarget?: number;
-
-  progress?: number;
+type CompanyLeaderboards = {
+  period?: {
+    month?: number;
+    year?: number;
+  };
+  weights?: {
+    calls?: number;
+    demat?: number;
+    brokerage?: number;
+    preIpo?: number;
+  };
+  demat?: CompanyLeaderboardItem[];
+  preIpo?: CompanyLeaderboardItem[];
+  brokerage?: CompanyLeaderboardItem[];
+  topPerformance?: CompanyLeaderboardItem[];
 };
 
 export default function DashboardPage() {
@@ -120,10 +135,10 @@ export default function DashboardPage() {
     data?.hotLeads ||
     [];
 
-  const leaderboard:
-    LeaderboardItem[] =
-    data?.leaderboard ||
-    [];
+  const companyLeaderboards:
+    CompanyLeaderboards =
+    data?.companyLeaderboards ||
+    {};
 
   /* ============================
      ROLE
@@ -210,13 +225,6 @@ export default function DashboardPage() {
       : isTeamLeader
         ? "Team Target"
         : "My Target";
-
-  const leaderboardTitle =
-    isAdmin || isHR
-      ? "Top Performers"
-      : isTeamLeader
-        ? "Team Leaderboard"
-        : "My Target Progress";
 
   /* ============================
      CALCULATED
@@ -742,10 +750,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ============================
-          TARGET + LEADERBOARD
+          TARGET
       ============================ */}
 
-      <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+      <div>
         <DashboardCard
           title={
             targetTitle
@@ -835,45 +843,73 @@ export default function DashboardPage() {
           )}
         </DashboardCard>
 
-        <DashboardCard
-          title={
-            leaderboardTitle
-          }
-          subtitle={
-            isEmployee
-              ? "Current monthly target"
-              : "Top target performers this month"
-          }
-        >
-          {leaderboard.length ===
-          0 ? (
-            <EmptyState
-              text="No leaderboard data available."
-            />
-          ) : (
-            <div className="space-y-2">
-              {leaderboard.map(
-                (
-                  item,
-                  index
-                ) => (
-                  <LeaderboardRow
-                    key={
-                      item.employeeId
-                    }
-                    item={
-                      item
-                    }
-                    rank={
-                      index + 1
-                    }
-                  />
-                )
-              )}
-            </div>
-          )}
-        </DashboardCard>
       </div>
+
+      {/* ============================
+          COMPANY LEADERBOARDS
+      ============================ */}
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">
+            Company Leaderboards
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Current month ranking — visible to every employee
+          </p>
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-2">
+          <CompanyLeaderboardCard
+            title="Demat Leaderboard"
+            subtitle="Converted demat leads"
+            rows={
+              companyLeaderboards.demat ||
+              []
+            }
+            metric="demat"
+            accentClass="bg-emerald-500"
+          />
+
+          <CompanyLeaderboardCard
+            title="Pre-IPO Leaderboard"
+            subtitle="Activated Pre-IPO business value"
+            rows={
+              companyLeaderboards.preIpo ||
+              []
+            }
+            metric="preIpo"
+            valueType="currency"
+            accentClass="bg-violet-500"
+          />
+
+          <CompanyLeaderboardCard
+            title="Brokerage Leaderboard"
+            subtitle="Monthly achieved brokerage"
+            rows={
+              companyLeaderboards.brokerage ||
+              []
+            }
+            metric="brokerage"
+            valueType="currency"
+            accentClass="bg-amber-500"
+          />
+
+          <CompanyLeaderboardCard
+            title="Top Performance"
+            subtitle="Calling 20% • Demat 30% • Brokerage 25% • Pre-IPO 25%"
+            rows={
+              companyLeaderboards.topPerformance ||
+              []
+            }
+            metric="score"
+            valueType="score"
+            accentClass="bg-blue-600"
+            showBreakdown
+          />
+        </div>
+      </section>
 
       {/* ============================
           RECENT + HOT LEADS
@@ -1420,85 +1456,169 @@ function MoneyMetric({
 }
 
 /* ============================
-   LEADERBOARD
+   COMPANY LEADERBOARD
 ============================ */
 
-function LeaderboardRow({
-  item,
-  rank,
+function CompanyLeaderboardCard({
+  title,
+  subtitle,
+  rows,
+  metric,
+  valueType = "number",
+  accentClass,
+  showBreakdown = false,
 }: {
-  item: LeaderboardItem;
-  rank: number;
+  title: string;
+  subtitle: string;
+  rows: CompanyLeaderboardItem[];
+  metric:
+    | "demat"
+    | "preIpo"
+    | "brokerage"
+    | "score";
+  valueType?:
+    | "number"
+    | "currency"
+    | "score";
+  accentClass: string;
+  showBreakdown?: boolean;
 }) {
-  const progress =
-    Number(
-      item.progress ??
-        0
+  const maximum =
+    Math.max(
+      0,
+      ...rows.map(
+        (item) =>
+          Number(
+            item[metric]
+          ) || 0
+      )
     );
 
+  const formatValue = (
+    value: number
+  ) => {
+    if (
+      valueType ===
+      "currency"
+    ) {
+      return `₹${formatCurrency(
+        value
+      )}`;
+    }
+
+    if (
+      valueType === "score"
+    ) {
+      return `${value.toFixed(
+        1
+      )}/100`;
+    }
+
+    return formatCurrency(
+      value
+    );
+  };
+
   return (
-    <div className="rounded-xl border border-slate-100 p-3.5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
-          {rank <= 3 ? (
-            <Trophy
-              size={16}
-            />
-          ) : (
-            rank
+    <DashboardCard
+      title={title}
+      subtitle={subtitle}
+    >
+      {rows.length === 0 ? (
+        <EmptyState
+          text="No employee performance data available."
+        />
+      ) : (
+        <div className="max-h-[30rem] space-y-3 overflow-y-auto pr-1">
+          {rows.map(
+            (item, index) => {
+              const value =
+                Number(
+                  item[metric]
+                ) || 0;
+
+              const width =
+                maximum > 0
+                  ? Math.max(
+                      0,
+                      (value /
+                        maximum) *
+                        100
+                    )
+                  : 0;
+
+              return (
+                <div
+                  key={
+                    item.employeeId
+                  }
+                  className="rounded-xl border border-slate-100 p-3.5"
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                        index < 3
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {index < 3 ? (
+                        <Trophy
+                          size={15}
+                        />
+                      ) : (
+                        index + 1
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-800">
+                            {index + 1}.{" "}
+                            {item.name}
+                          </p>
+
+                          <p className="text-xs text-slate-500">
+                            {item.employeeCode ||
+                              "-"}
+                          </p>
+                        </div>
+
+                        <span className="shrink-0 text-sm font-bold text-slate-900">
+                          {formatValue(
+                            value
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className={`h-full rounded-full ${accentClass}`}
+                          style={{
+                            width: `${width}%`,
+                          }}
+                        />
+                      </div>
+
+                      {showBreakdown && (
+                        <p className="mt-2 text-xs text-slate-500">
+                          Calls {item.calls} • Demat {item.demat} • Brokerage ₹{formatCurrency(
+                            item.brokerage
+                          )} • Pre-IPO ₹{formatCurrency(
+                            item.preIpo
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
           )}
         </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-800">
-                {item.name}
-              </p>
-
-              <p className="text-xs text-slate-500">
-                {item.employeeCode ||
-                  "-"}
-              </p>
-            </div>
-
-            <span className="text-sm font-bold text-slate-900">
-              {progress}%
-            </span>
-          </div>
-
-          <ProgressBar
-            value={
-              progress
-            }
-          />
-
-          <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-            <span>
-              Achieved{" "}
-              {formatCurrency(
-                Number(
-                  item
-                    .achievedAmount ??
-                    0
-                )
-              )}
-            </span>
-
-            <span>
-              Target{" "}
-              {formatCurrency(
-                Number(
-                  item
-                    .brokerageTarget ??
-                    0
-                )
-              )}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+      )}
+    </DashboardCard>
   );
 }
 

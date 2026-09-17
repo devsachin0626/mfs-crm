@@ -35,6 +35,36 @@ export default function TargetListPage() {
   const navigate =
     useNavigate();
 
+  const currentEmployee =
+    useAppSelector(
+      (state) =>
+        state.auth.employee
+    );
+
+  const roleValue: unknown =
+    currentEmployee?.role;
+
+  const role =
+    typeof roleValue ===
+    "string"
+      ? roleValue
+      : roleValue &&
+          typeof roleValue ===
+            "object" &&
+          "name" in roleValue
+        ? String(
+            (
+              roleValue as {
+                name?: unknown;
+              }
+            ).name || ""
+          )
+        : "";
+
+  const canManageTargets =
+    role === "ADMIN" ||
+    role === "HR";
+
   const now = new Date();
 
   const [page, setPage] =
@@ -101,12 +131,24 @@ export default function TargetListPage() {
               item.achievedAmount
             );
 
+          acc.preIpoTarget +=
+            Number(
+              item.preIpoTarget
+            );
+
+          acc.preIpoAchieved +=
+            Number(
+              item.preIpoAchieved
+            );
+
           return acc;
         },
         {
           brokerage: 0,
           revenue: 0,
           achieved: 0,
+          preIpoTarget: 0,
+          preIpoAchieved: 0,
         }
       );
     }, [targets]);
@@ -133,6 +175,7 @@ export default function TargetListPage() {
           </div>
         </div>
 
+        {canManageTargets && (
         <button
           type="button"
           onClick={() =>
@@ -145,11 +188,12 @@ export default function TargetListPage() {
           <Plus size={18} />
           Assign Target
         </button>
+        )}
       </div>
 
       {/* Summary Cards */}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard
           title="Employees Targeted"
           value={total}
@@ -183,6 +227,28 @@ export default function TargetListPage() {
         <StatCard
           title="Revenue Achieved"
           value={`₹${summary.achieved.toLocaleString(
+            "en-IN"
+          )}`}
+          icon={
+            <TrendingUp
+              size={20}
+            />
+          }
+        />
+
+        <StatCard
+          title="Pre-IPO Target"
+          value={`₹${summary.preIpoTarget.toLocaleString(
+            "en-IN"
+          )}`}
+          icon={
+            <Target size={20} />
+          }
+        />
+
+        <StatCard
+          title="Pre-IPO Achieved"
+          value={`₹${summary.preIpoAchieved.toLocaleString(
             "en-IN"
           )}`}
           icon={

@@ -95,6 +95,10 @@ export default function EmployeeTargetTab({
             </th>
 
             <th className="p-4 text-left">
+              Pre-IPO
+            </th>
+
+            <th className="p-4 text-left">
               Progress
             </th>
           </tr>
@@ -134,6 +138,21 @@ export default function EmployeeTargetTab({
                   ).toLocaleString(
                     "en-IN"
                   )}
+                </td>
+
+                <td className="p-4">
+                  ₹{Number(
+                    target.preIpoAchieved
+                  ).toLocaleString(
+                    "en-IN"
+                  )}
+                  <p className="text-xs text-slate-500">
+                    Target ₹{Number(
+                      target.preIpoTarget
+                    ).toLocaleString(
+                      "en-IN"
+                    )}
+                  </p>
                 </td>
 
                 <td className="p-4">

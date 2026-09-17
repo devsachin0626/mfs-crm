@@ -241,6 +241,25 @@ export default function TargetDetailsPage() {
         0
     );
 
+  const preIpoTarget =
+    Number(
+      target.preIpoTarget ||
+        0
+    );
+
+  const preIpoAchieved =
+    Number(
+      target.preIpoAchieved ||
+        0
+    );
+
+  const preIpoProgress =
+    preIpoTarget > 0
+      ? preIpoAchieved /
+        preIpoTarget *
+        100
+      : 0;
+
   const progress =
     Number(
       target.progressPercent ??
@@ -332,7 +351,7 @@ export default function TargetDetailsPage() {
           description="Target assigned employee"
         />
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <InfoCard
             label="Employee"
             value={
@@ -466,7 +485,75 @@ export default function TargetDetailsPage() {
               achieved
             }
           />
+
+          <MoneyCard
+            label="Pre-IPO Target"
+            value={
+              preIpoTarget
+            }
+          />
+
+          <MoneyCard
+            label="Pre-IPO Achieved"
+            value={
+              preIpoAchieved
+            }
+          />
         </div>
+      </section>
+
+      {/* PRE-IPO PROGRESS */}
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <SectionHeader
+          icon={
+            <BadgeIndianRupee
+              size={20}
+            />
+          }
+          title="Pre-IPO Performance"
+          description="Monthly Pre-IPO target achievement"
+        />
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <MoneyCard
+            label="Target"
+            value={preIpoTarget}
+          />
+          <MoneyCard
+            label="Achieved"
+            value={preIpoAchieved}
+          />
+          <MoneyCard
+            label="Remaining"
+            value={Math.max(
+              preIpoTarget -
+                preIpoAchieved,
+              0
+            )}
+          />
+        </div>
+
+        <div className="mt-6 h-3 overflow-hidden rounded-full bg-violet-100">
+          <div
+            className="h-full rounded-full bg-violet-600"
+            style={{
+              width: `${Math.min(
+                Math.max(
+                  preIpoProgress,
+                  0
+                ),
+                100
+              )}%`,
+            }}
+          />
+        </div>
+
+        <p className="mt-2 text-right text-sm font-semibold text-violet-700">
+          {preIpoProgress.toFixed(
+            1
+          )}%
+        </p>
       </section>
 
       {/* PROGRESS */}

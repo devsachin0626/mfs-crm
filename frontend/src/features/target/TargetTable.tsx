@@ -44,6 +44,14 @@ export default function TargetTable({
               </th>
 
               <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                Pre-IPO Target
+              </th>
+
+              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                Pre-IPO Achieved
+              </th>
+
+              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
                 Revenue Progress
               </th>
 
@@ -107,6 +115,22 @@ export default function TargetTable({
                       {
                         target.dematTarget
                       }
+                    </td>
+
+                    <td className="px-5 py-4 text-sm font-medium text-slate-700">
+                      ₹{Number(
+                        target.preIpoTarget
+                      ).toLocaleString(
+                        "en-IN"
+                      )}
+                    </td>
+
+                    <td className="px-5 py-4 text-sm font-medium text-emerald-700">
+                      ₹{Number(
+                        target.preIpoAchieved
+                      ).toLocaleString(
+                        "en-IN"
+                      )}
                     </td>
 
                     <td className="px-5 py-4">

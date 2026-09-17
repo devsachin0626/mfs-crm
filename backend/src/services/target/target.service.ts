@@ -358,6 +358,16 @@ export const createTarget =
               data.revenueTarget
             ),
 
+          preIpoTarget:
+            safeNumber(
+              data.preIpoTarget
+            ),
+
+          preIpoAchieved:
+            safeNumber(
+              data.preIpoAchieved
+            ),
+
           achievedAmount:
             0,
         },
@@ -876,6 +886,22 @@ export const updateTarget =
             achievedAmount:
               safeNumber(
                 data.achievedAmount
+              ),
+          }),
+
+          ...(data.preIpoTarget !==
+            undefined && {
+            preIpoTarget:
+              safeNumber(
+                data.preIpoTarget
+              ),
+          }),
+
+          ...(data.preIpoAchieved !==
+            undefined && {
+            preIpoAchieved:
+              safeNumber(
+                data.preIpoAchieved
               ),
           }),
         },

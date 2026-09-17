@@ -85,6 +85,10 @@ export default function TargetCreatePage() {
       revenueTarget: "",
 
       dematTarget: "",
+
+      preIpoTarget: "",
+
+      preIpoAchieved: "",
     });
 
   /* ============================
@@ -205,6 +209,12 @@ export default function TargetCreatePage() {
         ) < 0 ||
         Number(
           form.dematTarget
+        ) < 0 ||
+        Number(
+          form.preIpoTarget
+        ) < 0 ||
+        Number(
+          form.preIpoAchieved
         ) < 0
       ) {
         setError(
@@ -248,6 +258,18 @@ export default function TargetCreatePage() {
           dematTarget:
             Number(
               form.dematTarget ||
+                0
+            ),
+
+          preIpoTarget:
+            Number(
+              form.preIpoTarget ||
+                0
+            ),
+
+          preIpoAchieved:
+            Number(
+              form.preIpoAchieved ||
                 0
             ),
         });
@@ -521,10 +543,10 @@ export default function TargetCreatePage() {
               />
             }
             title="Monthly Targets"
-            description="Set brokerage, revenue and demat targets"
+            description="Set brokerage, revenue, demat and Pre-IPO targets"
           />
 
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
             <Field
               label="Brokerage Target"
               required
@@ -607,6 +629,48 @@ export default function TargetCreatePage() {
                 }
               />
             </Field>
+
+            <Field label="Pre-IPO Target">
+              <MoneyInput
+                value={
+                  form.preIpoTarget
+                }
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      preIpoTarget:
+                        value,
+                    })
+                  )
+                }
+              />
+            </Field>
+
+            <Field label="Pre-IPO Achieved">
+              <MoneyInput
+                value={
+                  form.preIpoAchieved
+                }
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      preIpoAchieved:
+                        value,
+                    })
+                  )
+                }
+              />
+            </Field>
           </div>
         </section>
 
@@ -617,7 +681,7 @@ export default function TargetCreatePage() {
             Target Preview
           </h2>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <SummaryCard
               label="Target Month"
               value={`${
@@ -649,6 +713,20 @@ export default function TargetCreatePage() {
                 form.dematTarget ||
                 "0"
               }
+            />
+
+            <SummaryCard
+              label="Pre-IPO Target"
+              value={`₹${formatMoney(
+                form.preIpoTarget
+              )}`}
+            />
+
+            <SummaryCard
+              label="Pre-IPO Achieved"
+              value={`₹${formatMoney(
+                form.preIpoAchieved
+              )}`}
             />
           </div>
         </section>

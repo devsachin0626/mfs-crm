@@ -296,6 +296,20 @@ export default function DashboardPage() {
         0
     );
 
+  const totalPreIpoTarget =
+    Number(
+      targets
+        ?.totalPreIpoTarget ??
+        0
+    );
+
+  const totalPreIpoAchieved =
+    Number(
+      targets
+        ?.totalPreIpoAchieved ??
+        0
+    );
+
   return (
     <div className="space-y-5">
       {/* ============================
@@ -836,6 +850,20 @@ export default function DashboardPage() {
                   label="Demat Target"
                   value={
                     totalDematTarget
+                  }
+                />
+
+                <MoneyMetric
+                  label="Pre-IPO Target"
+                  value={
+                    totalPreIpoTarget
+                  }
+                />
+
+                <MoneyMetric
+                  label="Pre-IPO Achieved"
+                  value={
+                    totalPreIpoAchieved
                   }
                 />
               </div>

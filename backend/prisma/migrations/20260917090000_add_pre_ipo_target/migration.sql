@@ -1,0 +1,3 @@
+ALTER TABLE "employee_targets"
+ADD COLUMN "preIpoTarget" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN "preIpoAchieved" DECIMAL(12,2) NOT NULL DEFAULT 0;

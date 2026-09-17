@@ -77,6 +77,8 @@ export default function TargetEditPage() {
       revenueTarget: "",
       dematTarget: "",
       achievedAmount: "",
+      preIpoTarget: "",
+      preIpoAchieved: "",
     });
 
   /* ============================
@@ -141,6 +143,18 @@ export default function TargetEditPage() {
             achievedAmount:
               String(
                 data.achievedAmount ||
+                  0
+              ),
+
+            preIpoTarget:
+              String(
+                data.preIpoTarget ||
+                  0
+              ),
+
+            preIpoAchieved:
+              String(
+                data.preIpoAchieved ||
                   0
               ),
           });
@@ -269,6 +283,24 @@ export default function TargetEditPage() {
               Math.max(
                 Number(
                   form.achievedAmount ||
+                    0
+                ),
+                0
+              ),
+
+            preIpoTarget:
+              Math.max(
+                Number(
+                  form.preIpoTarget ||
+                    0
+                ),
+                0
+              ),
+
+            preIpoAchieved:
+              Math.max(
+                Number(
+                  form.preIpoAchieved ||
                     0
                 ),
                 0
@@ -526,7 +558,7 @@ export default function TargetEditPage() {
             description="Update assigned monthly targets"
           />
 
-          <div className="grid gap-5 md:grid-cols-3">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             <Field label="Brokerage Target">
               <MoneyInput
                 value={
@@ -599,6 +631,27 @@ export default function TargetEditPage() {
                 }
               />
             </Field>
+
+            <Field label="Pre-IPO Target">
+              <MoneyInput
+                value={
+                  form.preIpoTarget
+                }
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      preIpoTarget:
+                        value,
+                    })
+                  )
+                }
+              />
+            </Field>
           </div>
         </section>
 
@@ -615,7 +668,7 @@ export default function TargetEditPage() {
             description="Temporary manual achievement entry"
           />
 
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-5 md:grid-cols-3">
             <Field label="Achieved Amount">
               <MoneyInput
                 value={
@@ -631,6 +684,27 @@ export default function TargetEditPage() {
                       ...previous,
 
                       achievedAmount:
+                        value,
+                    })
+                  )
+                }
+              />
+            </Field>
+
+            <Field label="Pre-IPO Achieved">
+              <MoneyInput
+                value={
+                  form.preIpoAchieved
+                }
+                onChange={(
+                  value
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      preIpoAchieved:
                         value,
                     })
                   )

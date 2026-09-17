@@ -840,6 +840,26 @@ const totalAchievement =
     0
   );
 
+const totalPreIpoTarget =
+  currentTargets.reduce(
+    (total, target) =>
+      total +
+      Number(
+        target.preIpoTarget
+      ),
+    0
+  );
+
+const totalPreIpoAchieved =
+  currentTargets.reduce(
+    (total, target) =>
+      total +
+      Number(
+        target.preIpoAchieved
+      ),
+    0
+  );
+
 const targetProgress =
   totalBrokerageTarget >
   0
@@ -965,7 +985,6 @@ const [
   companyCallGroups,
   companyDematGroups,
   companyTargets,
-  companyPreIpoActivations,
 ] = await Promise.all([
   prisma.leadHistory.groupBy({
     by: ["employeeId"],
@@ -1014,35 +1033,7 @@ const [
     select: {
       employeeId: true,
       achievedAmount: true,
-    },
-  }),
-
-  prisma.serviceActivation.findMany({
-    where: {
-      employeeId: {
-        in: companyEmployeeIds,
-      },
-      createdAt: {
-        gte: monthStart,
-        lt: nextMonth,
-      },
-      product: {
-        type: "PRE_IPO",
-      },
-    },
-    select: {
-      employeeId: true,
-      productId: true,
-      order: {
-        select: {
-          items: {
-            select: {
-              productId: true,
-              total: true,
-            },
-          },
-        },
-      },
+      preIpoAchieved: true,
     },
   }),
 ]);
@@ -1080,32 +1071,16 @@ const brokerageByEmployee =
   );
 
 const preIpoByEmployee =
-  new Map<string, number>();
-
-companyPreIpoActivations.forEach(
-  (activation) => {
-    const amount =
-      activation.order?.items
-        .filter(
-          (item) =>
-            item.productId ===
-            activation.productId
-        )
-        .reduce(
-          (total, item) =>
-            total +
-            Number(item.total),
-          0
-        ) || 0;
-
-    preIpoByEmployee.set(
-      activation.employeeId,
-      (preIpoByEmployee.get(
-        activation.employeeId
-      ) || 0) + amount
-    );
-  }
-);
+  new Map(
+    companyTargets.map(
+      (target) => [
+        target.employeeId,
+        Number(
+          target.preIpoAchieved
+        ),
+      ]
+    )
+  );
 
 const companyPerformanceRows =
   companyEmployees.map(
@@ -1303,6 +1278,10 @@ const companyLeaderboards = {
     totalRevenueTarget,
 
     totalDematTarget,
+
+    totalPreIpoTarget,
+
+    totalPreIpoAchieved,
 
     progress:
       targetProgress,

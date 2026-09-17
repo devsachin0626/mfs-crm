@@ -41,6 +41,14 @@ export interface EmployeeTarget {
     | number
     | string;
 
+  preIpoTarget:
+    | number
+    | string;
+
+  preIpoAchieved:
+    | number
+    | string;
+
   progressPercent?: number;
 
   employee: TargetEmployee;
@@ -99,6 +107,10 @@ export interface CreateTargetPayload {
   dematTarget: number;
 
   revenueTarget: number;
+
+  preIpoTarget: number;
+
+  preIpoAchieved?: number;
 }
 
 export interface UpdateTargetPayload {
@@ -109,4 +121,8 @@ export interface UpdateTargetPayload {
   revenueTarget?: number;
 
   achievedAmount?: number;
+
+  preIpoTarget?: number;
+
+  preIpoAchieved?: number;
 }

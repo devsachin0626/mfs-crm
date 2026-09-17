@@ -128,7 +128,10 @@ export default function EmployeeTargetTab({
                 </td>
 
                 <td className="p-4">
-                  {target.dematTarget}
+                  {target.dematAchieved}
+                  <p className="text-xs text-slate-500">
+                    Target {target.dematTarget}
+                  </p>
                 </td>
 
                 <td className="p-4">

@@ -247,6 +247,12 @@ export default function TargetDetailsPage() {
         0
     );
 
+  const dematAchieved =
+    Number(
+      target.dematAchieved ||
+        0
+    );
+
   const preIpoAchieved =
     Number(
       target.preIpoAchieved ||
@@ -479,6 +485,11 @@ export default function TargetDetailsPage() {
             }
           />
 
+          <NumberCard
+            label="Demat Achieved"
+            value={dematAchieved}
+          />
+
           <MoneyCard
             label="Achieved"
             value={
@@ -646,6 +657,11 @@ export default function TargetDetailsPage() {
             value={
               target.dematTarget
             }
+          />
+
+          <NumberCard
+            label="Demat Achieved"
+            value={dematAchieved}
           />
 
           <MoneyCard

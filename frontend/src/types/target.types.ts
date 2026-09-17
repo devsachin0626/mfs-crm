@@ -33,6 +33,8 @@ export interface EmployeeTarget {
 
   dematTarget: number;
 
+  dematAchieved: number;
+
   revenueTarget:
     | number
     | string;
@@ -106,6 +108,8 @@ export interface CreateTargetPayload {
 
   dematTarget: number;
 
+  dematAchieved?: number;
+
   revenueTarget: number;
 
   preIpoTarget: number;
@@ -117,6 +121,8 @@ export interface UpdateTargetPayload {
   brokerageTarget?: number;
 
   dematTarget?: number;
+
+  dematAchieved?: number;
 
   revenueTarget?: number;
 

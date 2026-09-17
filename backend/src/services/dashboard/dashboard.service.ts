@@ -827,6 +827,16 @@ const totalDematTarget =
     0
   );
 
+const totalDematAchieved =
+  currentTargets.reduce(
+    (total, target) =>
+      total +
+      Number(
+        target.dematAchieved
+      ),
+    0
+  );
+
 const totalAchievement =
   currentTargets.reduce(
     (
@@ -983,7 +993,6 @@ const companyEmployeeIds =
 
 const [
   companyCallGroups,
-  companyDematGroups,
   companyTargets,
 ] = await Promise.all([
   prisma.leadHistory.groupBy({
@@ -1005,23 +1014,6 @@ const [
     },
   }),
 
-  prisma.lead.groupBy({
-    by: ["assignedEmployeeId"],
-    where: {
-      assignedEmployeeId: {
-        in: companyEmployeeIds,
-      },
-      isConverted: true,
-      updatedAt: {
-        gte: monthStart,
-        lt: nextMonth,
-      },
-    },
-    _count: {
-      _all: true,
-    },
-  }),
-
   prisma.employeeTarget.findMany({
     where: {
       employeeId: {
@@ -1033,6 +1025,7 @@ const [
     select: {
       employeeId: true,
       achievedAmount: true,
+      dematAchieved: true,
       preIpoAchieved: true,
     },
   }),
@@ -1050,10 +1043,10 @@ const callsByEmployee =
 
 const dematByEmployee =
   new Map(
-    companyDematGroups.map(
-      (item) => [
-        item.assignedEmployeeId,
-        item._count._all,
+    companyTargets.map(
+      (target) => [
+        target.employeeId,
+        target.dematAchieved,
       ]
     )
   );
@@ -1278,6 +1271,8 @@ const companyLeaderboards = {
     totalRevenueTarget,
 
     totalDematTarget,
+
+    totalDematAchieved,
 
     totalPreIpoTarget,
 

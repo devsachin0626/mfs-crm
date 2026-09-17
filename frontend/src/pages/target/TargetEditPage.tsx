@@ -76,6 +76,7 @@ export default function TargetEditPage() {
       brokerageTarget: "",
       revenueTarget: "",
       dematTarget: "",
+      dematAchieved: "",
       achievedAmount: "",
       preIpoTarget: "",
       preIpoAchieved: "",
@@ -137,6 +138,12 @@ export default function TargetEditPage() {
             dematTarget:
               String(
                 data.dematTarget ||
+                  0
+              ),
+
+            dematAchieved:
+              String(
+                data.dematAchieved ||
                   0
               ),
 
@@ -273,6 +280,17 @@ export default function TargetEditPage() {
                 Math.floor(
                   Number(
                     form.dematTarget ||
+                      0
+                  )
+                ),
+                0
+              ),
+
+            dematAchieved:
+              Math.max(
+                Math.floor(
+                  Number(
+                    form.dematAchieved ||
                       0
                   )
                 ),
@@ -558,7 +576,7 @@ export default function TargetEditPage() {
             description="Update assigned monthly targets"
           />
 
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             <Field label="Brokerage Target">
               <MoneyInput
                 value={
@@ -629,6 +647,31 @@ export default function TargetEditPage() {
                 className={
                   inputClass
                 }
+              />
+            </Field>
+
+            <Field label="Demat Achieved">
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={
+                  form.dematAchieved
+                }
+                onChange={(
+                  e
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      dematAchieved:
+                        e.target.value,
+                    })
+                  )
+                }
+                className={inputClass}
               />
             </Field>
 

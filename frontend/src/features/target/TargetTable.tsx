@@ -44,6 +44,10 @@ export default function TargetTable({
               </th>
 
               <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                Demat Achieved
+              </th>
+
+              <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
                 Pre-IPO Target
               </th>
 
@@ -115,6 +119,10 @@ export default function TargetTable({
                       {
                         target.dematTarget
                       }
+                    </td>
+
+                    <td className="px-5 py-4 text-sm font-medium text-emerald-700">
+                      {target.dematAchieved}
                     </td>
 
                     <td className="px-5 py-4 text-sm font-medium text-slate-700">

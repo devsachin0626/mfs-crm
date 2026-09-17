@@ -86,6 +86,8 @@ export default function TargetCreatePage() {
 
       dematTarget: "",
 
+      dematAchieved: "",
+
       preIpoTarget: "",
 
       preIpoAchieved: "",
@@ -211,6 +213,9 @@ export default function TargetCreatePage() {
           form.dematTarget
         ) < 0 ||
         Number(
+          form.dematAchieved
+        ) < 0 ||
+        Number(
           form.preIpoTarget
         ) < 0 ||
         Number(
@@ -258,6 +263,12 @@ export default function TargetCreatePage() {
           dematTarget:
             Number(
               form.dematTarget ||
+                0
+            ),
+
+          dematAchieved:
+            Number(
+              form.dematAchieved ||
                 0
             ),
 
@@ -546,7 +557,7 @@ export default function TargetCreatePage() {
             description="Set brokerage, revenue, demat and Pre-IPO targets"
           />
 
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             <Field
               label="Brokerage Target"
               required
@@ -627,6 +638,32 @@ export default function TargetCreatePage() {
                 className={
                   inputClass
                 }
+              />
+            </Field>
+
+            <Field label="Demat Achieved">
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={
+                  form.dematAchieved
+                }
+                onChange={(
+                  e
+                ) =>
+                  setForm(
+                    (
+                      previous
+                    ) => ({
+                      ...previous,
+                      dematAchieved:
+                        e.target.value,
+                    })
+                  )
+                }
+                placeholder="0"
+                className={inputClass}
               />
             </Field>
 
@@ -711,6 +748,14 @@ export default function TargetCreatePage() {
               label="Demat"
               value={
                 form.dematTarget ||
+                "0"
+              }
+            />
+
+            <SummaryCard
+              label="Demat Achieved"
+              value={
+                form.dematAchieved ||
                 "0"
               }
             />

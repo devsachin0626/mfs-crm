@@ -136,6 +136,11 @@ export default function TargetListPage() {
               item.preIpoTarget
             );
 
+          acc.dematAchieved +=
+            Number(
+              item.dematAchieved
+            );
+
           acc.preIpoAchieved +=
             Number(
               item.preIpoAchieved
@@ -148,6 +153,7 @@ export default function TargetListPage() {
           revenue: 0,
           achieved: 0,
           preIpoTarget: 0,
+          dematAchieved: 0,
           preIpoAchieved: 0,
         }
       );
@@ -243,6 +249,16 @@ export default function TargetListPage() {
           )}`}
           icon={
             <Target size={20} />
+          }
+        />
+
+        <StatCard
+          title="Demat Achieved"
+          value={summary.dematAchieved}
+          icon={
+            <TrendingUp
+              size={20}
+            />
           }
         />
 

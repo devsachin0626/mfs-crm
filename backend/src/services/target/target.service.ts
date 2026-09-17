@@ -353,6 +353,13 @@ export const createTarget =
               )
             ),
 
+          dematAchieved:
+            Math.floor(
+              safeNumber(
+                data.dematAchieved
+              )
+            ),
+
           revenueTarget:
             safeNumber(
               data.revenueTarget
@@ -859,6 +866,16 @@ export const updateTarget =
               Math.floor(
                 safeNumber(
                   data.dematTarget
+                )
+              ),
+          }),
+
+          ...(data.dematAchieved !==
+            undefined && {
+            dematAchieved:
+              Math.floor(
+                safeNumber(
+                  data.dematAchieved
                 )
               ),
           }),

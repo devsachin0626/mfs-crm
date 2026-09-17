@@ -810,6 +810,8 @@ model EmployeeTarget {
 
   dematTarget Int @default(0)
 
+  dematAchieved Int @default(0)
+
   revenueTarget Decimal @default(0) @db.Decimal(12, 2)
 
   achievedAmount Decimal @default(0) @db.Decimal(12, 2)

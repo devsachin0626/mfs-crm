@@ -296,6 +296,13 @@ export default function DashboardPage() {
         0
     );
 
+  const totalDematAchieved =
+    Number(
+      targets
+        ?.totalDematAchieved ??
+        0
+    );
+
   const totalPreIpoTarget =
     Number(
       targets
@@ -850,6 +857,13 @@ export default function DashboardPage() {
                   label="Demat Target"
                   value={
                     totalDematTarget
+                  }
+                />
+
+                <MiniMetric
+                  label="Demat Achieved"
+                  value={
+                    totalDematAchieved
                   }
                 />
 

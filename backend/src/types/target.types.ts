@@ -9,6 +9,8 @@ export interface CreateTargetRequest {
 
   dematTarget: number;
 
+  dematAchieved?: number;
+
   revenueTarget: number;
 
   preIpoTarget: number;
@@ -20,6 +22,8 @@ export interface UpdateTargetRequest {
   brokerageTarget?: number;
 
   dematTarget?: number;
+
+  dematAchieved?: number;
 
   revenueTarget?: number;
 

@@ -4221,24 +4221,57 @@ export const fetchCallingLeads =
       );
     }
 
-    const source =
-      await prisma.leadSource.findFirst({
-        where: {
-          id: sourceId,
-          isActive: true,
-        },
+    const isWithoutSource =
+      sourceId === "__NO_SOURCE__";
 
-        select: {
-          id: true,
-          name: true,
-        },
-      });
+    const isAllSources =
+      sourceId === "__ALL_SOURCES__";
 
-    if (!source) {
+    const databaseSource =
+      isWithoutSource ||
+      isAllSources
+        ? null
+        : await prisma.leadSource.findFirst({
+            where: {
+              id: sourceId,
+              isActive: true,
+            },
+
+            select: {
+              id: true,
+              name: true,
+            },
+          });
+
+    if (
+      !isWithoutSource &&
+      !isAllSources &&
+      !databaseSource
+    ) {
       throw new Error(
         "Active lead source not found"
       );
     }
+
+    const source =
+      isWithoutSource
+        ? {
+            id: "__NO_SOURCE__",
+            name: "Without Source",
+          }
+        : isAllSources
+          ? {
+              id: "__ALL_SOURCES__",
+              name: "All Sources",
+            }
+          : databaseSource!;
+
+    const sourceCondition =
+      isWithoutSource
+        ? Prisma.sql`AND l."sourceId" IS NULL`
+        : isAllSources
+          ? Prisma.sql``
+          : Prisma.sql`AND l."sourceId" = ${source.id}`;
 
     const assigned =
       await prisma.$transaction(
@@ -4251,7 +4284,7 @@ export const fetchCallingLeads =
                 SELECT l."id"
                 FROM "leads" l
                 WHERE l."assignedEmployeeId" IS NULL
-                  AND l."sourceId" = ${source.id}
+                  ${sourceCondition}
                   AND l."isDuplicate" = false
                   AND l."isConverted" = false
                   AND l."stage" NOT IN ('LOST', 'CONVERTED')
@@ -4327,27 +4360,36 @@ export const fetchCallingLeads =
       );
     }
 
-    const availableRemaining =
-      await prisma.lead.count({
-        where: {
-          assignedEmployeeId: null,
-          sourceId: source.id,
-          isDuplicate: false,
-          isConverted: false,
-          stage: {
-            notIn: [
-              "LOST",
-              "CONVERTED",
-            ],
-          },
-          histories: {
-            none: {
-              callOutcome: {
-                not: null,
-              },
-            },
+    const remainingWhere: any = {
+      assignedEmployeeId: null,
+      isDuplicate: false,
+      isConverted: false,
+      stage: {
+        notIn: [
+          "LOST",
+          "CONVERTED",
+        ],
+      },
+      histories: {
+        none: {
+          callOutcome: {
+            not: null,
           },
         },
+      },
+    };
+
+    if (isWithoutSource) {
+      remainingWhere.sourceId =
+        null;
+    } else if (!isAllSources) {
+      remainingWhere.sourceId =
+        source.id;
+    }
+
+    const availableRemaining =
+      await prisma.lead.count({
+        where: remainingWhere,
       });
 
     return {

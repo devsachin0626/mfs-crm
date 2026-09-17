@@ -289,6 +289,8 @@ export default function CallingWorkspacePage() {
                 className={`${inputClass} mt-1`}
               >
                 <option value="">Select source</option>
+                <option value="__NO_SOURCE__">Without Source</option>
+                <option value="__ALL_SOURCES__">All Sources</option>
                 {sources.map((source) => (
                   <option key={source.id} value={source.id}>
                     {source.name}
